@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Alert, Chip } from "@/components/display";
 import { Text } from "@/components/typography";
-import { auth } from "@/lib/auth";
+import { isAppError } from "@/lib/kernel";
+import { http } from "@/lib/root";
+import { readInvite, type Invite } from "@/lib/services/auth";
 import { AuthShell } from "../../_components/auth-shell";
 import { InviteForm } from "./invite-form";
 import s from "../../_components/auth.module.css";
@@ -11,9 +13,14 @@ export const metadata: Metadata = { title: "You have been invited — Overwatch"
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const result = await auth.readInvite(token);
 
-  if (!result.ok) {
+  let invite: Invite;
+  try {
+    invite = await readInvite(http, token);
+  } catch (error) {
+    const message = isAppError(error)
+      ? error.message
+      : "This invitation could not be read.";
     return (
       <AuthShell
         title="This invitation is not valid"
@@ -24,7 +31,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         }
       >
         <Alert tone="crit">
-          <Text size="sm">{result.message}</Text>
+          <Text size="sm">{message}</Text>
           <Text size="sm" tone="tertiary">
             Invitations are withdrawn rather than deleted, so whoever sent this can
             see that it was used or revoked, and issue another.
@@ -38,13 +45,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const invite = result.value;
-
   return (
-    <AuthShell
-      title="You have been invited"
-      blurb={<>Read what this gives you before you accept it.</>}
-    >
+    <AuthShell title="You have been invited" blurb={<>Read what this gives you before you accept it.</>}>
       <div className={s.facts}>
         <div className={s.fact}>
           <span className={s.factKey}>workspace</span>
@@ -52,7 +54,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         </div>
         <div className={s.fact}>
           <span className={s.factKey}>invited by</span>
-          <span className={s.factVal}><span className={s.mono}>{invite.invitedBy}</span></span>
+          <span className={s.factVal}><span className={s.mono}>{invite.invited_by}</span></span>
         </div>
         <div className={s.fact}>
           <span className={s.factKey}>as</span>
@@ -70,9 +72,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <div className={s.fact}>
           <span className={s.factKey}>access ends</span>
           <span className={s.factVal}>
-            {invite.expiresAt ? (
+            {invite.expires_at ? (
               <>
-                <Chip tone="warn" glyph="▲">{invite.expiresAt}</Chip>
+                <Chip tone="warn" glyph="▲">{invite.expires_at}</Chip>
                 <Text size="xs" tone="quiet">and is not renewed automatically</Text>
               </>
             ) : (

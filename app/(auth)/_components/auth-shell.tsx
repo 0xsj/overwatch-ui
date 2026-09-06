@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Alert } from "@/components/display";
 import { Heading, Text } from "@/components/typography";
 import { ThemeToggle } from "@/components/chrome";
-import { auth } from "@/lib/auth";
+import { transport } from "@/lib/root";
 import s from "./auth.module.css";
 
 export function AuthShell({
@@ -38,7 +38,7 @@ export function AuthShell({
 
       <div className={s.foot}>
         <Alert tone="warn" live={false}>
-          <Text size="xs"><strong>This build has no backend.</strong> {auth.describe.note}</Text>
+          <Text size="xs"><strong>This build has no backend.</strong> {transport}</Text>
           {note ? <Text size="xs" tone="tertiary">{note}</Text> : null}
         </Alert>
         <ThemeToggle />
