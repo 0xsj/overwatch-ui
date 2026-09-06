@@ -20,9 +20,11 @@ export function SignInForm() {
       {state.status === "ok" ? (
         <Alert tone="accent">
           <Text size="sm">
-            Those credentials match the fixture. No session was created — there is
-            nothing yet to sign in to.
+            Those credentials match the fixture. No session was created and nothing
+            is guarding the screens yet, so this is a door beside an open wall —
+            said plainly rather than implied by a redirect.
           </Text>
+          <Link href="/home" className={s.link}>Open the application →</Link>
         </Alert>
       ) : null}
 

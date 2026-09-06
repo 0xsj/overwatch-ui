@@ -14,7 +14,7 @@ export default function SignInPage() {
       blurb="Every action you take from here names you in the audit trail."
       note={
         <>
-          One fixture account exists: <strong>sj@vertexlabs.example</strong> with the
+          One fixture account exists: <strong>sj@31m.example</strong> with the
           password <strong>correct-horse-battery</strong>. Anything else is refused.
         </>
       }

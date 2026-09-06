@@ -1,0 +1,96 @@
+@layer composition {
+  .sidebar {
+    background: var(--surface-sunk);
+    border-inline-end: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity var(--dur-1);
+  }
+
+  .sidebar:where([data-sidebar-hidden] *) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .head {
+    padding: var(--space-7) var(--space-7) var(--space-5);
+    flex: none;
+  }
+
+  .sub {
+    margin-block-start: var(--space-1);
+  }
+
+  .nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-4) var(--space-7);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-2);
+    color: var(--ink-2);
+    font-size: var(--text-12-5);
+    white-space: nowrap;
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .link:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .link[aria-current="page"] {
+    background: var(--surface-hover-2);
+    color: var(--ink);
+    font-weight: var(--weight-medium);
+  }
+
+  .foot {
+    border-block-start: 1px solid var(--line);
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex: none;
+  }
+
+  .avatar {
+    inline-size: 22px;
+    block-size: 22px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--surface-panel-2);
+    border: 1px solid var(--line-strong);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    font-weight: var(--weight-strong);
+    color: var(--ink-2);
+  }
+
+  .who {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .theme {
+    margin-inline-start: auto;
+    flex: none;
+  }
+
+  @media (max-width: 960px) {
+    .sidebar { display: none; }
+  }
+}

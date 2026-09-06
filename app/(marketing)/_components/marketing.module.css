@@ -52,6 +52,54 @@
         transparent 72%);
   }
 
+  /* Absolute, so the hero stays centred on the viewport rather than on what is
+     left of it. The page clips instead of scrolling, so anything in normal flow
+     up here pushes the wordmark down and the tagline out. */
+  .nav {
+    position: absolute;
+    inset-block-start: var(--space-8);
+    inset-inline-end: var(--space-8);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .quiet,
+  .signIn {
+    display: inline-flex;
+    align-items: center;
+    block-size: var(--control-md);
+    padding-inline: var(--space-6);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+  }
+
+  .quiet {
+    color: var(--ink-3);
+  }
+
+  .quiet:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .signIn {
+    border: 1px solid var(--line-strong);
+    background: var(--surface-panel);
+    color: var(--ink);
+  }
+
+  .signIn:hover { border-color: var(--line-heavy); background: var(--surface-panel-2); }
+
+  @media (max-width: 560px) {
+    .nav {
+      inset-inline: var(--space-6);
+      justify-content: center;
+    }
+  }
+
   /* inline-size: 100% matters more than it looks. The page clips rather than
      scrolls, so a body sized to its content overflows a narrow viewport and the
      tagline is CUT rather than wrapped. Width first, cap second. */

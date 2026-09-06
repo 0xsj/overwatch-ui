@@ -1,0 +1,39 @@
+@layer primitive {
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3);
+    background: var(--surface-panel);
+    min-inline-size: 0;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-5) var(--space-6);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .title {
+    font-size: var(--text-12-5);
+    font-weight: var(--weight-medium);
+    color: var(--ink);
+  }
+
+  .note {
+    font-size: var(--text-11-5);
+    color: var(--ink-4);
+    min-inline-size: 0;
+  }
+
+  .actions {
+    margin-inline-start: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: none;
+  }
+
+  .body { padding: var(--space-6); }
+  .bleed { padding: 0; }
+}

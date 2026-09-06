@@ -1,0 +1,25 @@
+@layer composition {
+  .head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8);
+    margin-block-end: var(--space-8);
+  }
+
+  .titles {
+    min-inline-size: 0;
+    flex: 1;
+  }
+
+  .sub {
+    margin-block-start: var(--space-3);
+    line-height: var(--leading-body);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: none;
+  }
+}

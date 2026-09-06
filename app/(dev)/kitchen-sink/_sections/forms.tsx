@@ -47,7 +47,7 @@ export async function FormsSection() {
             {(aria) => <Input {...aria} type="password" />}
           </Field>
           <Field label="Scope rules" hint="One pattern per line. Exclude beats include.">
-            {(aria) => <Textarea {...aria} mono defaultValue={"*.vertexlabs.example\n198.51.100.0/24"} />}
+            {(aria) => <Textarea {...aria} mono defaultValue={"*.halcyon.example\n198.51.100.0/24"} />}
           </Field>
         </div>
       </Panel>

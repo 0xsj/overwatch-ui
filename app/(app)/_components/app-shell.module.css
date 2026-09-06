@@ -1,0 +1,59 @@
+@layer composition {
+  .app {
+    display: grid;
+    grid-template-columns: 48px 244px 1fr;
+    block-size: 100dvh;
+    overflow: hidden;
+    position: relative;
+    transition: grid-template-columns var(--dur-2) var(--ease);
+  }
+
+  .app[data-sidebar-hidden] {
+    grid-template-columns: 48px 0 1fr;
+  }
+
+  .skip {
+    position: absolute;
+    inset-block-start: var(--space-2);
+    inset-inline-start: var(--space-2);
+    z-index: var(--z-sticky);
+    padding: var(--space-3) var(--space-5);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    background: var(--surface-raised);
+    color: var(--ink);
+    font-size: var(--text-12-5);
+    transform: translateY(-200%);
+    transition: transform var(--dur-1) var(--ease);
+  }
+
+  .skip:focus {
+    transform: none;
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+    overflow: hidden;
+  }
+
+  .body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .wrap {
+    outline: none;
+    padding: var(--space-8) var(--space-8) var(--space-11);
+    max-inline-size: var(--page-max);
+  }
+
+  @media (max-width: 960px) {
+    .app,
+    .app[data-sidebar-hidden] {
+      grid-template-columns: 48px 1fr;
+    }
+  }
+}

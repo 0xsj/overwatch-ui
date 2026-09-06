@@ -1,0 +1,38 @@
+@layer composition {
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-7) var(--space-8);
+    margin-block-start: var(--space-6);
+  }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    max-inline-size: 44ch;
+  }
+
+  .art { flex: none; margin-block-start: 5px; }
+
+  .term {
+    font-size: var(--text-11-5);
+    font-weight: var(--weight-medium);
+    color: var(--ink-2);
+  }
+
+  .gloss {
+    font-size: var(--text-11-5);
+    color: var(--ink-3);
+    line-height: var(--leading-snug);
+    margin-block-start: 1px;
+  }
+
+  .no {
+    margin-block-start: var(--space-7);
+    line-height: var(--leading-body);
+    max-inline-size: 92ch;
+  }
+
+  .strong { color: var(--ink-2); font-weight: var(--weight-medium); }
+}

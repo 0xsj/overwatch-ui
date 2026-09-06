@@ -1,0 +1,67 @@
+@layer composition {
+  .rail {
+    background: var(--surface-rail);
+    border-inline-end: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-4) 0;
+    gap: var(--space-1);
+  }
+
+  .logo {
+    inline-size: 32px;
+    block-size: 32px;
+    display: grid;
+    place-items: center;
+    margin-block-end: var(--space-4);
+    color: var(--accent);
+    border-radius: var(--radius-2);
+  }
+
+  .button {
+    inline-size: 34px;
+    block-size: 34px;
+    border-radius: var(--radius-2);
+    display: grid;
+    place-items: center;
+    color: var(--ink-3);
+    position: relative;
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .button:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .button[aria-current] {
+    background: var(--surface-hover-2);
+    color: var(--ink);
+  }
+
+  .tip {
+    position: absolute;
+    inset-inline-start: 44px;
+    inset-block-start: 50%;
+    transform: translateY(-50%) scale(0.96);
+    background: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    padding: var(--space-1) var(--space-4);
+    font-size: var(--text-11-5);
+    color: var(--ink);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    z-index: var(--z-raised);
+    box-shadow: var(--shadow);
+    transition: opacity var(--dur-1), transform var(--dur-1);
+  }
+
+  .button:hover .tip,
+  .button:focus-visible .tip {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}

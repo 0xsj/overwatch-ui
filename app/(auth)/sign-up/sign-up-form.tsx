@@ -46,7 +46,7 @@ export function SignUpForm() {
         error={errorFor(state, "workspace")}
         required
       >
-        {(aria) => <Input {...aria} name="workspace" placeholder="Vertex Labs Security" />}
+        {(aria) => <Input {...aria} name="workspace" placeholder="31m" />}
       </Field>
 
       <Field

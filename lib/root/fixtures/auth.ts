@@ -9,9 +9,9 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  *  the source. It is a fixture, not a secret; hiding it behind an environment
  *  variable would imply it protects something. */
 const ACCOUNTS = new Map<string, { password: string; session: Session }>([
-  ["sj@vertexlabs.example", {
+  ["sj@31m.example", {
     password: "correct-horse-battery",
-    session: { account_id: "acct_01JQ8H", email: "sj@vertexlabs.example", name: "S. Jarratt" },
+    session: { account_id: "acct_01JQ8H", email: "sj@31m.example", name: "S. Jarratt" },
   }],
 ]);
 
@@ -19,17 +19,17 @@ const INVITES = new Map<string, Invite>([
   ["inv_01JQ8H", {
     token: "inv_01JQ8H",
     email: "m.okafor@halcyon.example",
-    workspace: "Vertex Labs Security",
-    invited_by: "sj@vertexlabs.example",
+    workspace: "31m",
+    invited_by: "sj@31m.example",
     role: "Client",
     external: true,
     expires_at: "30 September 2026",
   }],
   ["inv_01JQ8K", {
     token: "inv_01JQ8K",
-    email: "r.deng@vertexlabs.example",
-    workspace: "Vertex Labs Security",
-    invited_by: "sj@vertexlabs.example",
+    email: "r.deng@31m.example",
+    workspace: "31m",
+    invited_by: "sj@31m.example",
     role: "Analyst",
     external: false,
   }],

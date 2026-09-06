@@ -1,0 +1,135 @@
+@layer composition {
+  .switcher {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-block-end: var(--space-6);
+  }
+
+  .root {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    block-size: var(--control-md);
+    padding-inline: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel);
+    font-size: var(--text-12);
+    color: var(--ink-2);
+    transition: border-color var(--dur-1), color var(--dur-1), background var(--dur-1);
+  }
+
+  .root:hover { border-color: var(--line-strong); color: var(--ink); }
+
+  .root[aria-current] {
+    border-color: var(--accent-line);
+    background: var(--accent-tint);
+    color: var(--ink);
+  }
+
+  .rootKind {
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    color: var(--ink-4);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+  }
+
+  .rootCount {
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .aside { margin-inline-start: var(--space-3); }
+
+  .caution { margin-block-end: var(--space-6); }
+  .blurb { margin-block-end: var(--space-7); line-height: var(--leading-body); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: var(--space-5);
+    margin-block-end: var(--space-7);
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-block-end: var(--space-5);
+  }
+
+  .controlLabel {
+    font-size: var(--text-10);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+    margin-inline-end: var(--space-2);
+  }
+
+  .filter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    block-size: var(--control-sm);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-11-5);
+    color: var(--ink-4);
+    transition: border-color var(--dur-1), color var(--dur-1), background var(--dur-1);
+  }
+
+  .filter[aria-pressed="true"] {
+    border-color: var(--line-strong);
+    background: var(--surface-panel-2);
+    color: var(--ink-2);
+  }
+
+  .filter[aria-pressed="false"] { text-decoration: line-through; }
+
+  .filterCount {
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .relayout { margin-inline-start: auto; }
+
+  .below {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+    margin-block-start: var(--space-6);
+  }
+
+  @media (max-width: 1080px) {
+    .below { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* Above the field, never over it. Floating this reads well until the day it
+     lands on a node, and then it looks like the canvas lost one. */
+  .truncation {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    margin-block-end: var(--space-5);
+    padding: var(--space-5) var(--space-6);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-2);
+    background: var(--warn-tint);
+    color: var(--warn);
+    font-size: var(--text-11-5);
+    line-height: var(--leading-snug);
+  }
+
+  .truncation strong { font-weight: var(--weight-medium); }
+  .truncation a { color: var(--warn); text-decoration: underline; }
+
+}

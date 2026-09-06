@@ -1,0 +1,93 @@
+@layer composition {
+  .top {
+    block-size: 46px;
+    flex: none;
+    border-block-end: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding-inline: var(--space-6) var(--space-5);
+    background: var(--surface-ground);
+  }
+
+  .panel {
+    inline-size: 28px;
+    block-size: 28px;
+    flex: none;
+    border-radius: var(--radius-2);
+    display: grid;
+    place-items: center;
+    color: var(--ink-3);
+    position: relative;
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .panel:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .tip {
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 34px;
+    transform: translateX(-50%);
+    background: var(--surface-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    padding: var(--space-1) var(--space-4);
+    font-size: var(--text-11);
+    color: var(--ink);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    z-index: var(--z-raised);
+    box-shadow: var(--shadow);
+    transition: opacity var(--dur-1);
+  }
+
+  .panel:hover .tip,
+  .panel:focus-visible .tip {
+    opacity: 1;
+  }
+
+  .crumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-inline-size: 0;
+    margin-inline-start: var(--space-2);
+  }
+
+  .crumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    block-size: 28px;
+    padding-inline: var(--space-4);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+    white-space: nowrap;
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .crumb:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .icon { color: var(--ink-4); }
+
+  .slash {
+    color: var(--ink-4);
+    padding-inline: var(--space-1);
+    font-size: var(--text-13);
+  }
+
+  .kind {
+    margin-inline-start: var(--space-3);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+  }
+}

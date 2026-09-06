@@ -1,0 +1,43 @@
+@layer primitive {
+  .stat {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3);
+    background: var(--surface-panel);
+    padding: var(--space-6);
+    min-inline-size: 0;
+  }
+
+  .label {
+    font-size: var(--text-10);
+    font-weight: var(--weight-strong);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+  }
+
+  .value {
+    font-size: var(--text-22);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tight);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    padding-block-start: var(--space-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .unmeasured { color: var(--ink-4); }
+
+  .note {
+    font-size: var(--text-11);
+    color: var(--ink-3);
+    padding-block-start: var(--space-2);
+    line-height: var(--leading-snug);
+  }
+
+  .accent { color: var(--accent); }
+  .warn   { color: var(--warn); }
+  .crit   { color: var(--crit); }
+  .info   { color: var(--info); }
+}

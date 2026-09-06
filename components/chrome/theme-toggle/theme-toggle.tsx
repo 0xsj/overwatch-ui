@@ -1,7 +1,7 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/forms";
 import { cn } from "@/lib/kernel";
 import s from "./theme-toggle.module.css";
@@ -14,6 +14,21 @@ const OPTIONS = [
 
 type Choice = (typeof OPTIONS)[number]["value"];
 
+function subscribe(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
+function getSnapshot(): Choice {
+  const attr = document.documentElement.getAttribute("data-theme");
+  return attr === "light" || attr === "dark" ? attr : "system";
+}
+
+function getServerSnapshot(): Choice {
+  return "system";
+}
+
 function apply(next: Choice) {
   const el = document.documentElement;
   if (next === "system") el.removeAttribute("data-theme");
@@ -21,12 +36,7 @@ function apply(next: Choice) {
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const [choice, setChoice] = useState<Choice>("system");
-
-  useEffect(() => {
-    const attr = document.documentElement.getAttribute("data-theme");
-    if (attr === "light" || attr === "dark") setChoice(attr);
-  }, []);
+  const choice = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
     <div role="group" aria-label="Theme" className={cn(s.group, className)}>
@@ -37,7 +47,7 @@ export function ThemeToggle({ className }: { className?: string }) {
           intent={choice === value ? "secondary" : "ghost"}
           aria-label={label}
           aria-pressed={choice === value}
-          onClick={() => { setChoice(value); apply(value); }}
+          onClick={() => apply(value)}
         >
           <Icon size={14} />
         </Button>

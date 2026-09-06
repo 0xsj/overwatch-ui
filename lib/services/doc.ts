@@ -36,5 +36,23 @@
  * routes yet, so these are proposals. They are confined to one file per domain on
  * purpose: that is what the seam buys. When the real routes land, `auth.api.ts`
  * changes and nothing above it does.
+ *
+ * # `shell` is named for its caller, and that is deliberate
+ *
+ * Every other domain here will be named for a thing in the product — `auth`,
+ * later `targets`, `findings`. `shell` is named for the screen that needs it,
+ * because that is honestly what it is: one read that answers *who is signed in,
+ * whose tenant is this, and which target is open*, so the chrome can draw itself
+ * without three round trips before anything appears.
+ *
+ * The alternative was three domains — `identity`, `orgs`, `targets` — each with
+ * one function, called in sequence by a layout that cannot render until all three
+ * land. That is a tidier diagram and a slower first paint, and it invents two
+ * domains before either has a second caller.
+ *
+ * The bet it makes is that the server will grow an endpoint shaped like this one.
+ * If it does not, `getShellContext` becomes three calls behind the same signature
+ * and nothing above it changes — which is the same bet every path in this tier is
+ * already making.
  */
 export {};
