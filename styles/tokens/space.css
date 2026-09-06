@@ -1,0 +1,19 @@
+@layer token {
+  :root {
+    --space-1:  2px;
+    --space-2:  4px;
+    --space-3:  6px;
+    --space-4:  8px;
+    --space-5:  10px;
+    --space-6:  13px;
+    --space-7:  16px;
+    --space-8:  22px;
+    --space-9:  32px;
+    --space-10: 48px;
+    --space-11: 72px;
+    --space-12: 104px;
+
+    --measure: 68ch;
+    --page-max: 1560px;
+  }
+}

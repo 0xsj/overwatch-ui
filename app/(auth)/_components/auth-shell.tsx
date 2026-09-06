@@ -1,0 +1,48 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { Alert } from "@/components/display";
+import { Heading, Text } from "@/components/typography";
+import { ThemeToggle } from "@/components/chrome";
+import { auth } from "@/lib/auth";
+import s from "./auth.module.css";
+
+export function AuthShell({
+  title, blurb, children, below, note,
+}: {
+  title: string;
+  blurb?: ReactNode;
+  children: ReactNode;
+  below?: ReactNode;
+  /** Appended to the no-backend notice. For anything only true of one screen. */
+  note?: ReactNode;
+}) {
+  return (
+    <div className={s.shell}>
+      <div className={s.glow} aria-hidden="true" />
+
+      <div className={s.column}>
+        <Link href="/" className={s.brand}>
+          <span className={s.wordmark}>overwatch</span>
+        </Link>
+
+        <div className={s.card}>
+          <div className={s.cardHead}>
+            <Heading level={1} scale="h1">{title}</Heading>
+            {blurb ? <Text size="sm" tone="tertiary">{blurb}</Text> : null}
+          </div>
+          {children}
+        </div>
+
+        {below ? <div className={s.alt}>{below}</div> : null}
+      </div>
+
+      <div className={s.foot}>
+        <Alert tone="warn" live={false}>
+          <Text size="xs"><strong>This build has no backend.</strong> {auth.describe.note}</Text>
+          {note ? <Text size="xs" tone="tertiary">{note}</Text> : null}
+        </Alert>
+        <ThemeToggle />
+      </div>
+    </div>
+  );
+}

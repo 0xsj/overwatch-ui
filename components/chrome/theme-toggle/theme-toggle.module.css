@@ -1,0 +1,11 @@
+@layer composition {
+  .group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel-2);
+  }
+}

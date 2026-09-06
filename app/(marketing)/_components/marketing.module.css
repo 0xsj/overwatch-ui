@@ -1,0 +1,86 @@
+@layer screen {
+  /* One screen, and it must not scroll. 100dvh rather than 100vh so a mobile
+     browser's collapsing toolbar does not push the last line under the chrome. */
+  .page {
+    position: relative;
+    block-size: 100dvh;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    padding: var(--space-8);
+    background: var(--surface-ground);
+    isolation: isolate;
+
+    /* The bloom's three strengths are local properties rather than tokens: the
+       same alpha does not carry the same weight on a near-black ground and a
+       near-white one, and that is a decision about this screen. */
+    --bloom-core: 48%;
+    --bloom-mid:  22%;
+    --bloom-far:  15%;
+  }
+  :root[data-theme="light"] .page {
+    --bloom-core: 26%;
+    --bloom-mid:  11%;
+    --bloom-far:   8%;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .page {
+      --bloom-core: 26%;
+      --bloom-mid:  11%;
+      --bloom-far:   8%;
+    }
+  }
+
+  /* One bloom, mixed FROM the accent token so a single construction resolves in
+     both themes — in dark the accent is a bright green and reads as a glow; in
+     light it is a deep green and reads as a wash. It is centred below the
+     wordmark and sized so the word sits inside its upper falloff, which is what
+     stops the gradient reading as a separate object at the bottom of the page. */
+  .glow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(104% 96% at 50% 112%,
+        color-mix(in srgb, var(--accent) var(--bloom-core), transparent) 0%,
+        color-mix(in srgb, var(--accent) var(--bloom-mid), transparent) 32%,
+        color-mix(in srgb, var(--accent) var(--bloom-far), transparent) 54%,
+        transparent 86%),
+      radial-gradient(70% 40% at 50% -10%,
+        color-mix(in srgb, var(--info) var(--bloom-far), transparent) 0%,
+        transparent 72%);
+  }
+
+  /* inline-size: 100% matters more than it looks. The page clips rather than
+     scrolls, so a body sized to its content overflows a narrow viewport and the
+     tagline is CUT rather than wrapped. Width first, cap second. */
+  .body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-8);
+    text-align: center;
+    inline-size: 100%;
+    max-inline-size: 52ch;
+  }
+
+  .wordmark {
+    font-size: clamp(var(--text-30), min(9vw, 13vh), 88px);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .tagline { max-inline-size: min(46ch, 100%); }
+
+  .foot {
+    position: absolute;
+    inset-block-end: var(--space-9);
+    inset-inline: 0;
+    display: flex;
+    justify-content: center;
+  }
+}

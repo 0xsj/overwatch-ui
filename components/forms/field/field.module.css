@@ -1,0 +1,7 @@
+@layer primitive {
+  .field { display: grid; gap: var(--space-3); }
+  .label { font-size: var(--text-12); color: var(--ink-2); font-weight: var(--weight-medium); }
+  .required { color: var(--crit); margin-inline-start: var(--space-1); }
+  .hint { font-size: var(--text-11); color: var(--ink-3); line-height: var(--leading-snug); }
+  .error { font-size: var(--text-11); color: var(--crit); line-height: var(--leading-snug); }
+}

@@ -1,0 +1,12 @@
+@layer base {
+  body {
+    background: var(--surface-ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-13);
+    line-height: var(--leading-snug);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--accent-tint); }
+}

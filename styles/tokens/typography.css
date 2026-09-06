@@ -1,0 +1,32 @@
+@layer token {
+  :root {
+    --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: var(--font-mono-src), ui-monospace, "SF Mono", Menlo, monospace;
+
+    --text-9:    9.5px;
+    --text-10:   10px;
+    --text-11:   11px;
+    --text-11-5: 11.5px;
+    --text-12:   12px;
+    --text-12-5: 12.5px;
+    --text-13:   13px;
+    --text-15:   15px;
+    --text-18:   18px;
+    --text-22:   22px;
+    --text-30:   30px;
+    --text-42:   42px;
+    --text-54:   54px;
+
+    --weight-regular: 400;
+    --weight-medium:  450;
+    --weight-strong:  500;
+    --weight-bold:    600;
+
+    --leading-tight: 1.25;
+    --leading-snug:  1.45;
+    --leading-body:  1.65;
+
+    --tracking-tight: -0.018em;
+    --tracking-label:  0.07em;
+  }
+}

@@ -1,0 +1,13 @@
+@layer token {
+  :root {
+    --radius-1: 4px;
+    --radius-2: 6px;
+    --radius-3: 8px;
+    --radius-4: 12px;
+    --radius-pill: 999px;
+
+    --control-sm: 24px;
+    --control-md: 30px;
+    --control-lg: 38px;
+  }
+}

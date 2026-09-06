@@ -1,0 +1,10 @@
+@layer token {
+  :root {
+    --z-raised:  10;
+    --z-sticky:  20;
+    --z-scrim:   40;
+    --z-drawer:  41;
+    --z-palette: 60;
+    --z-toast:   70;
+  }
+}

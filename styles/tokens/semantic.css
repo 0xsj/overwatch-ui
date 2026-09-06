@@ -1,0 +1,126 @@
+@layer token {
+  :root {
+    --surface-ground:  var(--neutral-1000);
+    --surface-rail:    var(--neutral-975);
+    --surface-sunk:    var(--neutral-950);
+    --surface-panel:   var(--neutral-925);
+    --surface-panel-2: var(--neutral-900);
+    --surface-raised:  var(--neutral-850);
+    --surface-hover:   var(--alpha-w-045);
+    --surface-hover-2: var(--alpha-w-075);
+
+    --line:        var(--alpha-w-07);
+    --line-strong: var(--alpha-w-12);
+    --line-heavy:  var(--alpha-w-20);
+
+    --ink:      var(--neutral-150);
+    --ink-2:    var(--neutral-400);
+    --ink-3:    var(--neutral-500);
+    --ink-4:    var(--neutral-550);
+
+    --accent:       var(--green-400);
+    --accent-dim:   var(--green-500);
+    --accent-tint:  var(--green-tint-dark);
+    --accent-line:  var(--green-line-dark);
+    --fill:         var(--green-700);
+    --fill-hover:   var(--green-600);
+    --fill-ink:     #f4fbf7;
+
+    --warn:      var(--amber-400);
+    --warn-tint: var(--amber-tint-dark);
+    --warn-line: var(--amber-line-dark);
+    --crit:      var(--red-400);
+    --crit-tint: var(--red-tint-dark);
+    --crit-line: var(--red-line-dark);
+    --info:      var(--blue-400);
+    --info-tint: var(--blue-tint-dark);
+    --info-line: var(--blue-line-dark);
+
+    --scrim:  rgb(0 0 0 / 0.66);
+    --shadow: 0 16px 44px -16px rgb(0 0 0 / 0.8), 0 0 0 1px var(--line);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --surface-ground:  var(--neutral-25);
+      --surface-rail:    var(--neutral-50);
+      --surface-sunk:    var(--neutral-50);
+      --surface-panel:   var(--neutral-0);
+      --surface-panel-2: var(--neutral-50);
+      --surface-raised:  var(--neutral-0);
+      --surface-hover:   var(--alpha-b-035);
+      --surface-hover-2: var(--alpha-b-06);
+
+      --line:        var(--alpha-b-08);
+      --line-strong: var(--alpha-b-13);
+      --line-heavy:  var(--alpha-b-22);
+
+      --ink:      var(--neutral-max);
+      --ink-2:    var(--neutral-750);
+      --ink-3:    var(--neutral-700);
+      --ink-4:    var(--neutral-650);
+
+      --accent:      var(--green-900);
+      --accent-dim:  var(--green-800);
+      --accent-tint: var(--green-tint-light);
+      --accent-line: var(--green-line-light);
+      --fill:        var(--green-700);
+      --fill-hover:  var(--green-800);
+      --fill-ink:    #ffffff;
+
+      --warn:      var(--amber-800);
+      --warn-tint: var(--amber-tint-light);
+      --warn-line: var(--amber-line-light);
+      --crit:      var(--red-800);
+      --crit-tint: var(--red-tint-light);
+      --crit-line: var(--red-line-light);
+      --info:      var(--blue-800);
+      --info-tint: var(--blue-tint-light);
+      --info-line: var(--blue-line-light);
+
+      --scrim:  rgb(24 24 24 / 0.32);
+      --shadow: 0 16px 44px -18px rgb(20 20 20 / 0.2), 0 0 0 1px var(--line);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --surface-ground:  var(--neutral-25);
+    --surface-rail:    var(--neutral-50);
+    --surface-sunk:    var(--neutral-50);
+    --surface-panel:   var(--neutral-0);
+    --surface-panel-2: var(--neutral-50);
+    --surface-raised:  var(--neutral-0);
+    --surface-hover:   var(--alpha-b-035);
+    --surface-hover-2: var(--alpha-b-06);
+
+    --line:        var(--alpha-b-08);
+    --line-strong: var(--alpha-b-13);
+    --line-heavy:  var(--alpha-b-22);
+
+    --ink:      var(--neutral-max);
+    --ink-2:    var(--neutral-750);
+    --ink-3:    var(--neutral-700);
+    --ink-4:    var(--neutral-650);
+
+    --accent:      var(--green-900);
+    --accent-dim:  var(--green-800);
+    --accent-tint: var(--green-tint-light);
+    --accent-line: var(--green-line-light);
+    --fill:        var(--green-700);
+    --fill-hover:  var(--green-800);
+    --fill-ink:    #ffffff;
+
+    --warn:      var(--amber-800);
+    --warn-tint: var(--amber-tint-light);
+    --warn-line: var(--amber-line-light);
+    --crit:      var(--red-800);
+    --crit-tint: var(--red-tint-light);
+    --crit-line: var(--red-line-light);
+    --info:      var(--blue-800);
+    --info-tint: var(--blue-tint-light);
+    --info-line: var(--blue-line-light);
+
+    --scrim:  rgb(24 24 24 / 0.32);
+    --shadow: 0 16px 44px -18px rgb(20 20 20 / 0.2), 0 0 0 1px var(--line);
+  }
+}

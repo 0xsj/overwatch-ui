@@ -1,0 +1,22 @@
+@layer primitive {
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    block-size: 20px;
+    padding-inline: var(--space-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel-2);
+    color: var(--ink-2);
+    font-size: var(--text-10);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+  }
+  .glyph { font-family: var(--font-mono); font-size: var(--text-10); }
+  .accent { border-color: var(--accent-line); background: var(--accent-tint); color: var(--accent); }
+  .warn   { border-color: var(--warn-line);   background: var(--warn-tint);   color: var(--warn); }
+  .crit   { border-color: var(--crit-line);   background: var(--crit-tint);   color: var(--crit); }
+  .info   { border-color: var(--info-line);   background: var(--info-tint);   color: var(--info); }
+  .mono { font-family: var(--font-mono); font-weight: var(--weight-regular); }
+}

@@ -1,0 +1,26 @@
+@layer primitive {
+  .alert {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    gap: var(--space-5);
+    padding: var(--space-6);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel-2);
+    color: var(--ink-2);
+    font-size: var(--text-12);
+    line-height: var(--leading-snug);
+  }
+  .glyph {
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+    line-height: 1.45;
+    padding-block-start: 1px;
+  }
+  .body > * + * { margin-block-start: var(--space-3); }
+
+  .crit { border-color: var(--crit-line); background: var(--crit-tint); color: var(--crit); }
+  .warn { border-color: var(--warn-line); background: var(--warn-tint); color: var(--warn); }
+  .info { border-color: var(--info-line); background: var(--info-tint); color: var(--info); }
+  .accent { border-color: var(--accent-line); background: var(--accent-tint); color: var(--accent); }
+}

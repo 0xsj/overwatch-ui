@@ -1,0 +1,120 @@
+@layer screen {
+  .shell {
+    position: relative;
+    min-block-size: 100dvh;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    justify-items: center;
+    padding: var(--space-10) var(--space-7) var(--space-7);
+    background: var(--surface-ground);
+    isolation: isolate;
+  }
+
+  /* The same accent bloom as the coming-soon screen, at a fraction of the
+     strength: continuity with the landing page, and a form is a place to work
+     rather than a place to look. */
+  .glow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(72% 48% at 50% -12%,
+      color-mix(in srgb, var(--accent) 16%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 6%, transparent) 38%,
+      transparent 74%);
+  }
+
+  .column {
+    inline-size: 100%;
+    max-inline-size: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    text-decoration: none;
+  }
+  .wordmark {
+    font-size: var(--text-18);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-9);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-4);
+    background: var(--surface-panel);
+    box-shadow: var(--shadow);
+  }
+  .cardHead { display: flex; flex-direction: column; gap: var(--space-4); }
+
+  .form { display: flex; flex-direction: column; gap: var(--space-7); }
+  .rowBetween { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-5); }
+
+  .link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: var(--text-11-5);
+  }
+  .link:hover { text-decoration: underline; }
+  .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-1); }
+
+  .alt { text-align: center; }
+
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    color: var(--ink-4);
+    font-size: var(--text-10);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+  .rule::before, .rule::after {
+    content: "";
+    flex: 1;
+    block-size: 1px;
+    background: var(--line-strong);
+  }
+
+  /* The invitation's facts, before anything is typed. */
+  .facts { display: grid; gap: 0; }
+  .fact {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: var(--space-5);
+    padding-block: var(--space-5);
+    border-block-end: 1px solid var(--line);
+  }
+  .fact:last-child { border-block-end: 0; }
+  .factKey {
+    font-size: var(--text-10);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--ink-4);
+    padding-block-start: 2px;
+  }
+  .factVal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); min-inline-size: 0; }
+  .mono { font-family: var(--font-mono); font-size: var(--text-11-5); color: var(--ink-2); overflow-wrap: anywhere; }
+
+  .foot {
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    padding-block-start: var(--space-9);
+    text-align: center;
+    max-inline-size: 52ch;
+  }
+}

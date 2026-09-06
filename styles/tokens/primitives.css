@@ -1,0 +1,70 @@
+@layer token {
+  :root {
+    --neutral-0:    #ffffff;
+    --neutral-25:   #fcfcfc;
+    --neutral-50:   #fafafa;
+    --neutral-100:  #f4f4f5;
+    --neutral-150:  #ededed;
+    --neutral-200:  #e6e8eb;
+    --neutral-300:  #d8dbde;
+    --neutral-400:  #b4b4b4;
+    --neutral-500:  #9f9f9f;
+    --neutral-550:  #8f8f8f;
+    --neutral-600:  #7d7d7d;
+    --neutral-650:  #666666;
+    --neutral-700:  #5c5c5c;
+    --neutral-750:  #4a4a4a;
+    --neutral-800:  #2e2e2e;
+    --neutral-850:  #1f1f1f;
+    --neutral-900:  #1c1c1c;
+    --neutral-925:  #181818;
+    --neutral-950:  #171717;
+    --neutral-975:  #141414;
+    --neutral-1000: #121212;
+    --neutral-max:  #1a1a1a;
+
+    --green-300: #68e0a8;
+    --green-400: #3ecf8e;
+    --green-500: #2f9d6d;
+    --green-600: #348159;
+    --green-700: #2b6e4a;
+    --green-800: #23603d;
+    --green-900: #0d7248;
+    --green-tint-dark:  rgb(62 207 142 / 0.10);
+    --green-line-dark:  rgb(62 207 142 / 0.26);
+    --green-tint-light: rgb(13 114 72 / 0.08);
+    --green-line-light: rgb(13 114 72 / 0.24);
+
+    --amber-400: #f5b14a;
+    --amber-800: #9a5b00;
+    --amber-tint-dark:  rgb(245 177 74 / 0.10);
+    --amber-line-dark:  rgb(245 177 74 / 0.24);
+    --amber-tint-light: rgb(154 91 0 / 0.08);
+    --amber-line-light: rgb(154 91 0 / 0.22);
+
+    --red-400: #f16a6f;
+    --red-800: #c62a30;
+    --red-tint-dark:  rgb(241 106 111 / 0.10);
+    --red-line-dark:  rgb(241 106 111 / 0.24);
+    --red-tint-light: rgb(198 42 48 / 0.07);
+    --red-line-light: rgb(198 42 48 / 0.22);
+
+    --blue-400: #66a9f5;
+    --blue-800: #0b6fc4;
+    --blue-tint-dark:  rgb(102 169 245 / 0.10);
+    --blue-line-dark:  rgb(102 169 245 / 0.24);
+    --blue-tint-light: rgb(11 111 196 / 0.07);
+    --blue-line-light: rgb(11 111 196 / 0.22);
+
+    --alpha-w-045: rgb(255 255 255 / 0.045);
+    --alpha-w-075: rgb(255 255 255 / 0.075);
+    --alpha-w-07:  rgb(255 255 255 / 0.07);
+    --alpha-w-12:  rgb(255 255 255 / 0.12);
+    --alpha-w-20:  rgb(255 255 255 / 0.20);
+    --alpha-b-035: rgb(0 0 0 / 0.035);
+    --alpha-b-06:  rgb(0 0 0 / 0.06);
+    --alpha-b-08:  rgb(0 0 0 / 0.08);
+    --alpha-b-13:  rgb(0 0 0 / 0.13);
+    --alpha-b-22:  rgb(0 0 0 / 0.22);
+  }
+}

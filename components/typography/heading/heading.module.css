@@ -1,0 +1,14 @@
+@layer primitive {
+  .heading { margin: 0; font-weight: var(--weight-medium); letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); text-wrap: balance; }
+  .d0 { font-size: clamp(var(--text-30), 5.2vw, var(--text-54)); font-weight: var(--weight-bold); letter-spacing: -0.026em; }
+  .d1 { font-size: var(--text-42); font-weight: var(--weight-bold); }
+  .d2 { font-size: var(--text-30); }
+  .h1 { font-size: var(--text-22); }
+  .h2 { font-size: var(--text-18); }
+  .h3 { font-size: var(--text-15); }
+  .label {
+    font-size: var(--text-10); text-transform: uppercase;
+    letter-spacing: var(--tracking-label); color: var(--ink-3);
+    font-weight: var(--weight-strong);
+  }
+}

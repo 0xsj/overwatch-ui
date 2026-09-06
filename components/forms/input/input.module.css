@@ -1,0 +1,20 @@
+@layer primitive {
+  .input {
+    inline-size: 100%;
+    height: var(--control-md);
+    padding-inline: var(--space-5);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel);
+    color: var(--ink);
+    font-size: var(--text-12-5);
+    transition: border-color var(--dur-1), box-shadow var(--dur-1);
+  }
+  .input::placeholder { color: var(--ink-4); }
+  .input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
+  .input[data-invalid] { border-color: var(--crit-line); }
+  .input[data-invalid]:focus-visible { border-color: var(--crit); box-shadow: 0 0 0 2px var(--crit-tint); }
+  .input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .textarea { height: auto; padding-block: var(--space-4); line-height: var(--leading-body); resize: vertical; }
+  .mono { font-family: var(--font-mono); font-size: var(--text-11-5); }
+}

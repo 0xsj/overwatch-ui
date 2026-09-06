@@ -1,0 +1,14 @@
+@layer primitive {
+  .text { margin: 0; }
+  .xs { font-size: var(--text-11); }
+  .sm { font-size: var(--text-12); }
+  .md { font-size: var(--text-12-5); }
+  .lg { font-size: var(--text-15); }
+  .primary   { color: var(--ink); }
+  .secondary { color: var(--ink-2); }
+  .tertiary  { color: var(--ink-3); }
+  .quiet     { color: var(--ink-4); }
+  .accent    { color: var(--accent); }
+  .mono { font-family: var(--font-mono); font-size: 0.93em; }
+  .measure { max-inline-size: var(--measure); line-height: var(--leading-body); }
+}
