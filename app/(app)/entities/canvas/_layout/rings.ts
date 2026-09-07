@@ -1,4 +1,5 @@
-import type { EntityGraph, Pin } from "@/lib/services/entities";
+import type { Pin } from "@/lib/services/entities";
+import type { ViewGraph } from "./graph";
 import { snap, type Placement, type Point } from "./place";
 
 /** How much arc one node needs before its LABEL collides with its neighbour's.
@@ -37,7 +38,7 @@ export function diameterOf(degree: number, isRoot: boolean): number {
 /** How many edges touch each node. The size channel, and the only thing on this
  *  canvas that says "this fragment is load-bearing" without anybody asserting
  *  it — degree is counted, not claimed. */
-export function degrees(graph: EntityGraph): Map<string, number> {
+export function degrees(graph: ViewGraph): Map<string, number> {
   const out = new Map<string, number>();
   const bump = (id: string) => out.set(id, (out.get(id) ?? 0) + 1);
   for (const e of graph.edges) {
@@ -55,7 +56,7 @@ export function degrees(graph: EntityGraph): Map<string, number> {
  *  A node no edge reaches gets the outermost ring rather than being dropped. It
  *  is in the graph because something returned it, and putting it nowhere would
  *  be the canvas deciding it does not count. */
-export function hops(graph: EntityGraph): Map<string, number> {
+export function hops(graph: ViewGraph): Map<string, number> {
   const near = new Map<string, string[]>();
   const link = (a: string, b: string) => {
     if (!near.has(a)) near.set(a, []);
@@ -97,8 +98,8 @@ export function hops(graph: EntityGraph): Map<string, number> {
  *  Deterministic, which is the property the spiral was chosen for and which this
  *  keeps: the same graph rings identically every render, so two people
  *  describing "the node top left" mean the same node. */
-export function place(graph: EntityGraph, pins: readonly Pin[]): Placement {
-  const pinned = new Map(pins.map((p) => [p.node_id, { x: p.x, y: p.y }]));
+export function place(graph: ViewGraph, pins: readonly Pin[]): Placement {
+  const pinned = new Map(pins.map((p) => [p.fragment_id, { x: p.x, y: p.y }]));
   const depth = hops(graph);
 
   // Grouped by ring, in declaration order — stable, so an unrelated node

@@ -1,32 +1,80 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { clientFor } from "@/lib/root";
-import { getCheck, saveCheck } from "@/lib/services/pipeline";
+import { readChain, saveChain } from "@/lib/services/checks";
+import { previewRun, startRun } from "@/lib/services/runs";
+import type { RunDetail } from "@/lib/services/runs";
+import { toFormState, type FormState } from "../../../(auth)/_form-state";
 
-/** A settled drag, written through.
+/** A settled drag, written through as a PIN.
  *
- *  A pin is a CONSTRAINT and not a render — the same rule as the entity canvas.
- *  Somebody who moved a node stated where it belongs, so it has to survive a
- *  reload and a re-layout of everything around it. The layout honours a pin
- *  outright and arranges the unpinned steps around it.
+ *  Read-modify-write against the whole chain, because `PUT …/chain` takes the
+ *  whole graph. The server diffs rather than replacing, so step ids survive —
+ *  which matters because a run records which step produced which invocation, and
+ *  an id that churned under it would make that record point at nothing.
  *
- *  Read-modify-write, because `PUT /checks/{id}` takes the whole check and this
- *  action knows one step. Nothing serves any of it yet, so a lost update is not
- *  reachable — when it is, this becomes a PATCH on the step. */
+ *  `x`, `y` and `pinned` are flat, not an optional `pin` object: `(0, 0)` and
+ *  "never moved" are different facts and one nullable object cannot carry both
+ *  once somebody drags a node to the origin. */
 export async function pinStepAction(
+  orgId: string,
   checkId: string,
   stepId: string,
   at: { x: number; y: number },
 ): Promise<void> {
   try {
-    const client = await clientFor("pipeline");
-    const check = await getCheck(client, checkId);
-    await saveCheck(client, {
-      ...check,
-      steps: check.steps.map((s) => (s.step_id === stepId ? { ...s, pin: at } : s)),
+    const client = await clientFor("checks");
+    const chain = await readChain(client, orgId, checkId);
+    await saveChain(client, orgId, checkId, {
+      steps: chain.steps.map((s) =>
+        s.step_id === stepId
+          ? { step_id: s.step_id, tool_id: s.tool_id, x: at.x, y: at.y, pinned: true }
+          : { step_id: s.step_id, tool_id: s.tool_id, x: s.x, y: s.y, pinned: s.pinned },
+      ),
+      flows: chain.flows.map((f) => ({ from: f.from, to: f.to })),
     });
   } catch {
     // A pin that did not save is a node in the wrong place next time, not a
     // failure worth interrupting a drag for.
+  }
+}
+
+/** The plan, written nothing.
+ *
+ *  The same walk `startRun` does — preview and plan are one function on the
+ *  server, so there is no second shape to drift. `tools/add` promises nothing
+ *  runs until a person has read the command; this is the other half of that
+ *  promise, and it is the thing that makes the scope model visible. */
+export async function previewAction(
+  workspaceId: string,
+  checkId: string,
+  targetId: string,
+): Promise<{ plan: RunDetail } | FormState> {
+  try {
+    return { plan: await previewRun(await clientFor("runs"), workspaceId, {
+      check_id: checkId, target_id: targetId,
+    }) };
+  } catch (error) {
+    return toFormState(error);
+  }
+}
+
+/** 202, and it answers with the PLAN rather than a result. Nothing has spawned;
+ *  every step already has an invocation row and the gate has already been asked.
+ *  The caller renders that immediately and then polls. */
+export async function startRunAction(
+  workspaceId: string,
+  checkId: string,
+  targetId: string,
+): Promise<{ plan: RunDetail } | FormState> {
+  try {
+    const plan = await startRun(await clientFor("runs"), workspaceId, {
+      check_id: checkId, target_id: targetId,
+    });
+    revalidatePath("/tools/checks");
+    return { plan };
+  } catch (error) {
+    return toFormState(error);
   }
 }

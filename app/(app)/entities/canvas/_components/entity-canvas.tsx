@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { Badge, Panel, Stat } from "@/components/display";
-import { Alert } from "@/components/feedback";
 import { Button, Toggle } from "@/components/forms";
 import { NavLink } from "@/components/navigation";
 import { Text } from "@/components/typography";
-import type { Attribution, ClaimState, EntityGraph, EntityRef, Pin } from "@/lib/services/entities";
-import { pinNode, relayout } from "../_actions";
+import type { ClaimState, Pin } from "@/lib/services/entities";
+import type { ViewGraph, ViewRef } from "../_layout/graph";
+import { pinSnapshot, serverPins, setPins, subscribePins } from "../_layout/pins";
 import { Canvas } from "./canvas";
 import { Record } from "./record";
 import { Legend, NoSimilarity } from "./legend";
@@ -26,22 +26,30 @@ const STATE_NOTE: Record<ClaimState, string> = {
 export function EntityCanvas({
   graph,
   roots,
-  pins: initialPins,
 }: {
-  graph: EntityGraph;
-  roots: readonly EntityRef[];
-  pins: readonly Pin[];
+  graph: ViewGraph;
+  roots: readonly ViewRef[];
 }) {
-  const [pins, setPins] = useState<readonly Pin[]>(initialPins);
+  /* Empty on the server and filled on the client, through the store rather
+     than through an effect. `localStorage` is not readable while the HTML is
+     being produced, so the server snapshot is unconditionally empty and React
+     swaps it in after hydration — which is exactly what
+     `useSyncExternalStore` is for, and it is why this is not `useState` plus
+     an effect that sets it. */
+  const rootId = graph.root.id;
+  const pins = useSyncExternalStore<readonly Pin[]>(
+    useCallback((onChange: () => void) => subscribePins(rootId)(onChange), [rootId]),
+    useCallback(() => pinSnapshot(rootId), [rootId]),
+    serverPins,
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<ClaimState>>(new Set());
   const [focus, setFocus] = useState(false);
-  const [, start] = useTransition();
 
   const counts = STATES.reduce(
     (acc, state) => {
       acc[state] = graph.edges.filter(
-        (e): e is Attribution => e.kind === "attribution" && e.state === state,
+        (e) => e.kind === "attribution" && e.state === state,
       ).length;
       return acc;
     },
@@ -50,20 +58,14 @@ export function EntityCanvas({
   const derivations = graph.edges.filter((e) => e.kind === "derivation").length;
 
   function onPin(nodeId: string, at: Point) {
-    setPins((current) => [
-      ...current.filter((p) => p.node_id !== nodeId),
-      { node_id: nodeId, x: at.x, y: at.y, by: "you", at: "just now" },
+    setPins(rootId, [
+      ...pins.filter((p) => p.fragment_id !== nodeId),
+      { fragment_id: nodeId, x: at.x, y: at.y },
     ]);
-    start(() => {
-      void pinNode(graph.root.id, nodeId, at.x, at.y);
-    });
   }
 
   function onRelayout() {
-    setPins([]);
-    start(() => {
-      void relayout(graph.root.id);
-    });
+    setPins(rootId, []);
   }
 
   function toggle(state: ClaimState) {
@@ -86,29 +88,46 @@ export function EntityCanvas({
             >
               <span className={s.rootKind} aria-hidden="true">{KIND_GLYPH[root.kind]} {root.kind}</span>
               {root.label}
-              <span className={s.rootCount}>{root.total}</span>
+              {/* A target's ROOT, versus an entity assembled from fragments that
+                  is nobody's target. The count that used to sit here was the
+                  fixture's invention — the listing does not carry one, and a
+                  made-up denominator on a switcher is worse than none. */}
+              {root.target_id ? <span className={s.rootCount}>target</span> : null}
             </Link>
           </NavLink>
         ))}
         <Text size="xs" tone="quiet" as="span" className={s.aside}>
-          three roots, three shapes — the machinery is the same
+          {roots.length === 0
+            ? "nothing assembled yet"
+            : "an asset attributed to an organisation and a fragment attributed to a person are the same machinery at different roots"}
         </Text>
       </div>
 
-      {graph.root.caution ? (
-        <Alert tone="info" live={false} className={s.caution}>
-          <Text size="sm">{graph.root.caution}</Text>
-        </Alert>
-      ) : null}
-
-      <Text size="sm" tone="secondary" measure className={s.blurb}>{graph.root.blurb}</Text>
+      <Text size="sm" tone="secondary" measure className={s.blurb}>
+        An entity is not a thing a source reported — it is an argument across many.
+        Every node here is a fragment attached to the root by a claim that names
+        who made it, and the root itself is not among them.
+      </Text>
 
       <div className={s.stats}>
-        <Stat label="Root" value={graph.root.label} note={`${graph.root.kind} · ${graph.root.framing}`} />
+        <Stat
+          label="Root"
+          value={graph.root.label}
+          note={graph.root.target_id ? `${graph.root.kind} · a target's root` : graph.root.kind}
+        />
         <Stat label="Accepted" value={counts.accepted} note={STATE_NOTE.accepted} tone="accent" />
         <Stat label="Proposed" value={counts.proposed} note={STATE_NOTE.proposed} tone="warn" />
         <Stat label="Rejected" value={counts.rejected} note={counts.rejected ? STATE_NOTE.rejected : "none yet"} />
-        <Stat label="Derivations" value={derivations} note="read out of something, not claimed" tone="info" />
+        {/* Zero, and it stays a row. `0003` forbids emitting a derivation that
+            cannot be sourced, so the first one arrives with an invocation and an
+            artifact in hand — and a canvas with no row for them would make their
+            absence unreadable rather than stated. */}
+        <Stat
+          label="Derivations"
+          value={derivations}
+          note={derivations ? "read out of something, not claimed" : "none emitted yet — one needs an invocation and an artifact behind it"}
+          tone="info"
+        />
       </div>
 
       <div className={s.controls}>
@@ -130,28 +149,30 @@ export function EntityCanvas({
           Re-layout
         </Button>
         {pins.length ? (
-          <Badge tone="accent" mono>{pins.length} pinned</Badge>
+          <Badge tone="accent" mono title="Kept in this browser. There is no pin endpoint — an arrangement of one viewport is not evidence, and it does not follow you to another machine.">
+            {pins.length} pinned · this browser
+          </Badge>
         ) : null}
       </div>
 
       <div className={s.truncation}>
         <span aria-hidden="true">▲</span>
+        {/* There is no total on the wire, so this says what is DRAWN and whether
+            the limit was reached — never "n of N". An invented N beside a real n
+            is the one way this screen could lie about the size of an estate. */}
         {graph.truncated ? (
           <span>
-            <strong>Showing {graph.nodes.length} of {graph.total} fragments.</strong> The rest are not
-            hidden because they are unimportant — the server was asked for a neighbourhood.{" "}
-            <Link href={`/entities/canvas?root=${encodeURIComponent(graph.root.id)}&limit=${graph.total}`}>
-              Ask for all {graph.total}
+            <strong>{graph.nodes.length} fragments drawn, and the limit was reached.</strong> The
+            rest are not hidden because they are unimportant — the server was asked for a
+            neighbourhood, and it says only that there was more.{" "}
+            <Link href={`/entities/canvas?root=${encodeURIComponent(graph.root.id)}&limit=${graph.nodes.length * 4}`}>
+              Ask for more
             </Link>
           </span>
         ) : (
           <span>
-            <strong>All {graph.total} fragments drawn.</strong> This is what the neighbourhood was
-            holding back, and why it is not optional — a canvas is for a neighbourhood you can read,
-            and a list is what handles this.{" "}
-            <Link href={`/entities/canvas?root=${encodeURIComponent(graph.root.id)}`}>
-              Back to the neighbourhood
-            </Link>
+            <strong>All {graph.nodes.length} fragments drawn.</strong> The limit was not reached, so
+            this is the whole neighbourhood rather than the part that fitted.
           </span>
         )}
       </div>

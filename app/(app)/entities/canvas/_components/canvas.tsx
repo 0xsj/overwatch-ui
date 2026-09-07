@@ -14,7 +14,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Toggle } from "@/components/forms";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/overlays";
-import type { Attribution, ClaimState, EntityGraph, Pin } from "@/lib/services/entities";
+import type { ClaimState, Pin } from "@/lib/services/entities";
+import type { ViewEdge, ViewGraph } from "../_layout/graph";
 import { degrees, diameterOf, hops, place, type Point } from "../_layout/rings";
 import { EntityNode, type EntityNodeData } from "./entity-node";
 import { HighlightProvider } from "./highlight";
@@ -40,7 +41,7 @@ export function Canvas({
   focus,
   onFocusChange,
 }: {
-  graph: EntityGraph;
+  graph: ViewGraph;
   pins: readonly Pin[];
   hidden: ReadonlySet<ClaimState>;
   selected: string | null;
@@ -59,7 +60,7 @@ export function Canvas({
   const lit = hovered ?? selected;
 
   const claims = useMemo(() => {
-    const out = new Map<string, Attribution>();
+    const out = new Map<string, Extract<ViewEdge, { kind: "attribution" }>>();
     for (const edge of graph.edges) if (edge.kind === "attribution") out.set(edge.to, edge);
     return out;
   }, [graph.edges]);
@@ -97,7 +98,7 @@ export function Canvas({
   const placement = useMemo(() => place(graph, pins), [graph, pins]);
   const degree = useMemo(() => degrees(graph), [graph]);
   const depth = useMemo(() => hops(graph), [graph]);
-  const pinned = useMemo(() => new Set(pins.map((p) => p.node_id)), [pins]);
+  const pinned = useMemo(() => new Set(pins.map((p) => p.fragment_id)), [pins]);
   const ringSummary = useMemo(() => {
     const counts = new Map<number, number>();
     for (const node of graph.nodes)

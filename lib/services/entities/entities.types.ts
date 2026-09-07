@@ -1,96 +1,123 @@
-export const FRAGMENT_KINDS = [
-  "account", "asn", "cert", "cidr", "document", "email",
-  "host", "ip", "key", "org", "person", "repo", "whois",
-] as const;
-
-export type FragmentKind = (typeof FRAGMENT_KINDS)[number];
+/** ONE vocabulary, in `lib/kernel` — `decisions/0034`.
+ *
+ *  There is no fragment-specific kind list any more. `url` joined it and
+ *  `domain` left it: a domain IS a host, and "the one we started from" is a
+ *  role in a chain rather than a property of the thing. Re-exported here so the
+ *  entity screens keep reading the name they already use. */
+import type { Kind } from "@/lib/kernel";
+export { KINDS as FRAGMENT_KINDS } from "@/lib/kernel";
+export type FragmentKind = Kind;
 
 export type Claimant = "rule" | "model" | "human";
 
 export type ClaimState = "proposed" | "accepted" | "rejected";
 
-/** The entity the canvas is drawn around. It is not a fragment, which is why it
- *  is not in `nodes` — every attribution runs from here to one of them. */
-export type RootEntity = {
-  id: string;
-  kind: FragmentKind;
-  label: string;
-  framing: string;
-  blurb: string;
-  /** ABSENT unless this root needs the reader warned about something. */
-  caution?: string;
-  observations: number;
-  last_seen: string;
-  source: string;
+/** FOUR states — `decisions/0009`. **`finding` is not one of them**: a fragment
+ *  can be `watching` and carry an open finding at once, so the red marker is a
+ *  derived badge beside the judgement and never a fifth value inside it. */
+export type JudgementState = "unopened" | "triaged" | "watching" | "dismissed";
+
+/** `by`, `at` and `reason` are ABSENT while unopened — nobody has ruled, so
+ *  there is nobody and no time to name.
+ *
+ *  **Dismissal requires a reason and triage does not.** The server answers 400
+ *  with *"dismissing needs a reason — a dismissal with no reason reads as
+ *  `never looked at` in six months"*, which is the sentence to put under the
+ *  field rather than a generic required-field message. */
+export type Judgement = {
+  state: JudgementState;
+  by?: string;
+  at?: string;
+  reason?: string;
 };
 
-export type GraphNode = {
-  id: string;
+/** What one source said, seen through the entity it hangs off.
+ *
+ *  A fragment is NOT an asset — `decisions/0009`, and this is the distinction
+ *  most likely to be lost. `GET /fragments` is everything a source produced;
+ *  `GET /assets` is the ones carrying an accepted attribution to the target's
+ *  root entity AND a targetable kind. A `person` fragment can carry an accepted
+ *  attribution and is still not an asset. */
+export type Fragment = {
+  fragment_id: string;
   kind: FragmentKind;
-  label: string;
+  value: string;
+  /** `observed` was read out of an artifact; `manual` was typed in — a `/24`
+   *  written into a scope rule. */
+  origin: "observed" | "manual";
+  /** BOTH ABSENT on a manual fragment: nothing has seen it. Render the absence
+   *  as `–`, never as a placeholder date and never as "never". */
+  first_seen?: string;
+  last_seen?: string;
   observations: number;
-  last_seen: string;
-  source: string;
-  /** Set when this fragment is ALSO assembled as an entity somewhere, and so
-   *  has a canvas of its own. */
-  entity_id?: string;
+  judgement: Judgement;
+  /** A human READ, and it is NOT the judgement — `decisions/0037`. Absent means
+   *  nobody has looked, which is a different fact from nobody having ruled, and
+   *  keeping them apart is the whole of `READ BY YOU` being a check. */
+  read_at?: string;
+  read_by?: string;
 };
 
-/** A CLAIM. Runs entity → fragment and is the only edge anybody accepts. */
+/** entity ↔ fragment. A CLAIM naming who PROPOSED it — `decisions/0008`. */
 export type Attribution = {
-  kind: "attribution";
-  from: string;
-  to: string;
+  attribution_id: string;
+  entity_id: string;
+  fragment_id: string;
+  /** NEVER rewritten by a decision. Who proposed it stays who proposed it. */
   claimant: Claimant;
-  /** ABSENT when the claimant is a rule. A rule's assignment is a category, not
-   *  a probability, and storing 1.0 destroys the distinction permanently. */
+  claimant_ref?: string;
+  /** ABSENT unless the claimant is a MODEL. A rule's assignment is a category,
+   *  not a probability, and a `1.0` here would destroy the distinction
+   *  permanently. */
   confidence?: number;
-  /** The person who ruled on it — not the claimant who proposed it. */
-  actor?: string;
   basis: string;
   state: ClaimState;
+  decided_at?: string;
+  /** ABSENT when a RULE decided — `0036` amends `0008` to *a **person**
+   *  deciding writes `decided_by`*. Render the absence as "by a rule" or
+   *  "deterministic", never as "unknown" and never as a blank beside a label
+   *  that says who. */
+  decided_by?: string;
+  decided_note?: string;
 };
 
-/** NOT a claim. Runs fragment → fragment: one source said so, and the bytes are
- *  on disk. No claimant, no confidence, no state — there is nothing to agree
- *  with. */
-export type Derivation = {
-  kind: "derivation";
-  from: string;
-  to: string;
+/** A fragment in a ROLE — `decisions/0009` — and deliberately the fragment
+ *  shape plus the claim that makes it one, because an asset is not a different
+ *  kind of thing. */
+export type Asset = Fragment & {
+  attribution_id: string;
+  claimant: Claimant;
+  basis: string;
+  root_entity_id: string;
+  target_id: string;
+};
+
+export type Entity = {
+  entity_id: string;
+  kind: FragmentKind;
   label: string;
-  invocation_id: string;
-  artifact_id: string;
+  /** Present only on a target's ROOT entity. */
+  target_id?: string;
+  judgement: Judgement;
 };
 
-export type GraphEdge = Attribution | Derivation;
-
-export type EntityGraph = {
-  root: RootEntity;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  /** How many fragments the root has. `nodes.length` is how many came back. */
-  total: number;
+/** The canvas. **The root is NOT among the nodes** — it is not a fragment, and
+ *  every edge runs root → node, which is why the screen draws it apart. */
+export type Canvas = {
+  root: Entity;
+  nodes: (Fragment & { edge: Attribution })[];
+  /** The limit was reached. A canvas that silently drew half a graph would look
+   *  like a smaller estate, which is the one way this screen can lie. */
   truncated: boolean;
 };
 
-/** A person's arrangement of one canvas. Coordinates are relative to the root
- *  in layout units, never viewport pixels, so a pin survives a different window.
- *  Everything unpinned is laid out around these. */
-export type Pin = {
-  node_id: string;
-  x: number;
-  y: number;
-  by: string;
-  at: string;
-};
+export type FragmentDetail = Fragment & { attributions: Attribution[] };
 
-/** Just enough to offer a root in a switcher, without pulling a graph for each.
- *  `total` is the fragment count, which is the only number that tells you what
- *  opening it will cost. */
-export type EntityRef = {
-  id: string;
-  kind: FragmentKind;
-  label: string;
-  total: number;
-};
+/** A person's arrangement of one canvas, and **there is no endpoint for it.**
+ *
+ *  Kept as a type because the canvas still lets somebody drag a node and still
+ *  has to remember where they put it. It lives in the browser: the server has
+ *  no pin table, and inventing paths for one here would put a proposal back
+ *  into a service whose every other route is now real. Read
+ *  `lib/services/entities/doc.ts` before adding one. */
+export type Pin = { fragment_id: string; x: number; y: number };

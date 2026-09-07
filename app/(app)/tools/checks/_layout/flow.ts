@@ -1,4 +1,4 @@
-import type { Check, Flow, Step } from "@/lib/services/pipeline";
+import type { Chain, Flow, Step } from "@/lib/services/checks";
 
 export type Point = { x: number; y: number };
 export type Placement = Map<string, Point>;
@@ -51,23 +51,26 @@ export function depths(steps: Step[], flows: Flow[]): Map<string, number> {
  *
  *  A pin wins outright. Somebody who dragged a node stated a constraint, and a
  *  re-layout must move everything else around it rather than over it. */
-export function place(check: Check): Placement {
-  const depth = depths(check.steps, check.flows);
+export function place(chain: Chain): Placement {
+  const depth = depths(chain.steps, chain.flows);
 
   // Stable within a column: the order the steps are declared in, which is the
   // order they were added. Sorting by anything derived would reshuffle the
   // picture when an unrelated step changed.
   const byColumn = new Map<number, string[]>();
-  for (const s of check.steps) {
+  for (const s of chain.steps) {
     const d = depth.get(s.step_id) ?? 0;
     if (!byColumn.has(d)) byColumn.set(d, []);
     byColumn.get(d)!.push(s.step_id);
   }
 
   const out: Placement = new Map();
-  for (const s of check.steps) {
-    if (s.pin) {
-      out.set(s.step_id, s.pin);
+  for (const s of chain.steps) {
+    /* `pinned` is a flag beside flat x/y, not an optional object: `(0, 0)` and
+       "never moved" are different facts and one nullable object cannot carry
+       both once somebody drags a node to the origin. */
+    if (s.pinned) {
+      out.set(s.step_id, { x: s.x, y: s.y });
       continue;
     }
     const d = depth.get(s.step_id) ?? 0;

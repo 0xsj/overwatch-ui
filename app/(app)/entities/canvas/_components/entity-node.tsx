@@ -1,13 +1,14 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { Attribution, ClaimState, GraphNode, RootEntity } from "@/lib/services/entities";
+import type { Attribution, ClaimState } from "@/lib/services/entities";
+import type { ViewNode, ViewRoot } from "../_layout/graph";
 import { KIND_GLYPH } from "./glyphs";
 import { markOf, useHighlight } from "./highlight";
 import s from "./entity-node.module.css";
 
 export type EntityNodeData = {
-  node: GraphNode | RootEntity;
+  node: ViewNode | ViewRoot;
   /** ABSENT on the root: the root IS the entity, so nothing claims it. */
   claim?: Attribution;
   diameter: number;

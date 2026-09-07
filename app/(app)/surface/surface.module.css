@@ -1,0 +1,73 @@
+@layer screen {
+  .table { inline-size: 100%; border-collapse: collapse; font-size: var(--text-12-5); }
+  .table th {
+    text-align: start;
+    padding: var(--space-2) var(--space-3);
+    color: var(--ink-4);
+    font-weight: 500;
+    font-size: var(--text-11-5);
+    border-block-end: 1px solid var(--line);
+  }
+  .table td {
+    padding: var(--space-3);
+    border-block-end: 1px solid var(--line-soft, var(--line));
+    vertical-align: baseline;
+  }
+  .row { cursor: pointer; }
+  .row:hover td { background: var(--surface-panel-2); }
+  .row[data-open="true"] td { background: var(--surface-panel-2); }
+
+  .value { font-family: var(--font-mono); color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; text-align: end; }
+  .scroll { overflow-x: auto; }
+
+  .drawerRow { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .prose { margin-block-start: var(--space-2); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-11-5); }
+  .quiet { color: var(--ink-4); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-3); }
+  .reason { display: grid; gap: var(--space-2); margin-block-start: var(--space-3); }
+
+  /* Coverage — a RAGGED grid. Every row has its own number of cells, and there
+     is no right-padding: a check that does not apply produces no square, not a
+     dashed one, or the legend becomes false. */
+  .cells { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .cell {
+    inline-size: 1rem;
+    block-size: 1rem;
+    border-radius: var(--radius-1);
+    border: 1px solid var(--line-strong);
+  }
+  .cell[data-state="fresh"] { background: var(--accent); border-color: var(--accent); }
+  .cell[data-state="stale"] { background: var(--warn-soft, var(--surface-panel-2)); border-color: var(--warn, var(--line-strong)); }
+  .cell[data-state="never"] { background: transparent; border-style: dashed; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .legendItem { display: flex; gap: var(--space-2); align-items: center; }
+
+  .steps { display: grid; gap: var(--space-3); }
+  .step {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+  }
+  .step[data-absent="true"] { border-style: dashed; opacity: 0.72; }
+
+  /* The badges in a step are siblings, so the gap comes from the row rather
+     than from a space in the markup — "ok" and "exit 0" ran together when it
+     did not. */
+  .stepValue { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+
+  .bars { display: grid; gap: var(--space-2); margin-block-start: var(--space-3); }
+  .bar { block-size: 0.5rem; border-radius: var(--radius-pill); background: var(--surface-panel-2); overflow: hidden; }
+  .barFill { block-size: 100%; background: var(--accent); }
+  .paths { display: grid; gap: var(--space-2); margin-block-start: var(--space-4); }
+  .path { display: grid; grid-template-columns: 1fr auto auto; gap: var(--space-4); align-items: baseline; }
+
+  @media (max-width: 46rem) {
+    .step { grid-template-columns: 1fr; gap: var(--space-1); }
+  }
+}

@@ -1,59 +1,85 @@
 "use client";
 
-import { useState } from "react";
-import { Badge, Mock, Panel } from "@/components/display";
+import { useState, useTransition } from "react";
+import { Badge, Panel } from "@/components/display";
+import {
+  Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/forms";
 import { Alert } from "@/components/feedback";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/navigation";
 import { Text } from "@/components/typography";
-import type { Check, Run, SpawnPreview, ToolDef } from "@/lib/services/pipeline";
-import { pinStepAction } from "../_actions";
+import type { Chain, Check } from "@/lib/services/checks";
+import type { Tool } from "@/lib/services/tooling";
+import type { Run, RunDetail } from "@/lib/services/runs";
+import type { Target } from "@/lib/services/targets";
+import { pinStepAction, previewAction, startRunAction } from "../_actions";
 import { FlowGraph, STATE_MEANING } from "./flow-graph";
 import { StepDetail } from "./step-detail";
 import s from "./check-workspace.module.css";
 
 /** Editor and Executions over one check.
  *
- *  The split is n8n's and it survives the translation because our nouns already
- *  match: a `check` is the definition — *"a named question with its own
- *  interval"* — and a `run` is *"a pipeline against a target"*. Editor is the
- *  question; Executions is what happened when it was asked.
+ *  The split survives contact with the backend because the nouns matched: a
+ *  `check` is the definition and belongs to the FIRM; a `run` is *"a pipeline
+ *  against a target"* and belongs to the ENGAGEMENT. Editor is the question,
+ *  Executions is what happened when it was asked — and they read different
+ *  endpoints under different paths for exactly that reason.
  *
- *  What is deliberately NOT here is n8n's third tab. Evaluations is where you
- *  score an automation's output; `coverage` already answers our version of that
- *  question and answers it across every check at once, so a per-check tab would
- *  be the same number in a worse place. */
+ *  There is no third tab. n8n's is Evaluations; `coverage` already answers our
+ *  version and answers it across every check at once. */
 export function CheckWorkspace({
-  check: initial,
+  check,
+  chain,
   tools,
   runs,
-  preview,
+  targets,
+  orgId,
+  workspaceId,
+  workspaceName,
 }: {
   check: Check;
-  tools: ToolDef[];
+  chain: Chain;
+  tools: Tool[];
   runs: Run[];
-  preview: SpawnPreview[];
+  targets: Target[];
+  orgId: string;
+  workspaceId: string | null;
+  workspaceName: string | null;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [runId, setRunId] = useState<string | null>(runs[0]?.run_id ?? null);
-
-  /* A pin is held here and written through, rather than read back from the
-     server after each drag. Dragging is continuous and a round trip is not, so
-     waiting for one would make the node snap back for a frame — and the local
-     value is the one the person is looking at. */
-  const [check, setCheck] = useState<Check>(initial);
+  const [plan, setPlan] = useState<RunDetail | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const [steps, setSteps] = useState(chain.steps);
+  /* Which target, and it is a real one.
+   *
+   *  This screen sent the WORKSPACE id where a target id belonged until
+   *  2026-09-07 — a placeholder from before the client had a targets service,
+   *  and one nothing could type-check because both are strings. It would have
+   *  404'd against the live server on the first press. A target is an
+   *  organisation or a person, never a hostname; a check is a question asked
+   *  ABOUT one, so nothing here can run until one is chosen. */
+  const [targetId, setTargetId] = useState<string | null>(targets[0]?.target_id ?? null);
+  const targetName = targets.find((t) => t.target_id === targetId)?.name ?? null;
 
   const pin = (stepId: string, at: { x: number; y: number }) => {
-    setCheck((c) => ({
-      ...c,
-      steps: c.steps.map((s) => (s.step_id === stepId ? { ...s, pin: at } : s)),
-    }));
-    void pinStepAction(check.check_id, stepId, at);
+    setSteps((all) =>
+      all.map((st) => (st.step_id === stepId ? { ...st, x: at.x, y: at.y, pinned: true } : st)),
+    );
+    void pinStepAction(orgId, check.check_id, stepId, at);
   };
 
-  const run = runs.find((r) => r.run_id === runId) ?? null;
-  const refusals = new Map(
-    preview.filter((p) => p.verdict === "refused").map((p) => [p.step_id, p.reason ?? "refused"]),
-  );
+  const ask = (act: () => Promise<{ plan: RunDetail } | { status: string; message?: string }>) =>
+    start(async () => {
+      setRefusal(null);
+      const result = await act();
+      if ("plan" in result) setPlan(result.plan);
+      else setRefusal(result.message ?? "That was refused.");
+    });
+
+  /* The plan carries `refused` and `skipped` BEFORE any process existed, so
+     these counts are readable the moment the response lands. */
+  const refused = plan?.invocations.filter((i) => i.state === "refused") ?? [];
 
   return (
     <Tabs defaultValue="editor" className={s.tabs}>
@@ -66,100 +92,131 @@ export function CheckWorkspace({
       </TabsList>
 
       <TabsContent value="editor">
-        {/* Draggable HERE and not on Executions. A run happened with the steps
-            where they were; moving them afterwards would be editing the record
-            of it rather than the plan. */}
-        {/* The refusal preview, and the reason this is overwatch's canvas rather
-            than a copy of n8n's. n8n has no notion of scope, so it cannot tell
-            you which of your steps will never spawn — and `tools/add` already
-            promises nothing runs until a person has read the command. This is
-            the other half: reading which of those commands would be refused. */}
-        {refusals.size > 0 ? (
+        {/* The preview, and the reason this is overwatch's canvas rather than a
+            copy of n8n's. `tools/add` promises nothing runs until a person has
+            read the command it will run; this is the other half — which of those
+            commands would be refused, asked without spawning anything.
+
+            It is the SAME walk the run does, so there is no second
+            implementation to drift. */}
+        <div className={s.previewBar}>
+          {targets.length > 0 ? (
+            <Select value={targetId ?? undefined} onValueChange={setTargetId}>
+              <SelectTrigger className={s.target}>
+                <SelectValue placeholder="pick a target" />
+              </SelectTrigger>
+              <SelectContent>
+                {targets.map((t) => (
+                  <SelectItem key={t.target_id} value={t.target_id}>
+                    {t.name} · {t.kind}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          <Button
+            size="sm"
+            disabled={pending || !workspaceId || !targetId}
+            onClick={() =>
+              workspaceId &&
+              targetId &&
+              ask(() => previewAction(workspaceId, check.check_id, targetId))
+            }
+          >
+            {pending ? "Asking" : "What would run?"}
+          </Button>
+          <Text size="xs" tone="quiet">
+            {!workspaceId
+              ? "No engagement open, so there is no scope to ask against."
+              : targets.length === 0
+                ? `Nothing to look at yet in ${workspaceName}. Scope hangs off a target, so there is no gate to ask until there is one.`
+                : `Against ${targetName}. Nothing spawns — the gate is asked and nothing else.`}
+          </Text>
+        </div>
+
+        {refusal ? (
+          <Alert tone="warn"><Text size="sm">{refusal}</Text></Alert>
+        ) : null}
+
+        {plan && refused.length > 0 ? (
           <Alert tone="warn">
             <Text size="sm">
-              <strong>{refusals.size} of these steps would not spawn</strong> against
-              the engagement that is open. A refusal is an answer rather than a
-              fault — it is the scope gate doing what it is for.
+              <strong>{refused.length} of these steps would not spawn.</strong> A
+              refusal is an answer rather than a fault — it is the scope gate doing
+              what it is for.
             </Text>
             <ul className={s.reasons}>
-              {preview
-                .filter((p) => p.verdict === "refused")
-                .map((p) => (
-                  <li key={p.step_id}>
-                    <span className={s.mono}>{p.argv}</span>
-                    <Text size="xs" tone="tertiary">{p.reason}</Text>
-                  </li>
-                ))}
+              {refused.map((i) => (
+                <li key={i.invocation_id}>
+                  <span className={s.mono}>{i.argv.join(" ")}</span>
+                  <Text size="xs" tone="tertiary">
+                    {i.refusal}
+                    {/* Two different facts: a rule EXCLUDED this, or NOTHING
+                        permitted it. The second is the common first-run case and
+                        its fix is adding a rule, not reading one. */}
+                    {i.refusal_rule
+                      ? ` — rule ${i.refusal_rule}`
+                      : " — nothing in scope permits it yet"}
+                  </Text>
+                </li>
+              ))}
             </ul>
           </Alert>
         ) : null}
 
         <FlowGraph
-          check={check}
+          chain={{ ...chain, steps }}
           tools={tools}
+          invocations={plan?.invocations}
           selected={selected}
           onSelect={setSelected}
-          refusals={refusals}
           onPin={pin}
         />
 
-        <StepDetail check={check} tools={tools} stepId={selected} preview={preview} />
+        <StepDetail chain={{ ...chain, steps }} tools={tools} stepId={selected} />
       </TabsContent>
 
       <TabsContent value="executions">
-        <div className={s.split}>
-          <aside className={s.runs}>
-            <Text size="xs" tone="quiet" className={s.runsHead}>
-              {runs.length === 0 ? "No runs" : `${runs.length} runs`}
+        {runs.length === 0 ? (
+          <Alert tone="info">
+            <Text size="sm">
+              Nothing has run yet. Ask what would run first — the plan is readable
+              without spawning anything, and it is the same walk.
             </Text>
-            {runs.map((r) => (
-              <button
-                key={r.run_id}
-                type="button"
-                className={s.run}
-                data-state={r.state}
-                data-selected={r.run_id === runId || undefined}
-                aria-pressed={r.run_id === runId}
-                onClick={() => { setRunId(r.run_id); setSelected(null); }}
+            {workspaceId && targetId ? (
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => ask(() => startRunAction(workspaceId, check.check_id, targetId))}
               >
-                <span className={s.runTarget}>{r.target}</span>
-                <span className={s.runWhen}>
-                  {r.started_at.slice(5, 16).replace("T", " ")}
+                {pending ? "Starting" : `Run it against ${targetName}`}
+              </Button>
+            ) : null}
+          </Alert>
+        ) : (
+          <div className={s.runs}>
+            {runs.map((r) => (
+              <div key={r.run_id} className={s.run} data-state={r.state}>
+                {/* The target's NAME where there is one. A run against a target
+                    that has since been archived still resolves — the row is
+                    hidden from the picker, not deleted — but one from another
+                    engagement will not, and an id is the honest fallback. */}
+                <span className={s.runTarget}>
+                  {targets.find((t) => t.target_id === r.target_id)?.name ??
+                    r.target_id.slice(0, 8)}
                 </span>
+                <span className={s.runWhen}>{r.started_at.slice(5, 16).replace("T", " ")}</span>
+                {/* A run where every step was refused is COMPLETE, not failed.
+                    It is a complete answer to "may we look at this", and drawing
+                    it as an error makes the scope proof read as a fault. */}
                 <span className={s.runState}>{r.state}</span>
-              </button>
+                {r.started_by ? null : <Badge tone="neutral" mono>scheduled</Badge>}
+              </div>
             ))}
-          </aside>
-
-          <div className={s.detail}>
-            {run ? (
-              <>
-                <FlowGraph
-                  check={check}
-                  tools={tools}
-                  invocations={run.invocations}
-                  selected={selected}
-                  onSelect={setSelected}
-                />
-                <StepDetail
-                  check={check}
-                  tools={tools}
-                  stepId={selected}
-                  invocation={run.invocations.find((i) => i.step_id === selected)}
-                />
-              </>
-            ) : (
-              <Text size="sm" tone="tertiary">
-                Nothing has run yet. Set up the chain, then ask the question.
-              </Text>
-            )}
           </div>
-        </div>
+        )}
 
-        {/* A legend, because three of the six states end with no artifact and
-            they are not the same event. Colour is never the only signal — every
-            node prints its state as a word too. */}
-        <Panel title="What a step's state means" actions={<Mock />}>
+        <Panel title="What a step's state means">
           <dl className={s.legend}>
             {(Object.keys(STATE_MEANING) as (keyof typeof STATE_MEANING)[]).map((k) => (
               <div key={k} className={s.legendRow}>

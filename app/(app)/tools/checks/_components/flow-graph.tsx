@@ -15,7 +15,9 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { Check, Invocation, InvocationState, ToolDef } from "@/lib/services/pipeline";
+import type { Chain } from "@/lib/services/checks";
+import type { Tool } from "@/lib/services/tooling";
+import type { Invocation, InvocationState } from "@/lib/services/runs";
 import { NODE_H, NODE_W, place } from "../_layout/flow";
 import s from "./flow-graph.module.css";
 
@@ -32,9 +34,8 @@ export const STATE_MEANING: Record<InvocationState, string> = {
 };
 
 type StepData = {
-  tool: ToolDef;
+  tool: Tool;
   invocation?: Invocation;
-  refusal?: string;
 };
 
 /** DOM and SVG rather than `<canvas>`, which React Flow gives us for free and
@@ -48,13 +49,12 @@ type StepData = {
  *  recon chain has five steps. */
 function StepNode({ data, selected }: NodeProps) {
   const d = data as unknown as StepData;
-  const { tool, invocation, refusal } = d;
+  const { tool, invocation } = d;
 
   return (
     <div
       className={s.node}
       data-state={invocation?.state}
-      data-refused={refusal ? true : undefined}
       data-selected={selected || undefined}
     >
       {/* A source step has no input and a terminal one has no output. A handle
@@ -64,18 +64,23 @@ function StepNode({ data, selected }: NodeProps) {
       <span className={s.stripe} aria-hidden="true" />
       <span className={s.head}>
         <span className={s.name}>{tool.name}</span>
-        {tool.loud ? <span className={s.loud}>loud</span> : null}
+        {/* Three positions, not two. `light` is real — httpx at recon volume is
+            what a crawler does, and calling it loud would put ordinary HTTP
+            behind the same gate as template-driven probing. */}
+        {tool.intensity !== "passive" ? (
+          <span className={s.loud} data-intensity={tool.intensity}>{tool.intensity}</span>
+        ) : null}
       </span>
-      <span className={s.argv}>{invocation?.argv ?? tool.argv}</span>
+      <span className={s.argv}>{invocation ? invocation.argv.join(" ") : tool.argv}</span>
       <span className={s.foot}>
         {invocation ? (
           <span className={s.state}>{invocation.state}</span>
-        ) : refusal ? (
-          <span className={s.state}>would be refused</span>
         ) : (
           <span className={s.feed}>
             {tool.consumes ? `${tool.consumes} → ` : "scope → "}
-            {tool.produces}
+            {/* A tool that produces nothing is legal — it ran, and nothing
+                downstream is fed by it. Blank here would read as a bug. */}
+            {tool.produces ?? "nothing"}
           </span>
         )}
       </span>
@@ -86,14 +91,12 @@ function StepNode({ data, selected }: NodeProps) {
 }
 
 export type FlowGraphProps = {
-  check: Check;
-  tools: ToolDef[];
+  chain: Chain;
+  tools: Tool[];
   /** Absent in the editor — there is no run, so no node has a state. */
   invocations?: Invocation[];
   selected?: string | null;
   onSelect?: (stepId: string | null) => void;
-  /** Steps the spawn gate would refuse, before anything runs. Editor only. */
-  refusals?: Map<string, string>;
   /** Where a settled drag goes. Absent makes the graph read-only, which is what
    *  the Executions tab wants: a run happened at particular positions and moving
    *  them afterwards would be editing the record of it. */
@@ -101,12 +104,11 @@ export type FlowGraphProps = {
 };
 
 export function FlowGraph({
-  check,
+  chain,
   tools,
   invocations,
   selected,
   onSelect,
-  refusals,
   onPin,
 }: FlowGraphProps) {
   const toolOf = useMemo(() => new Map(tools.map((t) => [t.tool_id, t])), [tools]);
@@ -116,8 +118,8 @@ export function FlowGraph({
   );
 
   const initial = useMemo<Node[]>(() => {
-    const placement = place(check);
-    return check.steps.flatMap((step) => {
+    const placement = place(chain);
+    return chain.steps.flatMap((step) => {
       const tool = toolOf.get(step.tool_id);
       const at = placement.get(step.step_id);
       if (!tool || !at) return [];
@@ -126,14 +128,14 @@ export function FlowGraph({
         type: "step",
         position: at,
         draggable: Boolean(onPin),
-        data: { tool, invocation: stateOf.get(step.step_id), refusal: refusals?.get(step.step_id) },
+        data: { tool, invocation: stateOf.get(step.step_id) },
       } satisfies Node];
     });
-  }, [check, toolOf, stateOf, refusals, onPin]);
+  }, [chain, toolOf, stateOf, onPin]);
 
   const initialEdges = useMemo<Edge[]>(
     () =>
-      check.flows.map((f) => {
+      chain.flows.map((f) => {
         const to = stateOf.get(f.to);
         return {
           id: `${f.from}->${f.to}`,
@@ -148,7 +150,7 @@ export function FlowGraph({
             to?.state === "refused" || to?.state === "skipped" ? s.dead : undefined,
         } satisfies Edge;
       }),
-    [check.flows, stateOf],
+    [chain.flows, stateOf],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial);

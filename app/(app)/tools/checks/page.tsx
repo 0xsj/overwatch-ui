@@ -1,38 +1,73 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, Mock, Panel } from "@/components/display";
+import { Badge, Panel } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { clientFor } from "@/lib/root";
-import { listChecks, type Check } from "@/lib/services/pipeline";
+import { listChecks, type Check } from "@/lib/services/checks";
+import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
 import s from "./checks.module.css";
 
 const TITLE = "Checks";
 const SUB =
-  "A check is a named question with its own interval — not a script and not a schedule. The chain of tools underneath is how the question gets answered; coverage is computed from the question, which is why the two are stored separately.";
+  "A check is a named question with its own interval — not a script and not a schedule. It belongs to the firm rather than to an engagement: “what ports are open” is a question you know how to ask, and it is the same question for every client.";
 
 export const metadata: Metadata = { title: TITLE };
 
+/** Every hour a duration can be, said in words.
+ *
+ *  The wire is SECONDS, because `P1M` is not a length of time — a "monthly"
+ *  check is stale after 28, 29, 30 or 31 days depending on when it last ran, and
+ *  that ambiguity lands exactly where staleness is decided. Offering readable
+ *  intervals is the client's job, and this is that mapping. */
+function intervalWords(seconds?: number): string {
+  if (!seconds) return "on request only";
+  const units: [number, string][] = [
+    [604800, "week"], [86400, "day"], [3600, "hour"], [60, "minute"],
+  ];
+  for (const [size, name] of units) {
+    if (seconds % size === 0) {
+      const n = seconds / size;
+      return `every ${n === 1 ? name : `${n} ${name}s`}`;
+    }
+  }
+  return `every ${seconds}s`;
+}
+
 export default async function Page() {
+  const shell = await loadShell();
+  const org = shell.context?.org;
+
   let checks: Check[] = [];
-  try {
-    checks = await listChecks(await clientFor("pipeline"));
-  } catch {
-    checks = [];
+  let read = false;
+  if (org) {
+    try {
+      checks = await listChecks(await clientFor("checks"), org.org_id);
+      read = true;
+    } catch {
+      read = false;
+    }
   }
 
   return (
     <>
-      <PageHead title={TITLE} mock>{SUB}</PageHead>
+      <PageHead title={TITLE}>{SUB}</PageHead>
 
       <Panel
-        title="Questions this engagement asks"
-        actions={<Mock note="check, run, invocation and tool are all UNBUILT in the workspace scope document. Nothing here is served — the shape exists so it can be argued with before a backend commits to it." />}
+        title={org ? `Questions ${org.name} knows how to ask` : "Checks"}
+        note="Org-wide. A per-engagement “do not run this here” is not modelled and must not be — that is what scope already is, and a second flag would be a second, invisible authority over the same question."
       >
-        {checks.length === 0 ? (
+        {!read ? (
           <Text size="sm" tone="tertiary">
-            Never checked — nothing serves checks yet, and this session is not a
-            fixture persona.
+            Never checked — the check list could not be read. That is not the same
+            as there being none.
+          </Text>
+        ) : checks.length === 0 ? (
+          <Text size="sm" tone="tertiary">
+            No checks yet. A check with no steps is a real one — it is a question a
+            person answers by reading, and it never goes stale because there is no
+            clock.
           </Text>
         ) : (
           <ul className={s.list}>
@@ -46,16 +81,13 @@ export default async function Page() {
                     ) : (
                       <Badge tone="neutral" mono>off</Badge>
                     )}
-                    {/* An absent interval is a real kind of check — it runs when
-                        somebody asks — and not an unset field. It says so
-                        rather than rendering as a blank or a zero. */}
-                    <span className={s.interval}>
-                      {c.interval ? `every ${c.interval.replace("PT", "").toLowerCase()}` : "on request only"}
-                    </span>
+                    <span className={s.interval}>{intervalWords(c.interval_seconds)}</span>
                   </span>
                   <span className={s.question}>{c.question}</span>
+                  {/* The coverage denominator. A check with `applies_to: ["host"]`
+                      produces NO CELL for a /24 — not a cell in state `never`. */}
                   <span className={s.chain}>
-                    {c.steps.length} {c.steps.length === 1 ? "step" : "steps"}
+                    applies to {c.applies_to.join(" · ")}
                   </span>
                 </Link>
               </li>
@@ -63,6 +95,15 @@ export default async function Page() {
           </ul>
         )}
       </Panel>
+
+      <Alert tone="info">
+        <Text size="sm">
+          A check with <strong>no steps</strong> is the human check — <code>READ BY
+          YOU</code>. It applies to every kind and never reports stale, and both
+          fall out of its shape rather than out of a special case: nothing spawns,
+          and there is no interval to be late against.
+        </Text>
+      </Alert>
     </>
   );
 }

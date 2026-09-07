@@ -10,8 +10,13 @@ export type Domain =
   | "tenancy"
   | "ledger"
   | "access"
-  | "pipeline"
-  | "entities";
+  | "tooling"
+  | "checks"
+  | "runs"
+  | "observed"
+  | "targets"
+  | "entities"
+  | "coverage";
 
 /** The domains the SERVER actually serves.
  *
@@ -26,9 +31,22 @@ export type Domain =
  *  grant, so it moved — which is what this list is for: one line, one place, and
  *  the startup banner prints it.
  *
- *  `pipeline` is where `access` was. Its nouns are sealed in §Scope and none of
- *  `tool`, `check`, `run` or `invocation` is served. */
-const SERVED: readonly Domain[] = ["identity", "tenancy", "ledger", "access"];
+ *  `entities` is where `access` was, and is now the only one left: `tool`,
+ *  `check`, `run`, `invocation` and `observation` were all served on
+ *  2026-09-07, so `tooling`, `checks`, `runs` and `observed` moved here in one
+ *  sitting. `targets` joined them the same day — it had been served since
+ *  `0029` and the client simply had no service for it, which is a worse failure
+ *  than a missing entry here: a screen was passing a WORKSPACE id where a
+ *  target id belonged and nothing type-checked the difference.
+ *
+ *  And `entities` closed the list on the same day, on `0036`. **The list is now
+ *  every domain**, which is worth stating rather than leaving as an empty
+ *  difference: fixtures are no longer a fallback for anything the server has
+ *  not reached, and the only way to see one is to sign in as a persona. */
+const SERVED: readonly Domain[] = [
+  "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
+  "observed", "targets", "entities", "coverage",
+];
 
 const fixtures = (token: string | null) =>
   createMemoryClient({ routes, getAccessToken: () => token });
@@ -82,12 +100,8 @@ export function adapterFor(domain: Domain): "fetch" | "memory" {
 }
 
 export const DOMAINS: Domain[] = [
-  "identity",
-  "tenancy",
-  "ledger",
-  "access",
-  "pipeline",
-  "entities",
+  "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
+  "observed", "targets", "entities", "coverage",
 ];
 
 export const transport = !baseUrl

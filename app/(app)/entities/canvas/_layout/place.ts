@@ -1,4 +1,5 @@
-import type { EntityGraph, Pin } from "@/lib/services/entities";
+import type { Pin } from "@/lib/services/entities";
+import type { ViewGraph } from "./graph";
 
 export type Point = { x: number; y: number };
 
@@ -52,8 +53,8 @@ function slot(index: number): Point {
  *  A slot belongs to a node's index in the server's ordering and is not
  *  reassigned when something else is pinned — pinning one node must not move
  *  every other node, or the arrangement is not an arrangement. */
-export function place(graph: EntityGraph, pins: readonly Pin[]): Placement {
-  const pinned = new Map(pins.map((p) => [p.node_id, { x: p.x, y: p.y }]));
+export function place(graph: ViewGraph, pins: readonly Pin[]): Placement {
+  const pinned = new Map(pins.map((p) => [p.fragment_id, { x: p.x, y: p.y }]));
   const out: Placement = new Map([[graph.root.id, { x: 0, y: 0 }]]);
 
   graph.nodes.forEach((node, index) => {

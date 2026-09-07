@@ -1,6 +1,8 @@
 import { Badge, Panel } from "@/components/display";
 import { Text } from "@/components/typography";
-import type { Check, Invocation, SpawnPreview, ToolDef } from "@/lib/services/pipeline";
+import type { Chain } from "@/lib/services/checks";
+import type { Tool } from "@/lib/services/tooling";
+import type { Invocation } from "@/lib/services/runs";
 import s from "./step-detail.module.css";
 
 /** One step, and the fields it carries depend on what actually happened to it.
@@ -12,62 +14,50 @@ import s from "./step-detail.module.css";
  *  Rendering any of those as a dash-or-zero collapse loses the distinction the
  *  product is built on. */
 export function StepDetail({
-  check,
+  chain,
   tools,
   stepId,
   invocation,
-  preview,
 }: {
-  check: Check;
-  tools: ToolDef[];
+  chain: Chain;
+  tools: Tool[];
   stepId: string | null;
   invocation?: Invocation;
-  preview?: SpawnPreview[];
 }) {
   if (!stepId) return null;
-  const step = check.steps.find((x) => x.step_id === stepId);
+  const step = chain.steps.find((x) => x.step_id === stepId);
   const tool = step && tools.find((t) => t.tool_id === step.tool_id);
   if (!tool) return null;
 
-  const verdict = preview?.find((p) => p.step_id === stepId);
 
   return (
     <Panel
       title={tool.name}
-      note={tool.consumes ? `${tool.consumes} → ${tool.produces}` : `scope → ${tool.produces}`}
+      note={tool.consumes ? `${tool.consumes} → ${tool.produces ?? "nothing"}` : `scope → ${tool.produces ?? "nothing"}`}
       className={s.panel}
     >
       <dl className={s.facts}>
         <div className={s.fact}>
           <dt>Command</dt>
-          <dd className={s.mono}>{invocation?.argv ?? tool.argv}</dd>
+          <dd className={s.mono}>{invocation ? invocation.argv.join(" ") : tool.argv}</dd>
         </div>
 
-        {tool.loud ? (
-          <div className={s.fact}>
-            <dt>Volume</dt>
-            <dd>
-              <Badge tone="warn" mono>loud</Badge>
-              <Text size="xs" tone="tertiary">
-                sends payloads, so it needs admin on this engagement
-              </Text>
-            </dd>
-          </div>
-        ) : null}
+        <div className={s.fact}>
+          <dt>Intensity</dt>
+          <dd>
+            <Badge tone={tool.intensity === "loud" ? "warn" : "neutral"} mono>
+              {tool.intensity}
+            </Badge>
+            <Text size="xs" tone="tertiary">
+              {tool.intensity === "loud"
+                ? "sends payloads, so the run gate is raised to admin on this engagement"
+                : tool.intensity === "light"
+                  ? "ordinary requests at recon volume — not distinguishable from a crawler"
+                  : "touches the providers, never the target"}
+            </Text>
+          </dd>
+        </div>
 
-        {verdict ? (
-          <div className={s.fact}>
-            <dt>Spawn gate</dt>
-            <dd>
-              <Badge tone={verdict.verdict === "refused" ? "warn" : "accent"} mono>
-                {verdict.verdict}
-              </Badge>
-              {verdict.reason ? (
-                <Text size="xs" tone="tertiary">{verdict.reason}</Text>
-              ) : null}
-            </dd>
-          </div>
-        ) : null}
 
         {invocation ? (
           <>
@@ -76,7 +66,20 @@ export function StepDetail({
               <dd>
                 <Badge tone="neutral" mono>{invocation.state}</Badge>
                 {invocation.refusal ? (
-                  <Text size="xs" tone="tertiary">{invocation.refusal}</Text>
+                  <Text size="xs" tone="tertiary">
+                    {invocation.refusal}
+                    {/* Which rule EXCLUDED it, versus nothing having PERMITTED
+                        it. Different facts, and the second is the common
+                        first-run case whose fix is adding a rule. */}
+                    {invocation.refusal_rule
+                      ? ` — rule ${invocation.refusal_rule}`
+                      : " — nothing in scope permits it yet"}
+                  </Text>
+                ) : null}
+                {invocation.unavailable ? (
+                  <Text size="xs" tone="tertiary">
+                    {invocation.unavailable} — a tool off PATH looks like silence
+                  </Text>
                 ) : null}
                 {invocation.skipped_because ? (
                   <Text size="xs" tone="tertiary">{invocation.skipped_because}</Text>
@@ -96,13 +99,19 @@ export function StepDetail({
             </div>
 
             <div className={s.fact}>
-              <dt>Artifact</dt>
+              <dt>Artifacts</dt>
               <dd>
-                {invocation.bytes === undefined ? (
+                {/* `stdout` and `stderr` are separate rows: a tool that fills
+                    stderr with warnings has not lost its findings. `bytes: 0`
+                    means it ran and wrote an EMPTY artifact; nothing written is
+                    the whole object being absent. */}
+                {invocation.artifacts.length === 0 ? (
                   <span className={s.never}>nothing written</span>
                 ) : (
                   <span className={s.mono}>
-                    {invocation.bytes} bytes · {invocation.artifact_id}
+                    {invocation.artifacts
+                      .map((a) => `${a.stream} ${a.bytes} bytes${a.truncated ? " (truncated)" : ""}`)
+                      .join(" · ")}
                   </span>
                 )}
               </dd>
@@ -111,15 +120,10 @@ export function StepDetail({
             <div className={s.fact}>
               <dt>Observations</dt>
               <dd>
-                {invocation.observations === undefined ? (
-                  // Never measured renders as a dash and never as `0` — §Scope:
-                  // a zero nothing computed is not a zero.
-                  <span className={s.never}>– nothing was read</span>
-                ) : invocation.observations === 0 ? (
-                  <span className={s.mono}>0 — the mapping ran and matched nothing</span>
-                ) : (
-                  <span className={s.mono}>{invocation.observations}</span>
-                )}
+                {/* Not in the response AT ALL yet — nothing parses output, so
+                    this renders as a dash and never as `0`. §Scope: a zero
+                    nothing computed is not a zero. */}
+                <span className={s.never}>– nothing parses output yet</span>
               </dd>
             </div>
           </>

@@ -1,9 +1,9 @@
 import type { MemoryRoute } from "@/lib/http";
 import { accessRoutes } from "./access";
-import { entityRoutes } from "./entities";
+import { entityRoutes, graphRoutes } from "./entities";
 import { identityRoutes } from "./identity";
 import { ledgerRoutes } from "./ledger";
-import { pipelineRoutes } from "./pipeline";
+import { workRoutes } from "./work";
 import { tenancyRoutes } from "./tenancy";
 
 /** Every fixture route, in the order they are tried. One array so a route that
@@ -13,8 +13,9 @@ export const routes: MemoryRoute[] = [
   ...tenancyRoutes,
   ...ledgerRoutes,
   ...accessRoutes,
-  ...pipelineRoutes,
+  ...workRoutes,
   ...entityRoutes,
+  ...graphRoutes,
 ];
 
 export { FIXTURE_PASSWORD, pendingLinks } from "./identity";
