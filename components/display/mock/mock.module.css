@@ -1,0 +1,19 @@
+@layer primitive {
+  .mock {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    padding: 1px var(--space-3);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-1);
+    background: var(--warn-tint);
+    color: var(--warn);
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    line-height: 1.5;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    cursor: help;
+  }
+
+}

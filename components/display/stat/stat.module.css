@@ -7,13 +7,6 @@
     min-inline-size: 0;
   }
 
-  .label {
-    font-size: var(--text-10);
-    font-weight: var(--weight-strong);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-label);
-    color: var(--ink-4);
-  }
 
   .value {
     font-size: var(--text-22);

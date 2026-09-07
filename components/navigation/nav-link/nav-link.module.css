@@ -1,0 +1,8 @@
+@layer primitive {
+  /* Almost nothing, on purpose. The reusable half of a nav link is its
+     SEMANTICS, not its appearance — the rail and the sidebar look nothing alike
+     and are the same component. */
+  .link {
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+}

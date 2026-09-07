@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Alert } from "@/components/display";
+import { Mock } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Heading, Text } from "@/components/typography";
 import { ThemeToggle } from "@/components/chrome";
 import { transport } from "@/lib/root";
@@ -38,7 +39,13 @@ export function AuthShell({
 
       <div className={s.foot}>
         <Alert tone="warn" live={false}>
-          <Text size="xs"><strong>This build has no backend.</strong> {transport}</Text>
+          <Text size="xs">
+            <Mock
+              note="This build has no server configured, so every account, invitation and workspace named here comes from a fixture."
+              className={s.mock}
+            />
+            <strong>This build has no backend.</strong> {transport}
+          </Text>
           {note ? <Text size="xs" tone="tertiary">{note}</Text> : null}
         </Alert>
         <ThemeToggle />

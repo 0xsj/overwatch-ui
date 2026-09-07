@@ -1,5 +1,5 @@
 import { Text } from "@/components/typography";
-import { Chip } from "@/components/display";
+import { Badge } from "@/components/display";
 import { Panel, Row, Section } from "../_components/section";
 import { audit, type Check } from "../_lib/tokens";
 import s from "../_components/sink.module.css";
@@ -14,9 +14,9 @@ function Audit({ rows, theme }: { rows: Check[]; theme: string }) {
   return (
     <div>
       <Row label={theme}>
-        <Chip tone={failed ? "crit" : "accent"} glyph={failed ? "✕" : "✓"}>
+        <Badge tone={failed ? "crit" : "accent"} glyph={failed ? "✕" : "✓"}>
           {failed ? `${failed} below threshold` : `${rows.length} pairs pass`}
-        </Chip>
+        </Badge>
       </Row>
       <table className={s.audit}>
         <thead><tr><th>Foreground</th><th>On</th><th>Ratio</th><th>Needs</th></tr></thead>
@@ -79,9 +79,9 @@ export async function TokensSection() {
           ))}
         </div>
         <Row label="three states">
-          <Chip glyph="●" tone="accent">found</Chip>
-          <Chip glyph="—">none</Chip>
-          <Chip glyph="··">never checked</Chip>
+          <Badge glyph="●" tone="accent">found</Badge>
+          <Badge glyph="—">none</Badge>
+          <Badge glyph="··">never checked</Badge>
         </Row>
       </Panel>
     </Section>

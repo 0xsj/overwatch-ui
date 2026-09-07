@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button, Field, Input } from "@/components/forms";
-import { Alert } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { signInAction } from "../_actions";
 import { initialFormState } from "../_form-state";

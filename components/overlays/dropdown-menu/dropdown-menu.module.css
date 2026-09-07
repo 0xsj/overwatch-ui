@@ -1,0 +1,55 @@
+@layer primitive {
+  .content {
+    /* Radix measures the trigger and publishes it as a custom property; a menu
+       narrower than the thing that opened it reads as a different object. */
+    min-inline-size: max(200px, var(--radix-dropdown-menu-trigger-width));
+    max-inline-size: min(320px, var(--radix-dropdown-menu-content-available-width));
+    padding: var(--space-2);
+    z-index: var(--z-palette);
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-block-size: var(--control-md);
+    padding-inline: var(--space-5);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+    cursor: default;
+    user-select: none;
+    outline: none;
+  }
+
+  /* Radix drives BOTH pointer and keyboard through data-highlighted, so there is
+     one highlighted item at a time and hovering does not leave a second one lit
+     behind the keyboard cursor. `:hover` here would produce exactly that. */
+  .item[data-highlighted] {
+    background: var(--surface-hover-2);
+    color: var(--ink);
+  }
+
+  .item[data-disabled] {
+    color: var(--ink-4);
+    pointer-events: none;
+  }
+
+  .destructive { color: var(--crit); }
+  .destructive[data-highlighted] { background: var(--crit-tint); color: var(--crit); }
+
+  .label {
+    padding: var(--space-4) var(--space-5) var(--space-3);
+    font-size: var(--text-10);
+    font-weight: var(--weight-strong);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+  }
+
+  .separator {
+    block-size: 1px;
+    margin: var(--space-2) var(--space-4);
+    background: var(--line);
+  }
+}

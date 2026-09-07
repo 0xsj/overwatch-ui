@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Chip, Panel } from "@/components/display";
-import { Text } from "@/components/typography";
+import { Badge, Panel } from "@/components/display";
+import { SectionLabel, Text } from "@/components/typography";
 import type { Attribution, EntityGraph, GraphNode, RootEntity } from "@/lib/services/entities";
 import { KIND_GLYPH } from "./glyphs";
 import s from "./inspector.module.css";
@@ -11,17 +11,17 @@ function Claim({ claim }: { claim: Attribution }) {
   return (
     <dl className={s.fields}>
       <div className={s.field}>
-        <dt>state</dt>
-        <dd><Chip tone={STATE_TONE[claim.state]}>{claim.state}</Chip></dd>
+        <SectionLabel as="dt">state</SectionLabel>
+        <dd><Badge tone={STATE_TONE[claim.state]}>{claim.state}</Badge></dd>
       </div>
       <div className={s.field}>
-        <dt>claimed by</dt>
+        <SectionLabel as="dt">claimed by</SectionLabel>
         <dd>
-          <Chip mono>{claim.claimant}</Chip>
+          <Badge mono>{claim.claimant}</Badge>
           {/* A rule carries no confidence. Rendering 1.00 here would destroy the
               distinction between a category and a very sure model. */}
           {claim.confidence !== undefined ? (
-            <Chip mono tone="warn">{claim.confidence.toFixed(2)}</Chip>
+            <Badge mono tone="warn">{claim.confidence.toFixed(2)}</Badge>
           ) : (
             <span className={s.absent}>no confidence — a rule asserts a category, not a probability</span>
           )}
@@ -29,12 +29,12 @@ function Claim({ claim }: { claim: Attribution }) {
       </div>
       {claim.actor ? (
         <div className={s.field}>
-          <dt>ruled by</dt>
+          <SectionLabel as="dt">ruled by</SectionLabel>
           <dd><span className={s.mono}>{claim.actor}</span></dd>
         </div>
       ) : null}
       <div className={s.field}>
-        <dt>basis</dt>
+        <SectionLabel as="dt">basis</SectionLabel>
         <dd className={s.basis}>{claim.basis}</dd>
       </div>
     </dl>
@@ -96,22 +96,22 @@ export function Inspector({
 
       <dl className={s.fields}>
         <div className={s.field}>
-          <dt>observations</dt>
+          <SectionLabel as="dt">observations</SectionLabel>
           <dd><span className={s.mono}>{node.observations}</span></dd>
         </div>
         <div className={s.field}>
-          <dt>last seen</dt>
+          <SectionLabel as="dt">last seen</SectionLabel>
           <dd><span className={s.mono}>{node.last_seen}</span></dd>
         </div>
         <div className={s.field}>
-          <dt>source</dt>
+          <SectionLabel as="dt">source</SectionLabel>
           <dd><span className={s.mono}>{node.source}</span></dd>
         </div>
       </dl>
 
       {inbound.length || outbound.length ? (
         <div className={s.derivations}>
-          <h4 className={s.subhead}>Read out of, and read into</h4>
+          <SectionLabel as="h4" className={s.subhead}>Read out of, and read into</SectionLabel>
           {inbound.map((e) =>
             e.kind === "derivation" ? (
               <p key={`in:${e.from}:${e.label}`} className={s.derivation}>

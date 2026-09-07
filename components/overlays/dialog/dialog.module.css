@@ -1,0 +1,89 @@
+@layer primitive {
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--scrim);
+    z-index: var(--z-scrim);
+  }
+
+  .content {
+    position: fixed;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    transform: translate(-50%, -50%);
+    inline-size: min(560px, calc(100vw - var(--space-9)));
+    max-block-size: min(80dvh, 720px);
+    display: flex;
+    flex-direction: column;
+    z-index: var(--z-drawer);
+  }
+
+  /* The mock's record drawer: an edge sheet, which is the same dialog with a
+     different anchor. Not a separate component — the focus trap, the escape
+     handling and the labelling obligations are identical, and only the geometry
+     differs. */
+  .right {
+    inset-block: 0;
+    inset-inline: auto 0;
+    transform: none;
+    inline-size: min(460px, calc(100vw - var(--space-9)));
+    max-block-size: none;
+    block-size: 100dvh;
+    border-radius: 0;
+    border-block: 0;
+    border-inline-end: 0;
+  }
+
+  .header {
+    padding: var(--space-7) var(--space-8) var(--space-5);
+    flex: none;
+  }
+
+  .title {
+    font-size: var(--text-15);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-tight);
+    color: var(--ink);
+    padding-inline-end: var(--space-8);
+  }
+
+  .description {
+    margin-block-start: var(--space-3);
+    font-size: var(--text-12-5);
+    color: var(--ink-3);
+    line-height: var(--leading-body);
+  }
+
+  .body {
+    padding-inline: var(--space-8);
+    padding-block-end: var(--space-7);
+    overflow-y: auto;
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-8);
+    border-block-start: 1px solid var(--line);
+    flex: none;
+  }
+
+  .dismiss {
+    position: absolute;
+    inset-block-start: var(--space-6);
+    inset-inline-end: var(--space-6);
+    inline-size: 26px;
+    block-size: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-2);
+    color: var(--ink-3);
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .dismiss:hover { background: var(--surface-hover); color: var(--ink); }
+}

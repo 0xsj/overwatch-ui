@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Mock } from "@/components/display";
 import { Heading, Text } from "@/components/typography";
 import { ThemeToggle } from "@/components/chrome";
 import { SECTIONS } from "./_sections/registry";
@@ -20,7 +21,10 @@ export default function KitchenSinkLayout({ children }: { children: ReactNode })
       </header>
       <main className={s.main}>
         <div className={s.intro}>
-          <Heading level={1} scale="d2">Kitchen sink</Heading>
+          <div className={s.titleRow}>
+            <Heading level={1} scale="d2">Kitchen sink</Heading>
+            <Mock note="Every value on this page is a sample chosen to exercise a component. None of it is a record." />
+          </div>
           <Text tone="tertiary" measure>
             The design system, rendered, with nothing above it. The nav is derived from
             the same registry the page composes, so a section cannot exist and be

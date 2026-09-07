@@ -1,0 +1,17 @@
+@layer primitive {
+  /* Not `display: none` and not `visibility: hidden` — both remove the element
+     from the accessibility tree, which is the one thing this must never do.
+     A 1px clipped box stays in the tree and stays out of the picture. */
+  .hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+}

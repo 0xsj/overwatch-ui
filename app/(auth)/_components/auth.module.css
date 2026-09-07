@@ -117,4 +117,6 @@
     text-align: center;
     max-inline-size: 52ch;
   }
+
+  .mock { margin-inline-end: var(--space-4); vertical-align: 1px; }
 }

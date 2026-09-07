@@ -1,5 +1,5 @@
 /**
- * Chip — a small piece of state, and the reason it has a glyph slot.
+ * Badge — a small piece of state, and the reason it has a glyph slot.
  *
  * # A status may never be distinguished by colour alone
  *
@@ -28,7 +28,7 @@
  *
  *     tone: { neutral: "", accent: s.accent, … }
  *
- * The neutral appearance lives on `.chip` itself, so the neutral variant adds
+ * The neutral appearance lives on `.badge` itself, so the neutral variant adds
  * nothing. It is still listed, because a variant key that exists in the type and
  * not in the map is a runtime `undefined` in the class list, and because
  * `tone="neutral"` should be writable at a call site that is choosing between

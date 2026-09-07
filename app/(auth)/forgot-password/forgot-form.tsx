@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { Button, Field, Input } from "@/components/forms";
-import { Alert } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { requestResetAction } from "../_actions";
 import { initialFormState } from "../_form-state";

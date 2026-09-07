@@ -1,0 +1,14 @@
+@layer primitive {
+  .content {
+    max-inline-size: 30ch;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-2);
+    font-size: var(--text-11-5);
+    line-height: var(--leading-snug);
+    color: var(--ink);
+    z-index: var(--z-palette);
+    /* The pointer is never over a tooltip on purpose, and one that intercepts a
+       click swallows the press meant for whatever is underneath it. */
+    pointer-events: none;
+  }
+}

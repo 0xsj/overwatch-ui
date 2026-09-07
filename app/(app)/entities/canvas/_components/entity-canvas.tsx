@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Alert, Chip, Panel, Stat } from "@/components/display";
+import { Badge, Panel, Stat } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Button } from "@/components/forms";
+import { NavLink } from "@/components/navigation";
 import { Text } from "@/components/typography";
 import type { Attribution, ClaimState, EntityGraph, EntityRef, Pin } from "@/lib/services/entities";
 import { pinNode, relayout } from "../_actions";
@@ -76,16 +78,16 @@ export function EntityCanvas({
     <>
       <div className={s.switcher} role="group" aria-label="Root entity">
         {roots.map((root) => (
-          <Link
-            key={root.id}
-            href={`/entities/canvas?root=${encodeURIComponent(root.id)}`}
-            className={s.root}
-            aria-current={root.id === graph.root.id ? "true" : undefined}
-          >
-            <span className={s.rootKind} aria-hidden="true">{KIND_GLYPH[root.kind]} {root.kind}</span>
-            {root.label}
-            <span className={s.rootCount}>{root.total}</span>
-          </Link>
+          <NavLink key={root.id} asChild active={root.id === graph.root.id}>
+            <Link
+              href={`/entities/canvas?root=${encodeURIComponent(root.id)}`}
+              className={s.root}
+            >
+              <span className={s.rootKind} aria-hidden="true">{KIND_GLYPH[root.kind]} {root.kind}</span>
+              {root.label}
+              <span className={s.rootCount}>{root.total}</span>
+            </Link>
+          </NavLink>
         ))}
         <Text size="xs" tone="quiet" as="span" className={s.aside}>
           three roots, three shapes — the machinery is the same
@@ -126,7 +128,7 @@ export function EntityCanvas({
           Re-layout
         </Button>
         {pins.length ? (
-          <Chip tone="accent" mono>{pins.length} pinned</Chip>
+          <Badge tone="accent" mono>{pins.length} pinned</Badge>
         ) : null}
       </div>
 

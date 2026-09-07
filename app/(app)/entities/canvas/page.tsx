@@ -25,7 +25,7 @@ export default async function Page({
 
   return (
     <>
-      <PageHead title="Entity canvas">{SUB}</PageHead>
+      <PageHead title="Entity canvas" mock>{SUB}</PageHead>
       <EntityCanvas graph={graph} roots={roots} pins={pins} />
     </>
   );

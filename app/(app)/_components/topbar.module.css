@@ -27,28 +27,15 @@
     color: var(--ink);
   }
 
-  .tip {
-    position: absolute;
-    inset-inline-start: 50%;
-    inset-block-start: 34px;
-    transform: translateX(-50%);
-    background: var(--surface-raised);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-2);
-    padding: var(--space-1) var(--space-4);
-    font-size: var(--text-11);
-    color: var(--ink);
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    z-index: var(--z-raised);
-    box-shadow: var(--shadow);
-    transition: opacity var(--dur-1);
-  }
 
-  .panel:hover .tip,
-  .panel:focus-visible .tip {
-    opacity: 1;
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-1);
+    padding: 0 var(--space-2);
+    color: var(--ink-3);
   }
 
   .crumbs {
@@ -84,6 +71,8 @@
     padding-inline: var(--space-1);
     font-size: var(--text-13);
   }
+
+  .mock { margin-inline-start: var(--space-4); }
 
   .kind {
     margin-inline-start: var(--space-3);

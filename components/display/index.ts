@@ -1,4 +1,4 @@
-export * from "./alert";
-export * from "./chip";
+export * from "./badge";
+export * from "./mock";
 export * from "./panel";
 export * from "./stat";

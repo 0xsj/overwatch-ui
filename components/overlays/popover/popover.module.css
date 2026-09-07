@@ -1,0 +1,10 @@
+@layer primitive {
+  .content {
+    min-inline-size: 240px;
+    max-inline-size: min(380px, var(--radix-popover-content-available-width));
+    max-block-size: var(--radix-popover-content-available-height);
+    overflow-y: auto;
+    padding: var(--space-6);
+    z-index: var(--z-palette);
+  }
+}

@@ -1,29 +1,30 @@
-import { Alert, Chip } from "@/components/display";
+import { Badge } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { Panel, Row, Section } from "../_components/section";
 import { readSources } from "../_lib/source";
 
 export async function DisplaySection() {
-  const sources = await readSources(["display/chip/chip.tsx", "display/alert/alert.tsx"]);
+  const sources = await readSources(["display/badge/badge.tsx", "feedback/alert/alert.tsx"]);
   return (
-    <Section id="display" title="Display" blurb="Chip carries a glyph slot because a status may never be distinguished by colour alone — the accent and the healthy state are the same hue here.">
-      <Panel title="Chip" sources={sources}>
+    <Section id="display" title="Display" blurb="Badge carries a glyph slot because a status may never be distinguished by colour alone — the accent and the healthy state are the same hue here.">
+      <Panel title="Badge" sources={sources}>
         <Row label="tone">
-          <Chip>neutral</Chip>
-          <Chip tone="accent">accepted</Chip>
-          <Chip tone="warn">proposed</Chip>
-          <Chip tone="crit">refused</Chip>
-          <Chip tone="info">rule</Chip>
+          <Badge>neutral</Badge>
+          <Badge tone="accent">accepted</Badge>
+          <Badge tone="warn">proposed</Badge>
+          <Badge tone="crit">refused</Badge>
+          <Badge tone="info">rule</Badge>
         </Row>
         <Row label="glyph">
-          <Chip tone="accent" glyph="✓">accepted</Chip>
-          <Chip tone="warn" glyph="?">nobody has ruled</Chip>
-          <Chip tone="crit" glyph="⊘">out of scope</Chip>
-          <Chip glyph="··">never checked</Chip>
+          <Badge tone="accent" glyph="✓">accepted</Badge>
+          <Badge tone="warn" glyph="?">nobody has ruled</Badge>
+          <Badge tone="crit" glyph="⊘">out of scope</Badge>
+          <Badge glyph="··">never checked</Badge>
         </Row>
         <Row label="mono">
-          <Chip mono>run-119</Chip>
-          <Chip mono tone="info">art_01JQ8F</Chip>
+          <Badge mono>run-119</Badge>
+          <Badge mono tone="info">art_01JQ8F</Badge>
         </Row>
       </Panel>
 

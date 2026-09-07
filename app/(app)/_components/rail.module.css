@@ -40,28 +40,24 @@
     color: var(--ink);
   }
 
-  .tip {
-    position: absolute;
-    inset-inline-start: 44px;
-    inset-block-start: 50%;
-    transform: translateY(-50%) scale(0.96);
-    background: var(--surface-raised);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-2);
-    padding: var(--space-1) var(--space-4);
-    font-size: var(--text-11-5);
+
+
+  /* The tooltip carries the section's subtitle as well as its name. The name
+     alone would repeat the link's own aria-label, and Radix wires the tooltip in
+     as aria-describedby — so a keyboard user would hear "Findings, Findings".
+     Saying something the label does not is both better copy and the fix. */
+  .tip { max-inline-size: 34ch; }
+
+  .tipName {
+    display: block;
+    font-weight: var(--weight-medium);
     color: var(--ink);
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    z-index: var(--z-raised);
-    box-shadow: var(--shadow);
-    transition: opacity var(--dur-1), transform var(--dur-1);
   }
 
-  .button:hover .tip,
-  .button:focus-visible .tip {
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
+  .tipSub {
+    display: block;
+    margin-block-start: 2px;
+    font-size: var(--text-11);
+    color: var(--ink-3);
   }
 }

@@ -7,7 +7,7 @@ import {
   Waypoints,
   Wrench,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/utility";
 
 export type NavPage = { href: string; label: string };
 

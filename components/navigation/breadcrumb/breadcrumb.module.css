@@ -1,0 +1,40 @@
+@layer primitive {
+  .list {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    min-inline-size: 0;
+  }
+
+  .item { display: flex; align-items: center; min-inline-size: 0; }
+
+  .link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    block-size: var(--control-md);
+    padding-inline: var(--space-4);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+    white-space: nowrap;
+    transition: background var(--dur-1), color var(--dur-1);
+  }
+
+  .link:hover { background: var(--surface-hover); color: var(--ink); }
+
+  .page {
+    padding-inline: var(--space-4);
+    font-size: var(--text-12-5);
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .separator {
+    color: var(--ink-4);
+    padding-inline: var(--space-1);
+    font-size: var(--text-13);
+    user-select: none;
+  }
+}

@@ -58,6 +58,26 @@
  *
  * Each of these is one component away and none of them is scaffolding today.
  *
+ * # One thing here that the mock does NOT have
+ *
+ * The account menu, on the sidebar footer avatar. Every Settings page in the mock
+ * is an *organisation* page — there is no profile, no password, no session list,
+ * and no way to sign out of the product at all. `shell-account` has the argument;
+ * the short version is that `account` is a §Scope noun and every human claim in
+ * the record names one, so a screen showing what is attached to your name is owed
+ * rather than optional.
+ *
+ * It is not under Settings, whose own subtitle is *"The organisation, and who may
+ * see what"* — putting a password field on the screen that also holds target
+ * access is how somebody edits the wrong thing. And it is not an eighth rail
+ * section: the rail is for the work.
+ *
+ * **The cost, which is real:** the sidebar is `inert` when hidden, so the menu is
+ * unreachable when the sidebar is collapsed, and it now holds sign-out and
+ * preferences as well as the theme. The trigger moves to the topbar if collapsing
+ * turns out to be common — one `className`, no structural change, which is why
+ * finding out later is acceptable.
+ *
  * # The two accessibility decisions that are not obvious
  *
  * **The hidden sidebar is `inert`, not just transparent.** `opacity: 0` hides it

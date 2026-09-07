@@ -47,4 +47,98 @@
   .swatchLabel { padding: var(--space-3) var(--space-4); font-family: var(--font-mono);
     font-size: var(--text-10); color: var(--ink-3); background: var(--surface-panel); }
   .stack { display: grid; gap: var(--space-4); max-inline-size: 380px; }
+
+  .titleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+  }
+
+  .iconGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: var(--space-3);
+    inline-size: 100%;
+  }
+
+  .iconCell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    color: var(--ink-3);
+  }
+
+  .iconName {
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    color: var(--ink-4);
+  }
+
+  /* The Portal demonstration: a box that clips, so escaping it is visible. */
+  .clipBox {
+    position: relative;
+    inline-size: 260px;
+    block-size: 54px;
+    padding: var(--space-5);
+    border: 1px dashed var(--line-heavy);
+    border-radius: var(--radius-2);
+    overflow: hidden;
+  }
+
+  .escapee,
+  .portalled {
+    position: absolute;
+    inset-block-start: 34px;
+    inset-inline-start: var(--space-5);
+    padding: 1px var(--space-4);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-1);
+    background: var(--warn-tint);
+    color: var(--warn);
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    white-space: nowrap;
+  }
+
+  /* Fixed, so it is visibly OUTSIDE the dashed box that clips its sibling.
+     Bottom-right and shadowed so it reads as the demonstration it is rather
+     than as something that has come loose. */
+  .portalled {
+    position: fixed;
+    inset-block-start: auto;
+    inset-block-end: var(--space-7);
+    inset-inline: auto var(--space-7);
+    border-color: var(--accent-line);
+    background: var(--surface-raised);
+    color: var(--accent);
+    box-shadow: var(--shadow);
+    z-index: var(--z-toast);
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--text-10);
+  }
+
+  .tipName { display: block; font-weight: var(--weight-medium); color: var(--ink); }
+  .tipSub {
+    display: block;
+    margin-block-start: 2px;
+    font-size: var(--text-11);
+    color: var(--ink-3);
+  }
+
+  .navDemo {
+    display: inline-flex;
+    align-items: center;
+    block-size: var(--control-md);
+    padding-inline: var(--space-5);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+  }
+
+  .navDemo:hover { background: var(--surface-hover); color: var(--ink); }
+  .navDemo[data-active] { background: var(--surface-hover-2); color: var(--ink); }
 }

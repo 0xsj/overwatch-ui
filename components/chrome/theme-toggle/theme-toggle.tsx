@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "@/components/utility";
 import { useSyncExternalStore } from "react";
 import { Button } from "@/components/forms";
 import { cn } from "@/lib/kernel";

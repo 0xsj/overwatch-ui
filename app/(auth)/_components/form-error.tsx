@@ -1,4 +1,4 @@
-import { Alert } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import type { FormState } from "../_form-state";
 

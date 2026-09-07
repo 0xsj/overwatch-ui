@@ -11,6 +11,13 @@
     flex: 1;
   }
 
+  .titleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    min-inline-size: 0;
+  }
+
   .sub {
     margin-block-start: var(--space-3);
     line-height: var(--leading-body);

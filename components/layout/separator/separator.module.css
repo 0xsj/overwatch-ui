@@ -1,0 +1,19 @@
+@layer primitive {
+  .separator {
+    flex: none;
+    background: var(--line-strong);
+  }
+
+  .separator[data-orientation="horizontal"] {
+    block-size: 1px;
+    inline-size: 100%;
+  }
+
+  .separator[data-orientation="vertical"] {
+    inline-size: 1px;
+    block-size: 100%;
+    align-self: stretch;
+  }
+
+  .subtle { background: var(--line); }
+}

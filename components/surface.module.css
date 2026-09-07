@@ -1,0 +1,18 @@
+/* The elevated surface. Shared, because every overlay in the catalogue is the
+   same object at a different size — a menu, a tooltip, a popover and a toast all
+   float above the page on the same ground, and three of them looking alike by
+   coincidence is three of them drifting apart later.
+
+   It is a plain stylesheet rather than a component: there is no markup here, only
+   the appearance of being above the page. `composes` is deliberately not used —
+   a caller applies it alongside its own class, so the layer order stays visible
+   at the call site. */
+@layer primitive {
+  .elevated {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-3);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow);
+    color: var(--ink);
+  }
+}

@@ -8,7 +8,15 @@ import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import s from "./app-shell.module.css";
 
-export function AppShell({ context, children }: { context: ShellContext; children: ReactNode }) {
+export function AppShell({
+  context,
+  fixtures,
+  children,
+}: {
+  context: ShellContext;
+  fixtures: boolean;
+  children: ReactNode;
+}) {
   const sidebarHidden = useSidebarHidden();
   useSidebarShortcut();
 
@@ -18,7 +26,7 @@ export function AppShell({ context, children }: { context: ShellContext; childre
       <Rail />
       <Sidebar account={context.account} />
       <div className={s.main}>
-        <Topbar org={context.org} target={context.target} />
+        <Topbar org={context.org} target={context.target} fixtures={fixtures} />
         <div className={s.body}>
           <main id="content" className={s.wrap} tabIndex={-1}>{children}</main>
         </div>

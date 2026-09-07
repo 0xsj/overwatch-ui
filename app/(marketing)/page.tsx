@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Chip } from "@/components/display";
+import { Badge } from "@/components/display";
 import { Text } from "@/components/typography";
 import { usingFixtures } from "@/lib/root";
 import s from "./_components/marketing.module.css";
@@ -27,7 +27,7 @@ export default function ComingSoon() {
       </nav>
 
       <div className={s.body}>
-        <Chip tone="accent" glyph="··">Coming soon</Chip>
+        <Badge tone="accent" glyph="··">Coming soon</Badge>
 
         <h1 className={s.wordmark}>overwatch</h1>
 

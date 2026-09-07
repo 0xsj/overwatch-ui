@@ -1,5 +1,5 @@
 import { Slot } from "radix-ui";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "@/components/utility";
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/kernel";
 import s from "./button.module.css";

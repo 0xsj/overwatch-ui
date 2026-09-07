@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert, Chip } from "@/components/display";
+import { Badge, Mock } from "@/components/display";
+import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { isAppError } from "@/lib/kernel";
 import { http } from "@/lib/root";
@@ -46,7 +47,14 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <AuthShell title="You have been invited" blurb={<>Read what this gives you before you accept it.</>}>
+    <AuthShell
+      title="You have been invited"
+      blurb={
+        <>
+          Read what this gives you before you accept it. <Mock note="This invitation is a fixture. Nobody sent it, and accepting it creates no account." />
+        </>
+      }
+    >
       <div className={s.facts}>
         <div className={s.fact}>
           <span className={s.factKey}>workspace</span>
@@ -59,9 +67,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <div className={s.fact}>
           <span className={s.factKey}>as</span>
           <span className={s.factVal}>
-            <Chip tone={invite.external ? "info" : "accent"} glyph={invite.external ? "◔" : "✓"}>
+            <Badge tone={invite.external ? "info" : "accent"} glyph={invite.external ? "◔" : "✓"}>
               {invite.role}
-            </Chip>
+            </Badge>
             {invite.external ? <Text size="xs" tone="quiet">outside the organisation</Text> : null}
           </span>
         </div>
@@ -74,7 +82,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           <span className={s.factVal}>
             {invite.expires_at ? (
               <>
-                <Chip tone="warn" glyph="▲">{invite.expires_at}</Chip>
+                <Badge tone="warn" glyph="▲">{invite.expires_at}</Badge>
                 <Text size="xs" tone="quiet">and is not renewed automatically</Text>
               </>
             ) : (

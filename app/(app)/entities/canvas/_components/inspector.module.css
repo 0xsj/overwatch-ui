@@ -8,12 +8,6 @@
 
   .field { display: grid; grid-template-columns: 88px 1fr; gap: var(--space-5); align-items: baseline; }
 
-  .field dt {
-    font-size: var(--text-10);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-label);
-    color: var(--ink-4);
-  }
 
   .field dd { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; min-inline-size: 0; }
 
@@ -34,13 +28,7 @@
     border-block-start: 1px solid var(--line);
   }
 
-  .subhead {
-    font-size: var(--text-10);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-label);
-    color: var(--ink-4);
-    margin-block-end: var(--space-4);
-  }
+  .subhead { margin-block-end: var(--space-4); }
 
   .derivation {
     display: flex;

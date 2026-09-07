@@ -1,0 +1,38 @@
+@layer composition {
+  .trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-inline-size: 0;
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    margin-inline-start: calc(var(--space-3) * -1);
+    border-radius: var(--radius-2);
+    transition: background var(--dur-1);
+  }
+
+  .trigger:hover,
+  .trigger[data-state="open"] { background: var(--surface-hover); }
+
+  .avatar {
+    inline-size: 22px;
+    block-size: 22px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--surface-panel-2);
+    border: 1px solid var(--line-strong);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    font-weight: var(--weight-strong);
+    color: var(--ink-2);
+  }
+
+  .who {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

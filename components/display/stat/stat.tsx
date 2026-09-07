@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SectionLabel } from "@/components/typography";
 import { cn } from "@/lib/kernel";
 import s from "./stat.module.css";
 import { statVariants, type StatVariants } from "./stat.variants";
@@ -16,7 +17,7 @@ export type StatProps = StatVariants & {
 export function Stat({ label, value, note, tone, className }: StatProps) {
   return (
     <div className={cn(s.stat, className)}>
-      <div className={s.label}>{label}</div>
+      <SectionLabel>{label}</SectionLabel>
       <div className={s.value}>{value ?? <span className={s.unmeasured}>—</span>}</div>
       {note ? <div className={statVariants({ tone })}>{note}</div> : null}
     </div>
