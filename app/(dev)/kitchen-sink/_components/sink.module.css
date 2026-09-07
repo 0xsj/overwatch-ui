@@ -1,4 +1,88 @@
 @layer screen {
+  .body {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .rail {
+    position: sticky;
+    inset-block-start: 56px;
+    max-block-size: calc(100dvh - 56px);
+    overflow-y: auto;
+    padding: var(--space-7) var(--space-5) var(--space-10);
+    border-inline-end: 1px solid var(--line);
+  }
+
+  .caseNav { display: flex; flex-direction: column; gap: var(--space-6); }
+  .caseGroup { display: flex; flex-direction: column; gap: 1px; }
+
+  .caseSection {
+    font-size: var(--text-10);
+    font-weight: var(--weight-strong);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .caseSection:hover { color: var(--ink-2); }
+
+  .caseLink {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-1);
+    font-size: var(--text-12);
+    color: var(--ink-3);
+    border-inline-start: 2px solid transparent;
+    transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+  }
+
+  .caseLink:hover { background: var(--surface-hover); color: var(--ink); }
+
+  .caseLinkActive {
+    color: var(--ink);
+    border-inline-start-color: var(--accent);
+    background: var(--surface-hover);
+  }
+
+  .anchor { color: inherit; }
+  .anchor:hover { color: var(--accent); }
+
+  /* Collapsed by default — the demo is the point, the source is the appendix. */
+  .source { border-block-start: 1px solid var(--line); }
+
+  .sourceSummary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-6);
+    font-size: var(--text-11);
+    color: var(--ink-4);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .sourceSummary::-webkit-details-marker { display: none; }
+  .sourceSummary::before { content: "\25B8"; display: inline-block; transition: transform var(--dur-1); }
+  .source[open] .sourceSummary::before { transform: rotate(90deg); }
+  .sourceSummary:hover { color: var(--ink-2); }
+
+  .sourcePaths {
+    font-family: var(--font-mono);
+    font-size: var(--text-9);
+    color: var(--ink-4);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Anchored jumps must clear the sticky header. Scoped to the two local
+     classes because a CSS Module refuses a selector with no local class in it —
+     `[id]` alone is not "pure" and fails the build rather than leaking. */
+  .section,
+  .panel { scroll-margin-block-start: 72px; }
+
   .shell { min-block-size: 100vh; }
   .header { position: sticky; top: 0; z-index: var(--z-sticky);
     background: var(--surface-ground); border-block-end: 1px solid var(--line); }
@@ -159,4 +243,14 @@
   .markInk { color: var(--ink); display: inline-flex; }
   .markAccent { color: var(--accent); display: inline-flex; }
   .markQuiet { color: var(--ink-4); display: inline-flex; }
+
+  .formCol { display: flex; flex-direction: column; gap: var(--space-5); inline-size: 100%; max-inline-size: 46ch; }
+  .inline { display: flex; align-items: center; gap: var(--space-4); }
+  .selectWrap { inline-size: 220px; }
+
+  .presenceTable { inline-size: 100%; border-collapse: collapse; }
+  .presenceTable td { padding: var(--space-3) var(--space-5) var(--space-3) 0; border-block-end: 1px solid var(--line); }
+  .presenceHost { font-family: var(--font-mono); font-size: var(--text-11-5); color: var(--ink-2); }
+
+  .member { display: inline-flex; align-items: center; gap: var(--space-4); }
 }

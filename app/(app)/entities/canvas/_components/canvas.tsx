@@ -9,8 +9,10 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { Toggle } from "@/components/forms";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/overlays";
 import type { Attribution, ClaimState, EntityGraph, Pin } from "@/lib/services/entities";
-import { UNIT, bounds, place, toPixels, toUnits, type Point } from "../_layout/place";
+import { UNIT, bounds, place, snap, toPixels, toUnits, type Point } from "../_layout/place";
 import { nodeBox } from "../_layout/labels";
 import { Edges } from "./edges";
 import { Node } from "./node";
@@ -38,6 +40,8 @@ export function Canvas({
   selected,
   onSelect,
   onPin,
+  focus,
+  onFocusChange,
 }: {
   graph: EntityGraph;
   pins: readonly Pin[];
@@ -45,6 +49,10 @@ export function Canvas({
   selected: string | null;
   onSelect: (id: string | null) => void;
   onPin: (nodeId: string, at: Point) => void;
+  /** Keeps the record out of the way. The highlight is the whole answer while
+   *  it is on, and the drawer would cover 460px of the thing being read. */
+  focus: boolean;
+  onFocusChange: (focus: boolean) => void;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -54,6 +62,12 @@ export function Canvas({
   const drag = useRef<Drag | null>(null);
   const [live, setLive] = useState<{ id: string; at: Point } | null>(null);
   const [panning, setPanning] = useState(false);
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  /* Hover wins over selection: the drawer holds the selected record while you
+     point at something else, and the canvas should answer the question you are
+     asking NOW rather than the one you asked a moment ago. */
+  const lit = hovered ?? selected;
 
   const claims = useMemo(() => {
     const out = new Map<string, Attribution>();
@@ -131,6 +145,25 @@ export function Canvas({
     () => graph.edges.filter((e) => visible.has(e.from) && visible.has(e.to)),
     [graph.edges, visible],
   );
+
+  /** Everything one hop from the lit node — the far end of every edge that
+   *  touches it. Attributions and derivations both count: the question is
+   *  "what is attached to this", and both kinds are an answer. */
+  const near = useMemo(() => {
+    if (lit === null) return null;
+    const ids = new Set<string>([lit]);
+    for (const e of edges) {
+      if (e.from === lit) ids.add(e.to);
+      if (e.to === lit) ids.add(e.from);
+    }
+    return ids;
+  }, [edges, lit]);
+
+  const markFor = (id: string): "lit" | "near" | "dim" | undefined => {
+    if (near === null) return undefined;
+    if (id === lit) return "lit";
+    return near.has(id) ? "near" : "dim";
+  };
 
   function startNodeDrag(id: string) {
     return (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -236,12 +269,19 @@ export function Canvas({
         className={s.field}
         data-dense={dense || undefined}
         style={{
-          width: `${field.w}px`,
-          height: `${field.h}px`,
+          width: `${snap(field.w)}px`,
+          height: `${snap(field.h)}px`,
           transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
         }}
       >
-        <Edges edges={edges} boxOf={boxOf} boxes={boxList} width={field.w} height={field.h} />
+        <Edges
+          edges={edges}
+          boxOf={boxOf}
+          boxes={boxList}
+          width={field.w}
+          height={field.h}
+          lit={lit}
+        />
 
         {[graph.root, ...graph.nodes]
           .filter((n) => visible.has(n.id))
@@ -259,6 +299,8 @@ export function Canvas({
                 pinned={pinned.has(node.id)}
                 onSelect={() => onSelect(selected === node.id ? null : node.id)}
                 onDragStart={startNodeDrag(node.id)}
+                onHover={setHovered}
+                mark={markFor(node.id)}
               />
             );
           })}
@@ -269,6 +311,26 @@ export function Canvas({
         <button type="button" className={s.zoomButton} onClick={() => zoomBy(-0.15)} aria-label="Zoom out">−</button>
         <button type="button" className={s.zoomButton} onClick={() => zoomBy(0.15)} aria-label="Zoom in">+</button>
         <button type="button" className={s.fit} onClick={fit}>Fit</button>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Toggle
+              size="sm"
+              className={s.focus}
+              pressed={focus}
+              onPressedChange={onFocusChange}
+            >
+              Focus
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent side="top" className={s.focusTip}>
+            <span className={s.focusName}>Focus</span>
+            <span className={s.focusSub}>
+              Clicking a node lights its edges and leaves the record closed. The drawer covers a
+              third of the canvas, which is the wrong trade while you are following linkages.
+            </span>
+          </TooltipContent>
+        </Tooltip>
         <span className={s.hint}>scroll to zoom · drag the background to pan · click a node for its record</span>
       </div>
     </div>

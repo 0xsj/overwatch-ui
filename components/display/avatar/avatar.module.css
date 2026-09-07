@@ -1,0 +1,18 @@
+@layer primitive {
+  .avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background: var(--surface-panel-2);
+    border: 1px solid var(--line-strong);
+    font-family: var(--font-mono);
+    font-weight: var(--weight-strong);
+    color: var(--ink-2);
+    user-select: none;
+  }
+
+  .sm { inline-size: 22px; block-size: 22px; font-size: var(--text-9); }
+  .md { inline-size: 30px; block-size: 30px; font-size: var(--text-11); }
+  .lg { inline-size: 40px; block-size: 40px; font-size: var(--text-12-5); }
+}

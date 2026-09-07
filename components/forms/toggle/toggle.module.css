@@ -1,0 +1,38 @@
+@layer primitive {
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    border: 1px solid var(--line);
+    color: var(--ink-4);
+    white-space: nowrap;
+    transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+  }
+
+  .toggle:hover { color: var(--ink-2); }
+
+  /* Styled on `aria-pressed`, NOT on `data-state`.
+     Both are written by Radix and both are correct — but `data-state` is written
+     by every Radix primitive, so a Toggle inside a `TooltipTrigger asChild` gets
+     the tooltip's open/closed state merged onto the same element and the pressed
+     rule silently stops matching. Measured on the canvas's Focus toggle:
+     `aria-pressed="true"` with `data-state="closed"`.
+
+     `aria-pressed` is this component's own, is equally driven by pointer and
+     keyboard, and cannot collide — which makes the Toggle composable inside any
+     other trigger. */
+  .toggle[aria-pressed="true"] {
+    border-color: var(--line-strong);
+    background: var(--surface-panel-2);
+    color: var(--ink);
+  }
+
+  .toggle[data-disabled] { opacity: 0.5; pointer-events: none; }
+
+  .sm { block-size: var(--control-sm); padding-inline: var(--space-4); font-size: var(--text-11-5); }
+  .md { block-size: var(--control-md); padding-inline: var(--space-5); font-size: var(--text-12-5); }
+  .icon { block-size: var(--control-md); inline-size: var(--control-md); justify-content: center; padding: 0; }
+
+  .square { border-radius: var(--radius-2); }
+  .pill { border-radius: var(--radius-pill); }
+}

@@ -1,0 +1,30 @@
+@layer primitive {
+  /* A fieldset has a default border and padding in every browser, and its
+     min-inline-size is `min-content` rather than 0 — which makes a flex or grid
+     child refuse to shrink. Both are reset here, and the second is the one that
+     produces an unexplainable overflow. */
+  .fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-inline-size: 0;
+  }
+
+  .legend {
+    padding: 0;
+    font-size: var(--text-10);
+    font-weight: var(--weight-strong);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+  }
+
+  .hint {
+    margin-block-start: var(--space-2);
+    font-size: var(--text-11-5);
+    color: var(--ink-3);
+    line-height: var(--leading-snug);
+  }
+
+  .body { margin-block-start: var(--space-5); }
+}

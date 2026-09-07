@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { http } from "@/lib/root";
+import { clientFor } from "@/lib/root";
 import { getGraph, getPins, listEntities } from "@/lib/services/entities";
 import { PageHead } from "../../_components/page-head";
 import { EntityCanvas } from "./_components/entity-canvas";
@@ -15,12 +15,13 @@ export default async function Page({
   searchParams: Promise<{ root?: string; limit?: string }>;
 }) {
   const { root, limit } = await searchParams;
-  const roots = await listEntities(http);
+  const entities = await clientFor("entities");
+  const roots = await listEntities(entities);
   const rootId = root ?? roots[0].id;
 
   const [graph, pins] = await Promise.all([
-    getGraph(http, rootId, { limit: limit ? Number(limit) : undefined }),
-    getPins(http, rootId),
+    getGraph(entities, rootId, { limit: limit ? Number(limit) : undefined }),
+    getPins(entities, rootId),
   ]);
 
   return (

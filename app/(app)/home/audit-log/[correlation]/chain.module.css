@@ -1,0 +1,32 @@
+@layer screen {
+  .back {
+    display: inline-block;
+    margin-block-end: var(--space-5);
+    color: var(--ink-3);
+    font-size: var(--text-12);
+  }
+  .back:hover { color: var(--accent); }
+
+  .chain { display: grid; gap: var(--space-3); }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+  }
+
+  /* A decision is a choice somebody made; everything else is work the machinery
+     did. They carry different weight in an investigation, so they carry
+     different weight here. */
+  .step[data-decision] { border-color: var(--line-strong); background: var(--surface-panel-2); }
+
+  .dot { inline-size: 5px; block-size: 5px; border-radius: 50%; background: var(--ink-4); }
+  .step[data-decision] .dot { background: var(--accent); }
+
+  .action { color: var(--ink); font-family: var(--font-mono); font-size: var(--text-12); }
+  .subject { flex: 1; color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); overflow-wrap: anywhere; }
+  .when { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
+}

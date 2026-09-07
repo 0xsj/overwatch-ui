@@ -10,4 +10,18 @@
     --control-md: 30px;
     --control-lg: 38px;
   }
+
+  /* Density is a TOKEN override and nothing else, which is the whole reason it
+     is three lines rather than a prop threaded through forty components. A
+     screen that reads `--control-md` gets the compact one for free, and a
+     component that hard-codes a height is now visibly wrong.
+
+     Set on `<html>` by `lib/runtime/density`, per browser. Nothing stores it on
+     the account — see `account/preferences`, which says so rather than implying
+     a column that does not exist. */
+  :root[data-density="compact"] {
+    --control-sm: 21px;
+    --control-md: 26px;
+    --control-lg: 32px;
+  }
 }

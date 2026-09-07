@@ -1,0 +1,25 @@
+@layer composition {
+  .mono { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-11-5); }
+
+  .anon { color: var(--ink-4); font-style: italic; font-size: var(--text-12); }
+
+  .what { display: flex; align-items: center; gap: var(--space-4); }
+  .action { color: var(--ink); font-family: var(--font-mono); font-size: var(--text-12); }
+  .chips { display: flex; gap: var(--space-2); }
+
+  .chain { color: var(--accent); font-size: var(--text-11-5); }
+  .chain:hover { text-decoration: underline; }
+
+  .more {
+    display: inline-flex;
+    align-items: center;
+    block-size: var(--control-sm);
+    margin-block-start: var(--space-5);
+    padding-inline: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    color: var(--ink-2);
+    font-size: var(--text-12);
+  }
+  .more:hover { border-color: var(--line-strong); color: var(--ink); }
+}

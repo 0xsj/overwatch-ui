@@ -1,0 +1,28 @@
+@layer screen {
+  /* The ladder is ordered, so the cell is shaded by rung — the grid should be
+     scannable as a shape before it is readable as words. `none` is the quietest
+     rather than the loudest: most cells in a real firm are `none`, and a wall of
+     red would read as a page full of errors. */
+  .trigger, .readonly {
+    min-inline-size: 5.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+  }
+
+  .readonly {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    block-size: var(--control-sm);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-2);
+  }
+
+  /* Scoped to the two local classes rather than written as a bare attribute
+     selector: CSS Modules refuses a selector with no local class ("not pure")
+     and fails the BUILD, not the lint. */
+  .trigger[data-level="none"],  .readonly[data-level="none"]  { color: var(--ink-4); }
+  .trigger[data-level="read"],  .readonly[data-level="read"]  { color: var(--ink-2); }
+  .trigger[data-level="write"], .readonly[data-level="write"] { color: var(--ink); }
+  .trigger[data-level="admin"], .readonly[data-level="admin"] { color: var(--accent); }
+}

@@ -8,7 +8,8 @@
  *
  *     value ?? <span className={s.unmeasured}>—</span>
  *
- * `CLAUDE.md` §Scope: *an unmeasured total renders as `–` and never as `0`,
+ * The workspace scope document, §Scope: *an unmeasured total renders as `–`
+ * and never as `0`,
  * because a zero nothing computed is not a zero.* This is the cheapest place in
  * the product to hold that rule, and the most consequential — a board showing `0`
  * for a count nobody ran has told somebody an asset is clean when in fact nothing

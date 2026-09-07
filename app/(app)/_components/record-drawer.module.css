@@ -1,0 +1,91 @@
+@layer composition {
+  .drawer { inline-size: min(520px, calc(100vw - var(--space-9))); }
+
+  .head {
+    padding: var(--space-7) var(--space-8) var(--space-5);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .title {
+    font-family: var(--font-mono);
+    font-size: var(--text-15);
+    letter-spacing: normal;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    margin-block-start: var(--space-5);
+  }
+
+  .aside {
+    margin-inline-start: auto;
+    font-size: var(--text-11-5);
+    color: var(--ink-4);
+  }
+
+  .body {
+    padding: var(--space-7) var(--space-8) var(--space-9);
+    overflow-y: auto;
+    flex: 1;
+    min-block-size: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .section { min-inline-size: 0; }
+
+  .heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-block-end: var(--space-5);
+  }
+
+  .count {
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fields {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    overflow: hidden;
+  }
+
+  .field {
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    align-items: baseline;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .field:last-child { border-block-end: none; }
+
+  .key {
+    padding: var(--space-5) var(--space-6);
+    border-inline-end: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+    color: var(--ink-3);
+    align-self: stretch;
+  }
+
+  .value {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+    min-inline-size: 0;
+    font-size: var(--text-12-5);
+    color: var(--ink);
+  }
+
+  .valueInner { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+  .action { margin-inline-start: auto; flex: none; }
+}

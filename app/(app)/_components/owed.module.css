@@ -1,0 +1,8 @@
+@layer composition {
+  /* A dashed edge, which is the one visual difference: the shape is right and
+     the contents are not there yet. */
+  .owed {
+    border-style: dashed;
+    background: none;
+  }
+}

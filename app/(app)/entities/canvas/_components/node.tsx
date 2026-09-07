@@ -2,6 +2,7 @@
 
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Attribution, GraphNode, RootEntity } from "@/lib/services/entities";
+import { snap } from "../_layout/place";
 import { KIND_GLYPH } from "./glyphs";
 import s from "./canvas.module.css";
 
@@ -14,6 +15,8 @@ export function Node({
   pinned,
   onSelect,
   onDragStart,
+  onHover,
+  mark,
 }: {
   node: GraphNode | RootEntity;
   /** ABSENT on the root: the root is the entity, so nothing claims it. */
@@ -24,6 +27,10 @@ export function Node({
   pinned: boolean;
   onSelect: () => void;
   onDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onHover: (id: string | null) => void;
+  /** `lit` when this node is the one, `near` when an edge reaches it, `dim`
+   *  otherwise. Undefined when nothing is lit at all. */
+  mark?: "lit" | "near" | "dim";
 }) {
   const state = claim?.state;
   const name = claim
@@ -34,14 +41,19 @@ export function Node({
     <button
       type="button"
       className={s.node}
-      style={{ left: `${x}px`, top: `${y}px` }}
+      style={{ left: `${snap(x)}px`, top: `${snap(y)}px` }}
       data-root={claim ? undefined : true}
       data-state={state}
       data-selected={selected || undefined}
+      data-mark={mark}
       data-pinned={pinned || undefined}
       aria-pressed={selected}
       aria-label={name}
       onPointerDown={onDragStart}
+      onMouseEnter={() => onHover(node.id)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(node.id)}
+      onBlur={() => onHover(null)}
       onClick={onSelect}
     >
       <span className={s.glyph} aria-hidden="true">{KIND_GLYPH[node.kind]}</span>

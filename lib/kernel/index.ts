@@ -1,4 +1,13 @@
 export { cn } from "./cn";
+export {
+  absent,
+  isPresent,
+  PRESENCE_MEANING,
+  PRESENCE_WORD,
+  present,
+  unattempted,
+} from "./presence";
+export type { Presence, PresenceState } from "./presence";
 export type { ClassValue } from "./cn";
 export {
   AppError,

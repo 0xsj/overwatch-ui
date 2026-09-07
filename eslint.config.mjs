@@ -13,6 +13,20 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      /* A leading underscore already means "required by a signature and not
+         used". `useActionState` hands every action a previous state it usually
+         does not want, and a bound action puts that argument LAST — where the
+         default `after-used` setting starts reporting it. Renaming it to
+         something used, or writing `void prev`, is noise standing in for a
+         convention this codebase already has. */
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

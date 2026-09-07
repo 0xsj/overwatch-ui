@@ -29,6 +29,10 @@ export const SECTIONS: NavSection[] = [
       { href: "/home/overview", label: "Overview" },
       { href: "/home/targets", label: "Targets" },
       { href: "/home/whats-new", label: "What's new" },
+      // An engagement-level screen, moved out of org settings 2026-09-07. An
+      // audit entry carries no org id, so an org-wide feed would list rows about
+      // engagements the reader may not be on — the wall 0005 exists to keep.
+      { href: "/home/audit-log", label: "Audit log" },
     ],
   },
   {
@@ -95,8 +99,11 @@ export const SECTIONS: NavSection[] = [
     pages: [
       { href: "/settings/organisation", label: "Organisation" },
       { href: "/settings/members", label: "Members" },
-      { href: "/settings/target-access", label: "Target access" },
-      { href: "/settings/audit-log", label: "Audit log" },
+      { href: "/settings/workspaces", label: "Engagements" },
+      // "Access", not "Target access". A grant is member x WORKSPACE — the wall
+      // a consultancy buys is per engagement, not per target, and a target does
+      // not close one at a time. Renamed 2026-09-07 with the noun.
+      { href: "/settings/access", label: "Access" },
     ],
   },
 ];

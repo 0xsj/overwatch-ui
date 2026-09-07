@@ -1,0 +1,12 @@
+@layer composition {
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    margin-block-end: var(--space-6);
+  }
+
+  .banner > :first-child { flex: 1; }
+
+  .mono { font-family: var(--font-mono); font-size: var(--text-11-5); }
+}

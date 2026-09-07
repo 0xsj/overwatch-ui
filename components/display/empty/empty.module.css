@@ -1,0 +1,40 @@
+@layer primitive {
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-10) var(--space-8);
+    text-align: center;
+  }
+
+  .headline {
+    font-size: var(--text-13);
+    color: var(--ink);
+  }
+
+  .body {
+    font-size: var(--text-12);
+    color: var(--ink-3);
+    line-height: var(--leading-body);
+    max-inline-size: 52ch;
+  }
+
+  .coda {
+    font-size: var(--text-11-5);
+    color: var(--ink-4);
+    margin-block-start: var(--space-2);
+  }
+
+  .action { margin-block-start: var(--space-5); }
+
+  /* `unmeasured` is the one that must not read as reassurance. It borrows the
+     `Presence` treatment for the same reason: an italic with a dotted rule is a
+     different KIND of thing, not a different shade of the same one. */
+  .unmeasured .headline { color: var(--warn); }
+  .unmeasured .coda {
+    font-style: italic;
+    border-block-end: 1px dotted var(--warn-line);
+    padding-block-end: 2px;
+  }
+}

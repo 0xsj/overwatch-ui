@@ -1,4 +1,5 @@
 import { isAppError } from "@/lib/kernel";
+import type { RegisteredAccount } from "@/lib/services/identity";
 
 /** The shape a form's action returns.
  *
@@ -13,7 +14,15 @@ import { isAppError } from "@/lib/kernel";
  *  object", long after the build has passed. */
 export type FormState =
   | { status: "idle" }
-  | { status: "ok" }
+  /** `account` is present when the action produced one. Registration does;
+   *  a reset request has nothing to answer with.
+   *
+   *  `pendingEmail` carries the address an email change is waiting on. It lives
+   *  here rather than being read back, because THERE IS NOWHERE TO READ IT
+   *  FROM: `/v1/me` does not report a pending change and no endpoint serves
+   *  one. It exists only in the reply to the request that started it, and is
+   *  gone on reload — which the screen says rather than hides. */
+  | { status: "ok"; account?: RegisteredAccount; pendingEmail?: string }
   /** No field was named. The message belongs to the form. */
   | { status: "error"; scope: "form"; message: string }
   /** At least one field was named. `fields` is REQUIRED on this arm, so a caller

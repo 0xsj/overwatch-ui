@@ -39,7 +39,7 @@
  * reveal depend on `:focus-within`, which is worse than what it replaced.
  *
  * It comes back when something genuinely wants plain text to appear on focus.
- * Until then it is a prop with no caller, and `CLAUDE.md` §5 is about exactly
+ * Until then it is a prop with no caller, and the workspace's §5 is about exactly
  * that.
  *
  * # `as` is a union and not `ElementType`

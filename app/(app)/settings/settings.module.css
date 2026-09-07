@@ -1,0 +1,54 @@
+@layer screen {
+  .stats {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    margin-block-end: var(--space-7);
+  }
+
+  .links { display: grid; gap: var(--space-4); }
+  .links li { display: grid; gap: var(--space-1); }
+
+  .link { color: var(--ink); font-size: var(--text-13); }
+  .link:hover { color: var(--accent); }
+
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+  .spacer { flex: 1; }
+
+  .who { display: grid; gap: 1px; }
+  .name { color: var(--ink); font-size: var(--text-12-5); }
+  .email { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
+
+  .muted { color: var(--ink-4); }
+
+  /* The grid. One column per engagement, and the first column is sticky so a
+     name stays readable while the levels scroll. */
+  .gridScroll { overflow-x: auto; }
+  .grid { min-inline-size: 100%; }
+  .grid th:first-child,
+  .grid td:first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    background: var(--surface-panel);
+  }
+
+  .cell { display: flex; justify-content: center; }
+
+  .exempt {
+    color: var(--ink-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+  }
+
+  .form { display: grid; gap: var(--space-5); max-inline-size: 32rem; }
+
+  /* A grid stretches its children, which turns a submit button into a full-width
+     bar. The button is sized by its label, like every other button. */
+  .form > button { justify-self: start; }
+
+  .pair { display: grid; gap: var(--space-4); grid-template-columns: 1fr auto; align-items: end; }
+
+  /* The role control fills its table cell otherwise, and a five-value select as
+     wide as a name column reads as the most important thing in the row. */
+  .who button[role="combobox"] { min-inline-size: 9rem; }
+}

@@ -1,0 +1,49 @@
+@layer screen {
+  .facts { display: grid; gap: var(--space-5); }
+
+  .fact {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: 10rem 1fr;
+    align-items: baseline;
+  }
+
+  .fact dt {
+    color: var(--ink-4);
+    font-size: var(--text-11-5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .fact dd { display: flex; align-items: center; gap: var(--space-3); color: var(--ink); font-size: var(--text-13); }
+
+  .mono { font-family: var(--font-mono); font-size: var(--text-12); }
+
+  .rows { display: grid; gap: var(--space-4); }
+
+  .who { display: grid; gap: 2px; }
+
+  /* Raw, and monospace so it reads as a verbatim string rather than as prose —
+     a user-agent is a thing the client sent, not a sentence we wrote. */
+  .agent {
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-11-5);
+    overflow-wrap: anywhere;
+  }
+
+  .form { display: grid; gap: var(--space-5); max-inline-size: 28rem; }
+  .form > button { justify-self: start; }
+
+  .session {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) 0;
+    border-block-end: 1px solid var(--line);
+  }
+  .session:last-child { border-block-end: none; }
+  .session > :first-child { flex: 1; min-inline-size: 0; }
+
+  @media (max-width: 40rem) { .fact { grid-template-columns: 1fr; } }
+}

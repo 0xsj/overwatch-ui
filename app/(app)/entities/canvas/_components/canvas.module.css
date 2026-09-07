@@ -178,4 +178,56 @@
   .fit:hover { background: var(--surface-hover); color: var(--ink); }
 
   .hint { margin-inline-start: var(--space-2); color: var(--ink-4); }
+
+  /* ── one-hop highlight ───────────────────────────────────────────────────
+     `lit` raises an edge's own weight and NEVER recolours it. An attribution
+     and a derivation both lit to the accent would erase the distinction this
+     canvas exists to draw, so the emphasis is opacity and width — more of what
+     each edge already is — and the dim is what makes it read. */
+
+  .edges [data-mark="lit"] {
+    stroke-opacity: 1;
+    stroke-width: 2;
+  }
+
+  .edges [data-mark="lit"] line {
+    stroke-opacity: 1;
+    stroke-width: 1.9;
+  }
+
+  .edges [data-mark="dim"],
+  .edges [data-mark="dim"] line {
+    stroke-opacity: 0.14;
+  }
+
+  .edges [data-mark="dim"] text { opacity: 0.18; }
+  .edges [data-mark="lit"] text { fill: var(--ink); }
+
+  .edges line,
+  .edges text {
+    transition: stroke-opacity var(--dur-1), opacity var(--dur-1), stroke-width var(--dur-1);
+  }
+
+  /* The node itself, and the ones an edge reaches. `near` is a border rather
+     than a fill: the far end of an edge is context, not the subject. */
+  .node[data-mark="lit"] { border-color: var(--accent); z-index: 4; }
+  .node[data-mark="near"] { border-color: var(--line-heavy); }
+
+  .node[data-mark="dim"] {
+    opacity: 0.34;
+    /* Still readable, still clickable — dimming is an answer to "what is
+       attached to this", not a way to take the rest of the graph away. */
+  }
+
+  .node { transition: border-color var(--dur-1), box-shadow var(--dur-1), opacity var(--dur-1); }
+
+  .focus { margin-inline-start: var(--space-3); }
+  .focusTip { max-inline-size: 34ch; }
+  .focusName { display: block; font-weight: var(--weight-medium); color: var(--ink); }
+  .focusSub {
+    display: block;
+    margin-block-start: 2px;
+    font-size: var(--text-11);
+    color: var(--ink-3);
+  }
 }

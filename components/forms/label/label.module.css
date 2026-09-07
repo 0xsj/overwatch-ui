@@ -1,0 +1,13 @@
+@layer primitive {
+  .label {
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+    line-height: var(--leading-snug);
+    user-select: none;
+  }
+
+  /* Radix marks the label when its control is disabled, so the pair dims
+     together rather than a bright label sitting beside a dead control. */
+  .label:has(+ :disabled),
+  .label[data-disabled] { color: var(--ink-4); }
+}

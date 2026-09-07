@@ -1,0 +1,30 @@
+@layer primitive {
+  .switch {
+    inline-size: 30px;
+    block-size: 17px;
+    flex: none;
+    padding: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-hover-2);
+    border: 1px solid var(--line-strong);
+    transition: background var(--dur-1), border-color var(--dur-1);
+  }
+
+  .switch[data-state="checked"] {
+    background: var(--fill);
+    border-color: var(--fill);
+  }
+
+  .switch[data-disabled] { opacity: 0.5; pointer-events: none; }
+
+  .thumb {
+    display: block;
+    inline-size: 11px;
+    block-size: 11px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-raised);
+    transition: transform var(--dur-1) var(--ease);
+  }
+
+  .switch[data-state="checked"] .thumb { transform: translateX(13px); }
+}

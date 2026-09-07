@@ -1,0 +1,71 @@
+@layer primitive {
+  .trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    inline-size: 100%;
+    block-size: var(--control-lg);
+    padding-inline: var(--space-6);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel);
+    color: var(--ink);
+    font-size: var(--text-13);
+    text-align: start;
+    transition: border-color var(--dur-1);
+  }
+
+  .trigger:hover { border-color: var(--line-heavy); }
+  .trigger[data-placeholder] { color: var(--ink-4); }
+  .trigger[data-invalid] { border-color: var(--crit); }
+  .trigger[data-disabled] { opacity: 0.5; pointer-events: none; }
+
+  .chevron { color: var(--ink-4); flex: none; }
+
+  .content {
+    /* The listbox must not be narrower than what opened it, or the selected
+       value appears to change width when the menu opens. */
+    min-inline-size: var(--radix-select-trigger-width);
+    max-block-size: var(--radix-select-content-available-height);
+    z-index: var(--z-palette);
+  }
+
+  .viewport { padding: var(--space-2); }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-block-size: var(--control-md);
+    padding-inline: var(--space-4) var(--space-5);
+    border-radius: var(--radius-2);
+    font-size: var(--text-12-5);
+    color: var(--ink-2);
+    cursor: default;
+    user-select: none;
+    outline: none;
+  }
+
+  .item[data-highlighted] { background: var(--surface-hover-2); color: var(--ink); }
+  .item[data-disabled] { color: var(--ink-4); pointer-events: none; }
+
+  .indicator {
+    inline-size: 13px;
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    flex: none;
+  }
+
+  .label {
+    padding: var(--space-4) var(--space-5) var(--space-3);
+    font-size: var(--text-10);
+    font-weight: var(--weight-strong);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--ink-4);
+  }
+
+  .separator { block-size: 1px; margin: var(--space-2) var(--space-4); background: var(--line); }
+}

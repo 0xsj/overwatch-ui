@@ -25,34 +25,40 @@
  * read these fields directly. If that ever becomes intolerable, the translation
  * belongs in one mapping function per domain, not spread through components.
  *
- * `expires_at` is **optional, not nullable**: absent means access does not
- * expire. Absent and "set to nothing" are different facts, which is the rule the
- * whole product runs on, and an invitation is where it first has consequences for
- * a person rather than for a record.
+ * Optional, not nullable: absent means the fact is not there. Absent and "set to
+ * nothing" are different facts, which is the rule the whole product runs on.
  *
- * # The paths are the least certain thing in this tree
+ * # Four domains, and the line through them is what is SERVED
  *
- * `/auth/sign-in`, `/invites/{token}/acceptance` — the server has no identity
- * routes yet, so these are proposals. They are confined to one file per domain on
- * purpose: that is what the seam buys. When the real routes land, `auth.api.ts`
- * changes and nothing above it does.
+ *     identity  real   accounts, sessions, verifications, password resets
+ *     tenancy   real   /v1/me, members, opening a workspace
+ *     access    none   invitations, role changes, grants
+ *     entities  none   the canvas
  *
- * # `shell` is named for its caller, and that is deliberate
+ * `access` is the interesting one. Its model is sealed — `decisions/0019` names
+ * five roles and an ordered four-rung grant — and not one of its commands exists
+ * over HTTP. Keeping it as its own folder rather than as unserved functions
+ * inside `tenancy` is what lets `lib/root` make the adapter choice per domain and
+ * be right: `tenancy` reaches the server, `access` reaches fixtures, and neither
+ * needs a flag.
  *
- * Every other domain here will be named for a thing in the product — `auth`,
- * later `targets`, `findings`. `shell` is named for the screen that needs it,
- * because that is honestly what it is: one read that answers *who is signed in,
- * whose tenant is this, and which target is open*, so the chrome can draw itself
- * without three round trips before anything appears.
+ * # `shell` was a domain and is now a function, which is the correction
  *
- * The alternative was three domains — `identity`, `orgs`, `targets` — each with
- * one function, called in sequence by a layout that cannot render until all three
- * land. That is a tidier diagram and a slower first paint, and it invents two
- * domains before either has a second caller.
+ * There used to be a `shell` service with one call, `GET /me/context`, invented
+ * so the chrome could draw itself in one read rather than three. `doc.ts` said at
+ * the time: *"the bet it makes is that the server will grow an endpoint shaped
+ * like this one."*
  *
- * The bet it makes is that the server will grow an endpoint shaped like this one.
- * If it does not, `getShellContext` becomes three calls behind the same signature
- * and nothing above it changes — which is the same bet every path in this tier is
- * already making.
+ * It did. `GET /v1/me` answers who you are, which orgs you are in, your role in
+ * each, and every workspace you can see with your own level on it — the same
+ * question and more. So the proposal is deleted rather than kept beside it: two
+ * endpoints answering overlapping questions is two things to keep agreeing, and
+ * the second one has no server behind it.
+ *
+ * What is left is `selectShellContext`, a pure function over the boot call. It
+ * cannot fail, it cannot be stale relative to `/v1/me`, and it returns `null`
+ * rather than throwing — because having nowhere to be is a legitimate state
+ * during the milliseconds after registration, and an error screen for it would be
+ * wrong about a normal thing.
  */
 export {};

@@ -1,6 +1,26 @@
 import type { EntityGraph, Pin } from "@/lib/services/entities";
 
 export type Point = { x: number; y: number };
+
+/** A number on its way into the DOM, quantised to a thousandth of a pixel.
+ *
+ *  `Math.cos`, `Math.sin`, `Math.hypot` and `Math.exp` are the four this layout
+ *  uses whose precision ECMAScript leaves to the implementation, so Node's V8
+ *  and the browser's V8 are free to disagree in the last bit — and they do.
+ *  Measured 2026-09-07 across Node 26.8.1 and Chrome 152: one value in
+ *  twenty-six differed, by 4.44e-16, which is 4e-14 of a pixel.
+ *
+ *  That is invisible as geometry and fatal as markup, because React hydrates by
+ *  comparing the STRING: `130` against `129.99999999999994` is a mismatch React
+ *  says it will not patch up. Quantising here makes both sides round the same
+ *  integer and print the same characters.
+ *
+ *  It is a quantisation, not a proof. Two values a ULP apart that straddle a
+ *  half-thousandth boundary would still print differently; nothing rules that
+ *  out, and the honest claim is that it is ~1e-13 likely per coordinate rather
+ *  than impossible. The sound fix is a layout with no transcendental in it,
+ *  which is a much larger change for a defect this size. */
+export const snap = (n: number): number => Math.round(n * 1000) / 1000;
 export type Placement = Map<string, Point>;
 
 /** One layout unit is roughly one node's height. Pins are stored in these,

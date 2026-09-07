@@ -2,7 +2,7 @@
 
 import { Monitor, Moon, Sun } from "@/components/utility";
 import { useSyncExternalStore } from "react";
-import { Button } from "@/components/forms";
+import { Toggle } from "@/components/forms";
 import { cn } from "@/lib/kernel";
 import s from "./theme-toggle.module.css";
 
@@ -41,16 +41,15 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <div role="group" aria-label="Theme" className={cn(s.group, className)}>
       {OPTIONS.map(({ value, label, Icon }) => (
-        <Button
+        <Toggle
           key={value}
           size="icon"
-          intent={choice === value ? "secondary" : "ghost"}
           aria-label={label}
-          aria-pressed={choice === value}
-          onClick={() => apply(value)}
+          pressed={choice === value}
+          onPressedChange={() => apply(value)}
         >
           <Icon size={14} />
-        </Button>
+        </Toggle>
       ))}
     </div>
   );

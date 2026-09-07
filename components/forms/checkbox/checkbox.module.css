@@ -1,0 +1,33 @@
+@layer primitive {
+  .checkbox {
+    inline-size: 16px;
+    block-size: 16px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line-heavy);
+    border-radius: var(--radius-1);
+    background: var(--surface-panel);
+    color: var(--fill-ink);
+    transition: background var(--dur-1), border-color var(--dur-1);
+  }
+
+  .checkbox:hover { border-color: var(--accent); }
+
+  .checkbox[data-state="checked"],
+  .checkbox[data-state="indeterminate"] {
+    background: var(--fill);
+    border-color: var(--fill);
+  }
+
+  .checkbox[data-disabled] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .indicator { display: grid; place-items: center; line-height: 1; }
+
+  .check, .mixed { font-size: var(--text-10); display: none; }
+  .checkbox[data-state="checked"] .check { display: block; }
+  .checkbox[data-state="indeterminate"] .mixed { display: block; }
+}

@@ -14,20 +14,6 @@
   .trigger:hover,
   .trigger[data-state="open"] { background: var(--surface-hover); }
 
-  .avatar {
-    inline-size: 22px;
-    block-size: 22px;
-    flex: none;
-    border-radius: var(--radius-pill);
-    background: var(--surface-panel-2);
-    border: 1px solid var(--line-strong);
-    display: grid;
-    place-items: center;
-    font-family: var(--font-mono);
-    font-size: var(--text-9);
-    font-weight: var(--weight-strong);
-    color: var(--ink-2);
-  }
 
   .who {
     min-inline-size: 0;

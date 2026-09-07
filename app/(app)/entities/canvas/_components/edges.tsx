@@ -1,5 +1,6 @@
 import type { Attribution, GraphEdge } from "@/lib/services/entities";
 import { clip, placeLabel, type Box } from "../_layout/labels";
+import { snap } from "../_layout/place";
 import s from "./canvas.module.css";
 
 const STROKE: Record<Attribution["state"], string> = {
@@ -17,17 +18,28 @@ export function Edges({
   boxes,
   width,
   height,
+  lit,
 }: {
   edges: readonly GraphEdge[];
   boxOf: (id: string) => Box | undefined;
   boxes: readonly Box[];
   width: number;
   height: number;
+  /** The node under the pointer, or selected. Edges that touch it are lit and
+   *  the rest recede — `null` leaves every edge at its resting weight. */
+  lit: string | null;
 }) {
   const placedLabels: Box[] = [];
 
+  /* `lit` raises an edge's own weight; it never recolours it. An attribution and
+     a derivation lit to the same accent would undo the one distinction this
+     canvas exists to draw — 0003 — so the highlight is more of what each edge
+     already is, and the dim is what makes it read. */
+  const mark = (edge: GraphEdge) =>
+    lit === null ? undefined : edge.from === lit || edge.to === lit ? "lit" : "dim";
+
   return (
-    <svg className={s.edges} width={width} height={height} aria-hidden="true">
+    <svg className={s.edges} width={snap(width)} height={snap(height)} aria-hidden="true">
       <defs>
         <marker
           id="derivation-arrow"
@@ -59,11 +71,12 @@ export function Edges({
             return (
               <line
                 key={`a:${edge.from}:${edge.to}`}
+                data-mark={mark(edge)}
                 className={STROKE[edge.state]}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
+                x1={snap(from.x)}
+                y1={snap(from.y)}
+                x2={snap(to.x)}
+                y2={snap(to.y)}
               >
                 <title>{`${edge.state} · claimed by ${edge.claimant}`}</title>
               </line>
@@ -76,19 +89,19 @@ export function Edges({
             const label = placeLabel(edge.label, from, to, boxes, placedLabels);
 
             return (
-              <g key={`d:${edge.from}:${edge.to}:${edge.label}`}>
+              <g key={`d:${edge.from}:${edge.to}:${edge.label}`} data-mark={mark(edge)}>
                 <line
                   className={s.derivation}
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
+                  x1={snap(from.x)}
+                  y1={snap(from.y)}
+                  x2={snap(to.x)}
+                  y2={snap(to.y)}
                   markerEnd="url(#derivation-arrow)"
                 >
                   <title>{`${edge.label} · ${edge.artifact_id}`}</title>
                 </line>
                 {label ? (
-                  <text className={s.edgeLabel} x={label.x} y={label.y}>
+                  <text className={s.edgeLabel} x={snap(label.x)} y={snap(label.y)}>
                     {edge.label}
                   </text>
                 ) : null}

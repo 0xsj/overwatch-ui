@@ -1,0 +1,42 @@
+@layer composition {
+  .wrap { display: grid; gap: var(--space-4); margin-block-start: var(--space-6); }
+
+  .head { display: flex; align-items: center; gap: var(--space-3); }
+
+  /* A rule that is a label, so the separator carries the sentence rather than
+     sitting above it. */
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1;
+    white-space: nowrap;
+  }
+  .rule::after {
+    content: "";
+    flex: 1;
+    block-size: 1px;
+    background: var(--line);
+  }
+
+  .grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr 1fr; }
+
+  .card {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+    text-align: start;
+    block-size: auto;
+    inline-size: 100%;
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3);
+    white-space: normal;
+  }
+
+  .label { color: var(--ink); font-size: var(--text-12-5); font-weight: 500; }
+  .email { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-11); }
+  .blurb { color: var(--ink-4); font-size: var(--text-11-5); line-height: 1.5; }
+
+  @media (max-width: 32rem) { .grid { grid-template-columns: 1fr; } }
+}

@@ -4,7 +4,10 @@
     inset: 0;
     background: var(--scrim);
     z-index: var(--z-scrim);
+    animation: dialog-fade var(--dur-2) var(--ease);
   }
+
+  .overlay[data-state="closed"] { animation: dialog-fade-out var(--dur-2) var(--ease); }
 
   .content {
     position: fixed;
@@ -16,13 +19,21 @@
     display: flex;
     flex-direction: column;
     z-index: var(--z-drawer);
+    animation: dialog-in var(--dur-3) var(--ease);
   }
+
+  .content[data-state="closed"] { animation: dialog-out var(--dur-2) var(--ease); }
 
   /* The mock's record drawer: an edge sheet, which is the same dialog with a
      different anchor. Not a separate component — the focus trap, the escape
      handling and the labelling obligations are identical, and only the geometry
      differs. */
+  /* The sheet slides from the edge it is anchored to; the centred dialog does
+     not slide at all. A drawer that fades in place reads as an overlay that
+     appeared, and one that slides reads as a panel that was already there —
+     which is what a record beside the thing it describes should read as. */
   .right {
+    animation: drawer-in var(--dur-3) var(--ease);
     inset-block: 0;
     inset-inline: auto 0;
     transform: none;
@@ -85,5 +96,48 @@
     transition: background var(--dur-1), color var(--dur-1);
   }
 
+  .right[data-state="closed"] { animation: drawer-out var(--dur-2) var(--ease); }
+
   .dismiss:hover { background: var(--surface-hover); color: var(--ink); }
+
+  /* The exit keyframes are SEPARATE, not `reverse` on the entrance.
+     Radix's Presence decides whether to wait for `animationend` by comparing
+     the computed `animation-name` before and after the state flip. `reverse`
+     keeps the name identical, so it sees no change and unmounts immediately —
+     measured: the drawer vanished with no exit at all while the entrance
+     animated correctly, which reads as a bug in the close button.
+
+     Every duration is a motion token, and those collapse to 0s under
+     prefers-reduced-motion — so the reduced case needs no separate rule and
+     cannot be forgotten. A 0s animation still fires `animationend`, so the
+     exit stays correct there too. */
+  @keyframes dialog-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  @keyframes drawer-in {
+    from { transform: translateX(2%); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  @keyframes dialog-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes dialog-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  }
+
+  @keyframes drawer-out {
+    from { transform: none; opacity: 1; }
+    to { transform: translateX(2%); opacity: 0; }
+  }
 }

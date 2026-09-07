@@ -1,0 +1,39 @@
+@layer primitive {
+  .presence {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-inline-size: 0;
+    font-size: var(--text-12);
+  }
+
+  .glyph {
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    inline-size: 10px;
+    text-align: center;
+    flex: none;
+  }
+
+  .label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+
+  .present { color: var(--ink); }
+  .present .glyph { color: var(--accent); }
+
+  .absent { color: var(--ink-3); }
+  .absent .glyph { color: var(--ink-4); }
+
+  /* Italic and a dotted underline, so "nobody looked" is distinguishable from
+     "we looked and found nothing" without reading the colour — the two states
+     this product exists to keep apart are the two that look alike. */
+  .unattempted { color: var(--ink-4); font-style: italic; }
+  /* The rule needs to clear the letterforms — at 0 it lands on the baseline
+     and eats the bottom of a `d`, which reads as a rendering fault rather than
+     as an underline. */
+  .unattempted .label {
+    border-block-end: 1px dotted var(--line-heavy);
+    padding-block-end: 2px;
+  }
+
+  .compact { gap: 0; }
+}

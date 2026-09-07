@@ -1,57 +1,51 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Field, Input } from "@/components/forms";
 import { Alert } from "@/components/feedback";
+import { Button, Field, Input } from "@/components/forms";
 import { Text } from "@/components/typography";
-import { signUpAction } from "../_actions";
+import { MIN_PASSWORD_LENGTH } from "@/lib/services/identity";
+import { registerAction } from "../_actions";
 import { initialFormState } from "../_form-state";
 import { errorFor, FormError } from "../_components/form-error";
 import s from "../_components/auth.module.css";
 
 export function SignUpForm() {
-  const [state, action, pending] = useActionState(signUpAction, initialFormState);
+  const [state, action, pending] = useActionState(registerAction, initialFormState);
+
+  if (state.status === "ok" && state.account) {
+    return (
+      <Alert tone="accent">
+        <Text size="sm">
+          <strong>{state.account.email}</strong> is registered, and the account is{" "}
+          <strong>{state.account.status}</strong>.
+        </Text>
+        <Text size="sm" tone="tertiary">
+          A pending account cannot sign in yet — the server refuses to authenticate one until
+          something verifies the address, and nothing does that yet. This is the whole of what the
+          endpoint promises today, said rather than dressed up as a finished sign-up.
+        </Text>
+      </Alert>
+    );
+  }
 
   return (
     <form action={action} noValidate className={s.form}>
       <FormError state={state} />
 
-      {state.status === "ok" ? (
-        <Alert tone="accent">
-          <Text size="sm">
-            That would have created a workspace. Nothing was stored — this build has
-            no backend, so there is no account and no confirmation on its way.
-          </Text>
-        </Alert>
-      ) : null}
-
-      <Field
-        label="Your name"
-        hint="This is what appears beside every claim you make and every judgement you record."
-        error={errorFor(state, "name")}
-        required
-      >
+      <Field label="Name" hint="The name that goes on the audit trail. Left blank, the server uses the part of your address before the @.">
         {(aria) => <Input {...aria} name="name" autoComplete="name" placeholder="S. Jarratt" />}
       </Field>
 
-      <Field label="Work email" error={errorFor(state, "email")} required>
+      <Field label="Email" error={errorFor(state, "email")} required>
         {(aria) => (
           <Input {...aria} name="email" type="email" autoComplete="username" placeholder="you@firm.example" />
         )}
       </Field>
 
       <Field
-        label="Workspace"
-        hint="One hunter or a firm with many engagements — either way it needs a name, because scope and access hang off it."
-        error={errorFor(state, "workspace")}
-        required
-      >
-        {(aria) => <Input {...aria} name="workspace" placeholder="31m" />}
-      </Field>
-
-      <Field
         label="Password"
-        hint="At least twelve characters. Length beats punctuation."
+        hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
         error={errorFor(state, "password")}
         required
       >
@@ -59,7 +53,7 @@ export function SignUpForm() {
       </Field>
 
       <Button type="submit" intent="primary" loading={pending}>
-        {pending ? "Creating" : "Create the workspace"}
+        {pending ? "Registering" : "Register"}
       </Button>
     </form>
   );

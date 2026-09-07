@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Badge, Panel, Stat } from "@/components/display";
 import { Alert } from "@/components/feedback";
-import { Button } from "@/components/forms";
+import { Button, Toggle } from "@/components/forms";
 import { NavLink } from "@/components/navigation";
 import { Text } from "@/components/typography";
 import type { Attribution, ClaimState, EntityGraph, EntityRef, Pin } from "@/lib/services/entities";
 import { pinNode, relayout } from "../_actions";
 import { Canvas } from "./canvas";
-import { Inspector } from "./inspector";
+import { Record } from "./record";
 import { Legend, NoSimilarity } from "./legend";
 import { KIND_GLYPH } from "./glyphs";
 import type { Point } from "../_layout/place";
@@ -35,6 +35,7 @@ export function EntityCanvas({
   const [pins, setPins] = useState<readonly Pin[]>(initialPins);
   const [selected, setSelected] = useState<string | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<ClaimState>>(new Set());
+  const [focus, setFocus] = useState(false);
   const [, start] = useTransition();
 
   const counts = STATES.reduce(
@@ -113,16 +114,17 @@ export function EntityCanvas({
       <div className={s.controls}>
         <span className={s.controlLabel}>Show</span>
         {STATES.map((state) => (
-          <button
+          <Toggle
             key={state}
-            type="button"
+            size="sm"
+            shape="pill"
             className={s.filter}
-            aria-pressed={!hidden.has(state)}
-            onClick={() => toggle(state)}
+            pressed={!hidden.has(state)}
+            onPressedChange={() => toggle(state)}
           >
             {state}
             <span className={s.filterCount}>{counts[state]}</span>
-          </button>
+          </Toggle>
         ))}
         <Button size="sm" intent="ghost" className={s.relayout} onClick={onRelayout}>
           Re-layout
@@ -161,14 +163,22 @@ export function EntityCanvas({
         selected={selected}
         onSelect={setSelected}
         onPin={onPin}
+        focus={focus}
+        onFocusChange={setFocus}
       />
 
-      <div className={s.below}>
-        <Inspector graph={graph} selectedId={selected} />
-        <Panel title="What the lines mean">
-          <Legend />
-        </Panel>
-      </div>
+      <Panel title="What the lines mean" className={s.key}>
+        <Legend />
+      </Panel>
+
+            {/* The selection is one thing; whether the record is shown is another.
+          Turning Focus off brings the drawer back for whatever you are on,
+          rather than losing your place. */}
+      <Record
+        graph={graph}
+        selectedId={focus ? null : selected}
+        onClose={() => setSelected(null)}
+      />
 
       <NoSimilarity />
     </>

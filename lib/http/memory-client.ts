@@ -15,8 +15,25 @@ export type MemoryRequest = {
  *  client produces from a real problem document. */
 export type MemoryRoute = (request: MemoryRequest) => unknown;
 
+/** The bearer off a request, or null. One helper so no route re-parses the
+ *  header and gets the prefix subtly wrong. */
+export function bearerOf(request: MemoryRequest): string | null {
+  const raw = request.headers.authorization ?? request.headers.Authorization;
+  const match = /^Bearer (.+)$/.exec(String(raw ?? ""));
+  return match ? match[1] : null;
+}
+
 export type MemoryConfig = {
   routes: MemoryRoute[];
+  /** Read lazily on every request and put on the `authorization` header, exactly
+   *  as `fetch-client` does with the same signature.
+   *
+   *  Without it a fixture cannot tell one caller from another, and every route
+   *  has to answer for a single imaginary tenant. With it the fixture's identity
+   *  arrives the same way the real one does, so the seam is symmetric: a route
+   *  reads a bearer, and neither the service above nor the screen above that
+   *  knows which adapter answered. */
+  getAccessToken?: () => string | null | undefined;
   /** Simulated round trip. Non-zero by default so `pending` branches are
    *  reachable — a zero-latency fake makes them unreachable and they rot. */
   latencyMs?: number;
@@ -44,12 +61,16 @@ export function createMemoryClient(config: MemoryConfig): HttpClient {
   async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
     await wait(latency, options.signal);
 
+    const headers: Record<string, string> = { ...options.headers };
+    const token = config.getAccessToken?.();
+    if (token) headers.authorization = `Bearer ${token}`;
+
     const req: MemoryRequest = {
       method: method.toUpperCase(),
       path,
       params: options.params ?? {},
       body: options.body,
-      headers: options.headers ?? {},
+      headers,
     };
 
     for (const route of config.routes) {

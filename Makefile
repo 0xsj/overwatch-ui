@@ -20,4 +20,4 @@ test:  ## the tests. None yet, and saying so beats exiting 0 silently
 
 check: ## types and lint
 	@npx tsc --noEmit
-	@npx next lint
+	@npx eslint .

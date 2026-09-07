@@ -72,26 +72,10 @@
     margin-inline-end: var(--space-2);
   }
 
-  .filter {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    block-size: var(--control-sm);
-    padding-inline: var(--space-4);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
-    font-size: var(--text-11-5);
-    color: var(--ink-4);
-    transition: border-color var(--dur-1), color var(--dur-1), background var(--dur-1);
-  }
-
-  .filter[aria-pressed="true"] {
-    border-color: var(--line-strong);
-    background: var(--surface-panel-2);
-    color: var(--ink-2);
-  }
-
+  /* Appearance comes from Toggle; only the strike-through is this screen's. */
   .filter[aria-pressed="false"] { text-decoration: line-through; }
+
+
 
   .filterCount {
     font-family: var(--font-mono);
@@ -101,20 +85,12 @@
 
   .relayout { margin-inline-start: auto; }
 
-  .below {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--space-6);
-    align-items: start;
-    margin-block-start: var(--space-6);
-  }
 
-  @media (max-width: 1080px) {
-    .below { grid-template-columns: minmax(0, 1fr); }
-  }
 
   /* Above the field, never over it. Floating this reads well until the day it
      lands on a node, and then it looks like the canvas lost one. */
+  .key { margin-block-start: var(--space-6); }
+
   .truncation {
     display: flex;
     align-items: flex-start;

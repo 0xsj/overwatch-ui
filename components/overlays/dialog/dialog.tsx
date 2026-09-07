@@ -16,6 +16,10 @@ export type DialogContentProps = ComponentPropsWithoutRef<typeof Primitive.Conte
   /** Anchored to an edge and full height, rather than centred. The mock's
    *  record drawer. */
   side?: "center" | "right";
+  /** Drop the scrim. Only meaningful with `<Dialog modal={false}>`, and the two
+   *  belong together: a non-modal dialog that still paints an overlay leaves an
+   *  invisible sheet of glass over a page it claims not to be blocking. */
+  overlay?: boolean;
 };
 
 export function Dialog(props: DialogProps) {
@@ -30,10 +34,16 @@ export function DialogClose(props: DialogCloseProps) {
   return <Primitive.Close {...props} />;
 }
 
-export function DialogContent({ className, side = "center", children, ...props }: DialogContentProps) {
+export function DialogContent({
+  className,
+  side = "center",
+  overlay = true,
+  children,
+  ...props
+}: DialogContentProps) {
   return (
     <Primitive.Portal>
-      <Primitive.Overlay className={s.overlay} />
+      {overlay ? <Primitive.Overlay className={s.overlay} /> : null}
       <Primitive.Content
         className={cn(surface.elevated, s.content, side === "right" && s.right, className)}
         {...props}

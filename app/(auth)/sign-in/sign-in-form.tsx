@@ -10,21 +10,19 @@ import { initialFormState } from "../_form-state";
 import { errorFor, FormError } from "../_components/form-error";
 import s from "../_components/auth.module.css";
 
-export function SignInForm() {
+export function SignInForm({ reset = false }: { reset?: boolean }) {
   const [state, action, pending] = useActionState(signInAction, initialFormState);
 
   return (
     <form action={action} noValidate className={s.form}>
       <FormError state={state} />
 
-      {state.status === "ok" ? (
+      {reset ? (
         <Alert tone="accent">
           <Text size="sm">
-            Those credentials match the fixture. No session was created and nothing
-            is guarding the screens yet, so this is a door beside an open wall —
-            said plainly rather than implied by a redirect.
+            Your password is changed, and every other session signed in as you has
+            been ended. Sign in with the new one.
           </Text>
-          <Link href="/home" className={s.link}>Open the application →</Link>
         </Alert>
       ) : null}
 

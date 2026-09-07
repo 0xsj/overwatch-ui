@@ -7,11 +7,10 @@ import { NavLink } from "@/components/navigation";
 import { AccountMenu } from "./account-menu";
 import { useSidebarHidden } from "@/lib/runtime";
 import { Heading, Text } from "@/components/typography";
-import type { Account } from "@/lib/services/shell";
 import { sectionFor } from "../_navigation";
 import s from "./sidebar.module.css";
 
-export function Sidebar({ account }: { account: Account }) {
+export function Sidebar({ email, name }: { email: string; name: string }) {
   const pathname = usePathname();
   const section = sectionFor(pathname);
   const hidden = useSidebarHidden();
@@ -32,7 +31,7 @@ export function Sidebar({ account }: { account: Account }) {
       </nav>
 
       <div className={s.foot}>
-        <AccountMenu account={account} />
+        <AccountMenu email={email} name={name} />
         <ThemeToggle className={s.theme} />
       </div>
     </aside>

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, PanelLeft, Target as TargetIcon } from "@/components/utility";
-import { Badge, Mock } from "@/components/display";
+import { Building2, PanelLeft } from "@/components/utility";
+import { Mock } from "@/components/display";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,23 +11,16 @@ import {
   BreadcrumbSeparator,
 } from "@/components/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/overlays";
-import type { Org, Target } from "@/lib/services/shell";
 import { toggleSidebar, useSidebarHidden } from "@/lib/runtime";
+import type { Shell } from "../_shell";
+import { WorkspaceSwitcher } from "./workspace-switcher";
+import { AccessBadge } from "./access-badge";
 import s from "./topbar.module.css";
 
-const KIND_TONE = { engagement: "warn", programme: "info", personal: "neutral" } as const;
-
-export function Topbar({
-  org,
-  target,
-  fixtures,
-}: {
-  org: Org;
-  target: Target;
-  fixtures: boolean;
-}) {
+export function Topbar({ shell }: { shell: Shell }) {
   const sidebarHidden = useSidebarHidden();
   const action = sidebarHidden ? "Show sidebar" : "Hide sidebar";
+  const { context } = shell;
 
   return (
     <header className={s.top}>
@@ -50,41 +43,50 @@ export function Topbar({
 
       <Breadcrumb className={s.crumbs}>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/settings/organisation">
-                <Building2 size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-                {org.name}
-              </Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
+          {context ? (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/settings/organisation">
+                    <Building2 size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
+                    {context.org.name}
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
 
-          <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
 
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/home/targets">
-                <TargetIcon size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-                {target.name}
-              </Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
+              {/* The switcher rather than a link, because it is the affordance a
+                  solo hunter uses constantly and the one that makes the three
+                  levels visible rather than theoretical. The ORG selector is the
+                  rare one — a solo hunter has one and never thinks about it. */}
+              <BreadcrumbItem>
+                <WorkspaceSwitcher org={context.org} current={context.workspace} />
+              </BreadcrumbItem>
 
-          <BreadcrumbItem>
-            <Badge
-              tone={KIND_TONE[target.kind]}
-              mono
-              className={s.kind}
-              title={target.ends_at ? `Runs to ${target.ends_at}.` : undefined}
-            >
-              {target.kind}
-            </Badge>
-          </BreadcrumbItem>
+              {/* This chip said `engagement` until 2026-09-07, from a `kind`
+                  field no endpoint has ever sent. What the server does send for
+                  a workspace is the caller's own level on it, which is the more
+                  useful thing to have in the chrome anyway: it is the answer to
+                  "why is this button not here". */}
+              <BreadcrumbItem>
+                <AccessBadge level={context.workspace.access} />
+              </BreadcrumbItem>
+            </>
+          ) : (
+            <BreadcrumbItem>
+              <span className={s.settling}>
+                {shell.empty === "no-org"
+                  ? "Setting up your organisation…"
+                  : "No engagement you can see"}
+              </span>
+            </BreadcrumbItem>
+          )}
 
-          {fixtures ? (
+          {shell.fixtures ? (
             <BreadcrumbItem>
               <Mock
-                note="This build has no server configured, so every name, count and record in it comes from a fixture."
+                note="You are signed in as a fixture persona, so every name, count and record on this screen is invented. Sign out to use a real account."
                 className={s.mock}
               />
             </BreadcrumbItem>

@@ -4,7 +4,7 @@ import { Mock } from "@/components/display";
 import { Alert } from "@/components/feedback";
 import { Heading, Text } from "@/components/typography";
 import { ThemeToggle } from "@/components/chrome";
-import { transport } from "@/lib/root";
+import { servedByFixtures, transport } from "@/lib/root";
 import s from "./auth.module.css";
 
 export function AuthShell({
@@ -17,6 +17,7 @@ export function AuthShell({
   /** Appended to the no-backend notice. For anything only true of one screen. */
   note?: ReactNode;
 }) {
+  const onFixtures = servedByFixtures("identity");
   return (
     <div className={s.shell}>
       <div className={s.glow} aria-hidden="true" />
@@ -38,15 +39,24 @@ export function AuthShell({
       </div>
 
       <div className={s.foot}>
-        <Alert tone="warn" live={false}>
+        {/* The tone, the badge and the sentence all follow the adapter.
+            Hard-coding "this build has no backend" was true for a fortnight and
+            became a lie the moment one was configured — a notice that cannot be
+            wrong is worth more than one that is usually right. */}
+        <Alert tone={onFixtures ? "warn" : "info"} live={false}>
           <Text size="xs">
-            <Mock
-              note="This build has no server configured, so every account, invitation and workspace named here comes from a fixture."
-              className={s.mock}
-            />
-            <strong>This build has no backend.</strong> {transport}
+            {onFixtures ? (
+              <Mock
+                note="This build has no server configured, so every account, invitation and workspace named here comes from a fixture."
+                className={s.mock}
+              />
+            ) : null}
+            <strong>
+              {onFixtures ? "This build has no backend." : "Connected."}
+            </strong>{" "}
+            {transport}
           </Text>
-          {note ? <Text size="xs" tone="tertiary">{note}</Text> : null}
+          {onFixtures && note ? <Text size="xs" tone="tertiary">{note}</Text> : null}
         </Alert>
         <ThemeToggle />
       </div>

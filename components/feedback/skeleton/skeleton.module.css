@@ -1,0 +1,21 @@
+@layer primitive {
+  .skeleton {
+    display: block;
+    inline-size: 100%;
+    block-size: 0.8em;
+    border-radius: var(--radius-1);
+    background: var(--surface-hover-2);
+  }
+
+  /* A pulse, not a sweep: a travelling highlight costs a compositor layer per
+     bar, and forty of them in a table is the thing that makes a loading state
+     slower than the data. */
+  @media (prefers-reduced-motion: no-preference) {
+    .skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}

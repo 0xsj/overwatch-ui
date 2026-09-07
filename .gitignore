@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the one decisions/0001 requires: a standalone clone has to know
+# what to supply without reading the parent workspace.
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +42,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Agent instruction files, written by `next dev` itself — see
+# node_modules/next/dist/server/lib/generate-agent-files.js. They regenerate on
+# every dev boot, so they are ignored rather than deleted: this tree carries no
+# references to any agent, and a file that recreates itself cannot be removed,
+# only kept out of the history.
+AGENTS.md
+CLAUDE.md
+
