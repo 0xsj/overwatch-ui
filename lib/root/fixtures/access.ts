@@ -1,247 +1,193 @@
 import { AppError } from "@/lib/kernel";
 import { bearerOf, type MemoryRoute } from "@/lib/http";
-import type { Grant, Invite, InviteInput } from "@/lib/services/access";
-import type { GrantLevel, OrgRole } from "@/lib/services/tenancy";
+import type { Invite, InviteInput, WorkspaceMember } from "@/lib/services/access";
+import { ROLE_CEILING, GRANT_LADDER, type GrantLevel } from "@/lib/services/tenancy";
 import { PERSONAS, personaFromToken, type PersonaName } from "./personas";
 
-/* ─── Nothing here is served by anything. ──────────────────────────────────
-   These routes exist so the invite and grant flows are WALKABLE before the
-   backend has them — `ALIGNMENT.md` says the commands arrive with the invite
-   flow and that the screens should be built read-only or behind a flag.
+/* ─── `access` is SERVED as of 2026-09-07. ─────────────────────────────────
+   These routes exist only for a fixture persona, which has no account on the
+   real server — so they reproduce the live contract rather than proposing one.
+   Every path, status and message below was read off the running server.     */
 
-   A fixture is a reference for layout, copy and interaction and never for code:
-   the shapes below are proposals, and the day a real endpoint lands it decides
-   and this file is rewritten to match it, not the other way round.          */
+const forbidden = (message: string) =>
+  new AppError({ kind: "forbidden", message, status: 403 });
 
-/** Mutable per persona, so an invitation sent on the members screen appears in
- *  the list and can be revoked — a flow you cannot feel from a static array. */
+const conflict = (message: string) =>
+  new AppError({ kind: "conflict", message, status: 409 });
+
+const notFound = () => new AppError({ kind: "not_found", message: "not found", status: 404 });
+
+/** Grants held per persona, keyed `workspace:account`. A missing entry is no
+ *  row at all, which is the only way "no access" is representable — there is no
+ *  `none` to store. */
+const LEVELS = new Map<PersonaName, Map<string, GrantLevel>>();
 const INVITES = new Map<PersonaName, Invite[]>();
-const GRANTS = new Map<PersonaName, Grant[]>();
-const ROLES = new Map<PersonaName, Map<string, OrgRole>>();
 
 let seq = 0;
-const nextId = () => `inv_${(++seq).toString(36).padStart(6, "0")}`;
+const nextId = () => `01a07b92-${(++seq).toString(16).padStart(4, "0")}-7000-8000-000000000000`;
 
-function invitesOf(name: PersonaName): Invite[] {
-  if (!INVITES.has(name)) INVITES.set(name, [...PERSONAS[name].invites]);
+function levelsOf(name: PersonaName): Map<string, GrantLevel> {
+  if (!LEVELS.has(name)) {
+    LEVELS.set(
+      name,
+      new Map(PERSONAS[name].grants.map((g) => [`${g.workspace_id}:${g.account_id}`, g.level])),
+    );
+  }
+  return LEVELS.get(name)!;
+}
+
+const invitesOf = (name: PersonaName): Invite[] => {
+  if (!INVITES.has(name)) INVITES.set(name, []);
   return INVITES.get(name)!;
-}
+};
 
-function grantsOf(name: PersonaName): Grant[] {
-  if (!GRANTS.has(name)) GRANTS.set(name, [...PERSONAS[name].grants]);
-  return GRANTS.get(name)!;
-}
-
-function rolesOf(name: PersonaName): Map<string, OrgRole> {
-  if (!ROLES.has(name))
-    ROLES.set(name, new Map(PERSONAS[name].members.map((m) => [m.account_id, m.role])));
-  return ROLES.get(name)!;
-}
-
-/** The one rule this fixture enforces, because it is the one that is
- *  unreachable in the backend today: an org must never lose its last owner.
- *  `org.ErrLastOwner` is declared there, raised inside both storage adapters,
- *  and never triggered, because no app-layer code calls the method. Refusing
- *  here means the screen has an error path before the server can produce one. */
-function guardLastOwner(name: PersonaName, accountId: string, next: OrgRole | null) {
-  const roles = rolesOf(name);
-  if (roles.get(accountId) !== "owner") return;
-  const owners = [...roles.values()].filter((r) => r === "owner").length;
-  if (owners <= 1 && next !== "owner")
-    throw new AppError({
-      kind: "conflict",
-      status: 409,
-      message:
-        "This is the org's last owner. Make somebody else an owner first — an org without one has nobody who can transfer or close it.",
-    });
-}
-
-const invalid = (message: string) => new AppError({ kind: "invalid", message, status: 400 });
-
-const orgOf = (name: PersonaName) => PERSONAS[name].me.orgs[0];
-
-/** The persona this request is from, or a refusal.
- *
- *  A bearer that names no persona is a REAL session, and a real session has no
- *  fixture invitations and no fixture grants. Answering with the firm's anyway
- *  is what this did until 2026-09-07, and it put one imaginary tenant's
- *  invitations on every real account's members screen. */
-function whose(req: { headers: Record<string, string> }): PersonaName {
-  const name = personaFromToken(bearerOf(req as never));
-  if (!name)
-    throw new AppError({
-      kind: "not_found",
-      status: 404,
-      message: "No invite or grant endpoint exists yet, and this session is not a fixture persona.",
-    });
+function whose(req: Parameters<MemoryRoute>[0]): PersonaName {
+  const name = personaFromToken(bearerOf(req));
+  if (!name) throw notFound();
   return name;
+}
+
+/** Effective, not stored: the org role caps whatever was written.
+ *
+ *  Which is the one calculation this fixture has to do that the client must
+ *  never do — the real server sends `access` already reduced, and a client that
+ *  computed it would be a second implementation of an authorisation rule. Here
+ *  it stands in for the server, so it is the server's job being done. */
+function effective(role: keyof typeof ROLE_CEILING, written: GrantLevel | undefined): GrantLevel {
+  if (role === "owner") return "admin"; // the one exemption — no row needed
+  if (!written) return "none";
+  const cap = GRANT_LADDER.indexOf(ROLE_CEILING[role]);
+  const has = GRANT_LADDER.indexOf(written);
+  return GRANT_LADDER[Math.min(cap, has)];
 }
 
 export const accessRoutes: MemoryRoute[] = [
   (req) => {
-    const match = /^\/orgs\/([^/]+)\/invitations$/.exec(req.path);
-    if (!(req.method === "GET" && match)) return undefined;
-    return invitesOf(whose(req));
-  },
-
-  (req) => {
-    const match = /^\/orgs\/([^/]+)\/invitations$/.exec(req.path);
+    const match = /^\/orgs\/([^/]+)\/invites$/.exec(req.path);
     if (!(req.method === "POST" && match)) return undefined;
 
     const name = whose(req);
-    const org = orgOf(name);
+    const persona = PERSONAS[name];
+    // The same rule as opening an engagement, and it is written down nowhere
+    // but the response.
+    if (!persona.me.verified)
+      throw forbidden("confirm your email address before inviting anybody");
+
     const input = (req.body ?? {}) as InviteInput;
     const email = String(input.email ?? "").trim().toLowerCase();
-    if (!email.includes("@")) throw invalid("the email address is not addressable");
+    if (!email.includes("@")) throw new AppError({ kind: "invalid", message: "the email address is not addressable", status: 400 });
 
-    if (PERSONAS[name].members.some((m) => m.email === email))
+    // Together or not at all. The server refuses to guess, because a workspace
+    // with no level and a level with no workspace are both half a decision.
+    const hasWorkspace = Boolean(input.workspace_id);
+    const hasLevel = Boolean(input.level);
+    if (hasWorkspace !== hasLevel)
       throw new AppError({
-        kind: "conflict",
-        status: 409,
-        message: "That person is already in this organisation.",
-      });
-    if (invitesOf(name).some((i) => i.email === email && i.state === "pending"))
-      throw new AppError({
-        kind: "conflict",
-        status: 409,
-        message: "An invitation to that address is already waiting.",
+        kind: "invalid",
+        status: 400,
+        message: "workspace_id and level are given together or not at all",
       });
 
-    const grant = input.first_grant;
-    const workspace = grant
-      ? org.workspaces.find((w) => w.workspace_id === grant.workspace_id)
-      : undefined;
+    if (persona.members.some((m) => m.email === email))
+      throw conflict("that person is already in this organisation");
+
+    if (input.level && input.role) {
+      const cap = GRANT_LADDER.indexOf(ROLE_CEILING[input.role]);
+      if (GRANT_LADDER.indexOf(input.level) > cap)
+        throw conflict(`a ${input.role} cannot be given ${input.level} on an engagement`);
+    }
 
     const invite: Invite = {
-      id: nextId(),
-      token: nextId(),
+      invite_id: nextId(),
       email,
-      role: (input.role ?? "member") as OrgRole,
-      org_id: org.org_id,
-      org_name: org.name,
-      invited_by: PERSONAS[name].me.email,
-      ...(grant && workspace
-        ? {
-            first_grant: {
-              workspace_id: workspace.workspace_id,
-              workspace_name: workspace.name,
-              level: grant.level,
-            },
-          }
-        : {}),
-      // A week, not a day. An invitation waits on somebody reading their mail.
+      role: input.role,
+      ...(hasWorkspace ? { workspace_id: input.workspace_id, level: input.level } : {}),
       expires_at: "2026-09-14T09:00:00Z",
-      state: "pending",
     };
     invitesOf(name).push(invite);
     return invite;
   },
 
   (req) => {
-    const match = /^\/orgs\/([^/]+)\/invitations\/([^/]+)$/.exec(req.path);
+    const match = /^\/orgs\/([^/]+)\/invites\/([^/]+)$/.exec(req.path);
     if (!(req.method === "DELETE" && match)) return undefined;
     const list = invitesOf(whose(req));
-    const invite = list.find((i) => i.id === decodeURIComponent(match[2]));
-    if (!invite)
-      throw new AppError({ kind: "not_found", message: "not found", status: 404 });
-    invite.state = "revoked";
+    const at = list.findIndex((i) => i.invite_id === decodeURIComponent(match[2]));
+    if (at === -1) throw notFound();
+    list.splice(at, 1);
     return null;
   },
 
   (req) => {
-    const match = /^\/invitations\/([^/]+)$/.exec(req.path);
+    if (!(req.method === "POST" && req.path === "/invites/accept")) return undefined;
+    whose(req);
+    // A persona cannot accept a real invitation and a real account cannot accept
+    // a fixture one. Saying so beats a fake success.
+    throw forbidden("that invitation was sent to a different address");
+  },
+
+  (req) => {
+    const match = /^\/workspaces\/([^/]+)\/members$/.exec(req.path);
     if (!(req.method === "GET" && match)) return undefined;
-    const token = decodeURIComponent(match[1]);
-    for (const name of Object.keys(PERSONAS) as PersonaName[]) {
-      const invite = invitesOf(name).find((i) => i.token === token);
-      if (invite && invite.state === "pending") return invite;
-    }
-    throw new AppError({
-      kind: "not_found",
-      status: 404,
-      message: "This invitation has been used, withdrawn, or never existed.",
-    });
-  },
 
-  (req) => {
-    const match = /^\/invitations\/([^/]+)\/acceptance$/.exec(req.path);
-    if (!(req.method === "POST" && match)) return undefined;
-    const token = decodeURIComponent(match[1]);
-    for (const name of Object.keys(PERSONAS) as PersonaName[]) {
-      const invite = invitesOf(name).find((i) => i.token === token);
-      if (!invite) continue;
-      if (invite.state !== "pending")
-        throw new AppError({
-          kind: "not_found",
-          status: 404,
-          message: "This invitation is no longer valid.",
-        });
-      invite.state = "accepted";
-      return invite;
-    }
-    throw new AppError({
-      kind: "not_found",
-      status: 404,
-      message: "This invitation is no longer valid.",
-    });
-  },
-
-  (req) => {
-    const match = /^\/orgs\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
-    if (!(req.method === "PATCH" && match)) return undefined;
     const name = whose(req);
-    const accountId = decodeURIComponent(match[2]);
-    const role = (req.body as { role?: OrgRole })?.role;
-    if (!role) throw invalid("a role is required");
-    guardLastOwner(name, accountId, role);
-    rolesOf(name).set(accountId, role);
-    return null;
+    const persona = PERSONAS[name];
+    const workspaceId = decodeURIComponent(match[1]);
+    // A workspace the caller cannot see is 404, never an empty list.
+    const visible = persona.me.orgs[0]?.workspaces.some((w) => w.workspace_id === workspaceId);
+    if (!visible) throw notFound();
+
+    const written = levelsOf(name);
+    return persona.members
+      .map((m) => ({
+        account_id: m.account_id,
+        email: m.email,
+        name: m.name,
+        role: m.role,
+        access: effective(m.role, written.get(`${workspaceId}:${m.account_id}`)),
+      }))
+      // Only people who can actually see it. `none` is absence, so it is absent.
+      .filter((row) => row.access !== "none") satisfies WorkspaceMember[];
   },
 
   (req) => {
-    const match = /^\/orgs\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
-    if (!(req.method === "DELETE" && match)) return undefined;
-    const name = whose(req);
-    const accountId = decodeURIComponent(match[2]);
-    guardLastOwner(name, accountId, null);
-    rolesOf(name).delete(accountId);
-    return null;
-  },
-
-  (req) => {
-    const match = /^\/orgs\/([^/]+)\/grants$/.exec(req.path);
-    if (!(req.method === "GET" && match)) return undefined;
-    return grantsOf(whose(req));
-  },
-
-  (req) => {
-    const match = /^\/orgs\/([^/]+)\/workspaces\/([^/]+)\/grants\/([^/]+)$/.exec(req.path);
+    const match = /^\/workspaces\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
     if (!(req.method === "PUT" && match)) return undefined;
 
     const name = whose(req);
-    const workspaceId = decodeURIComponent(match[2]);
-    const accountId = decodeURIComponent(match[3]);
-    const level = (req.body as { level?: GrantLevel })?.level ?? "none";
+    const workspaceId = decodeURIComponent(match[1]);
+    const accountId = decodeURIComponent(match[2]);
+    const level = (req.body as { level?: GrantLevel })?.level;
+    if (!level || level === "none")
+      throw new AppError({ kind: "invalid", message: "level must be read, write or admin", status: 400 });
 
-    const list = grantsOf(name);
-    const at = list.findIndex(
-      (g) => g.account_id === accountId && g.workspace_id === workspaceId,
+    const member = PERSONAS[name].members.find((m) => m.account_id === accountId);
+    if (!member) throw conflict("that account is not a member of this organisation");
+    if (member.role === "owner")
+      throw conflict("the org owner is admin on every engagement and holds no grant");
+
+    const cap = GRANT_LADDER.indexOf(ROLE_CEILING[member.role]);
+    if (GRANT_LADDER.indexOf(level) > cap)
+      throw conflict(`a ${member.role} cannot be given ${level} on an engagement`);
+
+    levelsOf(name).set(`${workspaceId}:${accountId}`, level);
+    return {
+      account_id: member.account_id,
+      email: member.email,
+      name: member.name,
+      role: member.role,
+      access: effective(member.role, level),
+    } satisfies WorkspaceMember;
+  },
+
+  (req) => {
+    const match = /^\/workspaces\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
+    if (!(req.method === "DELETE" && match)) return undefined;
+    const name = whose(req);
+    // Deleting the row IS the revocation. There is no level to write.
+    levelsOf(name).delete(
+      `${decodeURIComponent(match[1])}:${decodeURIComponent(match[2])}`,
     );
-    // `none` is a level and revoking is writing it. One verb, so a screen
-    // cannot express "granted, at none" as a state distinct from having no row.
-    if (level === "none") {
-      if (at !== -1) list.splice(at, 1);
-      return { account_id: accountId, workspace_id: workspaceId, level } satisfies Grant;
-    }
-    const grant: Grant = { account_id: accountId, workspace_id: workspaceId, level };
-    if (at === -1) list.push(grant);
-    else list[at] = grant;
-    return grant;
+    return null;
   },
 ];
-
-/** The roles as the fixture currently holds them, so the members screen shows a
- *  change that a PATCH actually made rather than the persona's original. */
-export function rolesFor(name: PersonaName): Map<string, OrgRole> {
-  return rolesOf(name);
-}

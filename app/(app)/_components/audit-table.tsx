@@ -31,6 +31,8 @@ export function AuditTable({
   entries,
   next,
   more,
+  empty,
+  chainHref,
 }: {
   entries: AuditEntry[];
   next?: string;
@@ -38,11 +40,19 @@ export function AuditTable({
    *  absent, which is the ONLY way to know there is more — there is no total,
    *  by design. */
   more?: (cursor: string) => string;
+  /** What an empty ledger means HERE. It differs per screen and the difference
+   *  matters: an engagement provisioned at signup has an empty log because
+   *  nobody chose to open it, which is not the same as nothing having
+   *  happened. */
+  empty?: string;
+  /** Where a `chain →` link points. The two audit screens live at different
+   *  routes and the chain view belongs to one of them. */
+  chainHref?: (correlationId: string) => string;
 }) {
   if (entries.length === 0) {
     return (
       <Text size="sm" tone="tertiary">
-        Nothing recorded yet. The ledger is written to as work happens.
+        {empty ?? "Nothing recorded yet. The ledger is written to as work happens."}
       </Text>
     );
   }
@@ -81,7 +91,7 @@ export function AuditTable({
               </TableCell>
               <TableCell><Actor actor={e.actor} /></TableCell>
               <TableCell>
-                <Link href={`/home/audit-log/${e.correlation_id}`} className={s.chain}>
+                <Link href={(chainHref ?? ((id: string) => `/home/audit-log/${id}`))(e.correlation_id)} className={s.chain}>
                   chain →
                 </Link>
               </TableCell>

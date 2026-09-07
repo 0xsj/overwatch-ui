@@ -84,11 +84,14 @@ export const SECTIONS: NavSection[] = [
   {
     id: "tools",
     label: "Tools",
-    sub: "A definition and a mapping. Never an integration.",
+    sub: "Definitions and mappings, and the questions they answer.",
     Icon: Wrench,
     pages: [
       { href: "/tools/installed", label: "Installed" },
       { href: "/tools/add", label: "Add a tool" },
+      // A check is not a tool, and it lives here because this is the section
+      // for machinery a person configures. Runs of it are observability's.
+      { href: "/tools/checks", label: "Checks" },
     ],
   },
   {
@@ -104,6 +107,10 @@ export const SECTIONS: NavSection[] = [
       // a consultancy buys is per engagement, not per target, and a target does
       // not close one at a time. Renamed 2026-09-07 with the noun.
       { href: "/settings/access", label: "Access" },
+      // The FIRM's log — membership, roles, invitations. Narrower than the
+      // screen that used to be here: an org-scope entry can never name a
+      // workspace, which is the only reason it is safe to show every member.
+      { href: "/settings/audit-log", label: "Organisation log" },
     ],
   },
 ];

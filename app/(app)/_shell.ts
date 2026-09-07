@@ -10,6 +10,7 @@ import {
   type ShellContext,
 } from "@/lib/services/tenancy";
 import { isAppError } from "@/lib/kernel";
+import { currentSelection } from "./_selection";
 
 export type Shell = {
   me: Me;
@@ -45,7 +46,10 @@ export async function loadShell(wanted?: { org?: string; workspace?: string }): 
     throw error;
   }
 
-  const context = selectShellContext(me, wanted);
+  // The cookie is a preference; `/v1/me` is the authority. `selectShellContext`
+  // falls back to the first org and workspace the caller can actually see, so a
+  // stale selection is a quiet correction rather than an empty screen.
+  const context = selectShellContext(me, wanted ?? (await currentSelection()));
 
   let members: Member[] = [];
   if (context) {

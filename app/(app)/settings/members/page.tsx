@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Badge, Mock, Panel } from "@/components/display";
+import { Badge, Panel } from "@/components/display";
 import {
   Table,
   TableBody,
@@ -10,14 +10,11 @@ import {
 } from "@/components/display";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
-import { absent, isPresent, present, unattempted, type Presence } from "@/lib/kernel";
-import { clientFor } from "@/lib/root";
-import { listInvites, type Invite } from "@/lib/services/access";
 import type { OrgRole } from "@/lib/services/tenancy";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
+import { Owed } from "../../_components/owed";
 import { InviteForm } from "./invite-form";
-import { MemberRoleControl } from "./role-control";
 import s from "../settings.module.css";
 
 const TITLE = "Members";
@@ -26,10 +23,9 @@ const SUB =
 
 export const metadata: Metadata = { title: TITLE };
 
-/** The three that are inside the firm, then the two that face outward. Kept as
- *  a rendered distinction rather than a comment: `guest` and `client` are the
- *  two roles that will carry a time box, and somebody choosing one should see
- *  that they are choosing something different in kind. */
+/** `guest` and `client` are the two that face outward, and they are toned apart
+ *  from the three inside the firm because both will carry a time box that does
+ *  not exist yet. */
 const ROLE_TONE: Record<OrgRole, "accent" | "info" | "neutral"> = {
   owner: "accent",
   admin: "accent",
@@ -49,21 +45,6 @@ export default async function Page() {
       </>
     );
   }
-
-  /* Three states, not two. An empty list means nobody has been invited; a
-     refusal means nothing was asked, because no invite endpoint exists and this
-     session is not a fixture persona. Rendering the second as the first is the
-     `never checked vs found nothing` collapse §Scope refuses, on the one screen
-     where "nobody is waiting" is a claim somebody might act on. */
-  let waiting: Presence<Invite[]>;
-  try {
-    const all = await listInvites(await clientFor("access"), org.org_id);
-    const pending = all.filter((i) => i.state === "pending");
-    waiting = pending.length ? present(pending) : absent();
-  } catch {
-    waiting = unattempted();
-  }
-  const invites = isPresent(waiting) ? waiting.value : [];
 
   const manages = org.role === "owner" || org.role === "admin";
 
@@ -97,16 +78,14 @@ export default async function Page() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {manages ? (
-                    <MemberRoleControl
-                      orgId={org.org_id}
-                      accountId={m.account_id}
-                      role={m.role}
-                      self={m.account_id === shell.me.account_id}
-                    />
-                  ) : (
-                    <Badge tone={ROLE_TONE[m.role]} mono>{m.role}</Badge>
-                  )}
+                  {/* READ-ONLY, and it was an editable dropdown until
+                      2026-09-07. Nothing can change a role over HTTP, and a
+                      control that cannot work is worse than a value that is
+                      plainly just a value. */}
+                  <Badge tone={ROLE_TONE[m.role]} mono>{m.role}</Badge>
+                  {m.account_id === shell.me.account_id ? (
+                    <Text size="xs" tone="quiet">this is you</Text>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <span className={s.muted}>{m.joined_at.slice(0, 10)}</span>
@@ -118,79 +97,45 @@ export default async function Page() {
       </Panel>
 
       {manages ? (
-        <>
-          <Panel
-            title="Invite somebody"
-            note="One flow, one email, one accepted state — the invitation carries the first engagement with it."
-            actions={<Mock note="No invite endpoint exists. decisions/0019 defines the model; the commands that write it arrive with this flow, so everything here reaches a fixture." />}
-          >
-            <Alert tone="info">
-              <Text size="sm">
-                An invitation that carries no engagement lands somebody in an
-                organisation where they can see <strong>nothing</strong> — an empty
-                grant set means <code>none</code>, and <code>none</code> means
-                invisible. That is technically correct and a terrible first screen,
-                which is why the engagement is part of the invitation rather than a
-                second job somebody has to remember.
-              </Text>
-            </Alert>
-            <InviteForm orgId={org.org_id} workspaces={org.workspaces} />
-          </Panel>
-
-          <Panel
-            title="Waiting"
-            note={
-              waiting.state === "absent"
-                ? "Nobody has been invited."
-                : waiting.state === "unattempted"
-                  ? "Never checked — there is no invite endpoint, and this session is not a fixture persona. That is not the same as nobody waiting."
-                  : undefined
-            }
-            actions={isPresent(waiting) ? <Mock /> : undefined}
-          >
-            {invites.length === 0 ? null : (
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeaderCell>Address</TableHeaderCell>
-                    <TableHeaderCell>As</TableHeaderCell>
-                    <TableHeaderCell>Starts on</TableHeaderCell>
-                    <TableHeaderCell>Link expires</TableHeaderCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {invites.map((i) => (
-                    <TableRow key={i.id}>
-                      <TableCell><span className={s.email}>{i.email}</span></TableCell>
-                      <TableCell><Badge tone={ROLE_TONE[i.role]} mono>{i.role}</Badge></TableCell>
-                      <TableCell>
-                        {i.first_grant ? (
-                          <span className={s.row}>
-                            {i.first_grant.workspace_name}
-                            <Badge tone="neutral" mono>{i.first_grant.level}</Badge>
-                          </span>
-                        ) : (
-                          <span className={s.muted}>nothing yet</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className={s.muted}>{i.expires_at.slice(0, 10)}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </Panel>
-        </>
+        <Panel
+          title="Invite somebody"
+          note="One flow, one email, one accepted state — the invitation carries the first engagement with it."
+        >
+          <Alert tone="info">
+            <Text size="sm">
+              An invitation that carries no engagement lands somebody in an
+              organisation where they can see <strong>nothing</strong> — an empty
+              grant set means <code>none</code>, and <code>none</code> means
+              invisible. That is correct and it is the worst possible first screen,
+              which is why the engagement is part of the invitation rather than a
+              second job somebody has to remember.
+            </Text>
+          </Alert>
+          <InviteForm orgId={org.org_id} workspaces={org.workspaces} />
+        </Panel>
       ) : (
         <Alert tone="info">
           <Text size="sm">
-            Only an owner or an admin can invite and change roles. You can see who is
-            here, which is what a member needs to know who claimed what.
+            Only an owner or an admin can invite. You can see who is here, which is
+            what a member needs in order to know who claimed what.
           </Text>
         </Alert>
       )}
+
+      {/* No list endpoint: `GET /v1/orgs/{org}/invites` is 405 and there is no
+          read for a single one either. So a "waiting" list cannot be built, and
+          saying that beats an empty panel that reads as "nobody is waiting". */}
+      {manages ? (
+        <Owed
+          title="Invitations still waiting"
+          note="Nothing lists them. An invitation can be sent and withdrawn by id, and there is no endpoint that reads one back — so this screen cannot tell you who has not accepted yet. It is in ALIGNMENT.md as a request rather than guessed at."
+        />
+      ) : null}
+
+      <Owed
+        title="Changing a role, removing somebody, leaving"
+        note="None of the three exists over HTTP. ErrLastOwner is declared in the backend and unreachable, so 'an org cannot lose its last owner' is true today only because nothing can remove one — which is why the roles above are read-only rather than a dropdown that would fail."
+      />
     </>
   );
 }

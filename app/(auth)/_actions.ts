@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import { anonymousClient, startSession } from "@/lib/root";
 import { FIXTURE_PASSWORD, PERSONAS, type PersonaName } from "@/lib/root/fixtures";
-import { acceptInvite } from "@/lib/services/access";
 import {
   confirmEmailChange,
   confirmReset,
@@ -114,21 +113,6 @@ export async function confirmResetAction(_prev: FormState, data: FormData): Prom
     return toFormState(error);
   }
   redirect("/sign-in?reset=done");
-}
-
-export async function acceptInviteAction(_prev: FormState, data: FormData): Promise<FormState> {
-  const name = str(data, "name").trim();
-  const password = str(data, "password");
-  try {
-    await acceptInvite(anonymousClient("access"), {
-      token: str(data, "token"),
-      ...(name ? { name } : {}),
-      ...(password ? { password } : {}),
-    });
-    return { status: "ok" };
-  } catch (error) {
-    return toFormState(error);
-  }
 }
 
 /** Sign in as one of the two fixture tenants.

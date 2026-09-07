@@ -7,6 +7,7 @@ import { getWorkspaceAudit, type AuditPage } from "@/lib/services/ledger";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
 import { AuditTable } from "../../_components/audit-table";
+import { FacetRow } from "../../_components/facet-row";
 
 const TITLE = "Audit log";
 const SUB =
@@ -27,9 +28,9 @@ export const metadata: Metadata = { title: TITLE };
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ after?: string }>;
+  searchParams: Promise<{ after?: string; facet?: string }>;
 }) {
-  const { after } = await searchParams;
+  const { after, facet } = await searchParams;
   const shell = await loadShell();
   const workspace = shell.context?.workspace;
 
@@ -48,6 +49,7 @@ export default async function Page({
   try {
     page = await getWorkspaceAudit(await clientFor("ledger"), workspace.workspace_id, {
       after,
+      facet,
       limit: 50,
     });
   } catch {
@@ -63,11 +65,28 @@ export default async function Page({
         note="This engagement only. There is no organisation-wide log, because an entry about an engagement you are not on is a disclosure rather than a row."
       >
         {page ? (
-          <AuditTable
-            entries={page.entries}
-            next={page.next}
-            more={(cursor) => `/home/audit-log?after=${encodeURIComponent(cursor)}`}
-          />
+          <>
+            <FacetRow
+              facets={page.facets ?? []}
+              active={facet}
+              href={(f) => (f ? `/home/audit-log?facet=${encodeURIComponent(f)}` : "/home/audit-log")}
+            />
+            <AuditTable
+              entries={page.entries}
+              next={page.next}
+              more={(cursor) => `/home/audit-log?after=${encodeURIComponent(cursor)}`}
+              /* An engagement provisioned at signup has an EMPTY log and that is
+                 correct: `workspace.created` is work and `workspace.opened` is
+                 the decision — 0020 — so nobody chose to open `Personal`. It is
+                 the first thing a new user sees here, and an empty list with no
+                 explanation reads as broken. */
+              empty={
+                facet
+                  ? `Nothing under “${facet}” on this engagement.`
+                  : "Nothing has been recorded on this engagement yet. An engagement provisioned when you registered has an empty log because nobody chose to open it — one you started yourself has an entry from the moment it exists."
+              }
+            />
+          </>
         ) : (
           <Text size="sm" tone="tertiary">
             Never checked — this engagement&rsquo;s ledger could not be read. That is

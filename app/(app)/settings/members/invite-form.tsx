@@ -18,7 +18,7 @@ import {
   EXTERNAL_ROLES,
   GRANT_MEANING,
   INTERNAL_ROLES,
-  type GrantLevel,
+  levelsFor,
   type MeWorkspace,
   type OrgRole,
 } from "@/lib/services/tenancy";
@@ -27,12 +27,14 @@ import { initialFormState } from "../../../(auth)/_form-state";
 import { errorFor, FormError } from "../../../(auth)/_components/form-error";
 import s from "../settings.module.css";
 
-/** `none` is deliberately not offered.
+/** Only the levels the chosen ROLE permits — `decisions/0023`. A `client`
+ *  cannot be given `write`; a `member` or `guest` cannot be given `admin`. The
+ *  409 is the backstop rather than the design.
  *
- *  On this form the absence of a first grant is expressed by choosing no
- *  engagement, not by choosing `none` on one — those read identically to the
- *  server and offering both would make "granted, at none" look like a state. */
-const LEVELS: GrantLevel[] = ["read", "write", "admin"];
+ *  `none` is never here. The absence of a first grant is expressed by choosing
+ *  no engagement, and `workspace_id` and `level` travel together or not at all
+ *  — 400 otherwise, because a workspace with no level and a level with no
+ *  workspace are both half a decision. */
 
 export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: MeWorkspace[] }) {
   const [state, action, pending] = useActionState(
@@ -114,7 +116,7 @@ export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: M
             <Select name="level" defaultValue="read" disabled={!workspace}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {LEVELS.map((l) => (
+                {levelsFor(role).map((l) => (
                   <SelectItem key={l} value={l} title={GRANT_MEANING[l]}>{l}</SelectItem>
                 ))}
               </SelectContent>

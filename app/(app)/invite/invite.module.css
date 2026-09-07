@@ -1,0 +1,6 @@
+@layer screen {
+  .form { display: grid; gap: var(--space-5); justify-items: start; }
+  .mono { font-family: var(--font-mono); }
+  .link { color: var(--accent); font-size: var(--text-12-5); }
+  .link:hover { text-decoration: underline; }
+}

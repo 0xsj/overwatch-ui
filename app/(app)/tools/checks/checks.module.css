@@ -1,0 +1,26 @@
+@layer screen {
+  .list { display: grid; gap: var(--space-3); }
+
+  .card {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3);
+  }
+  .card:hover { border-color: var(--line-strong); background: var(--surface-panel-2); }
+
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+  .name { color: var(--ink); font-size: var(--text-13); }
+  .interval { margin-inline-start: auto; color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
+  .question { color: var(--ink-3); font-size: var(--text-12-5); }
+  .chain { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-10); }
+
+  .back {
+    display: inline-block;
+    margin-block-end: var(--space-4);
+    color: var(--ink-3);
+    font-size: var(--text-12);
+  }
+  .back:hover { color: var(--accent); }
+}

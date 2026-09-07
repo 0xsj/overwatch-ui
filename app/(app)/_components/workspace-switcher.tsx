@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, Target as WorkspaceIcon } from "@/components/utility";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/overlays";
 import type { MeOrg, MeWorkspace } from "@/lib/services/tenancy";
+import { switchWorkspaceAction } from "../_switch-actions";
 import s from "./workspace-switcher.module.css";
 
 /** Every workspace in this list is one the caller can see.
@@ -20,8 +21,6 @@ import s from "./workspace-switcher.module.css";
  *  reconstruct the list from anywhere else. A count that includes an invisible
  *  engagement is the same disclosure as showing its name. */
 export function WorkspaceSwitcher({ org, current }: { org: MeOrg; current: MeWorkspace }) {
-  const router = useRouter();
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={s.trigger}>
@@ -35,7 +34,7 @@ export function WorkspaceSwitcher({ org, current }: { org: MeOrg; current: MeWor
         {org.workspaces.map((w) => (
           <DropdownMenuItem
             key={w.workspace_id}
-            onSelect={() => router.push(`/home/overview?workspace=${w.workspace_id}`)}
+            onSelect={() => void switchWorkspaceAction(w.workspace_id)}
           >
             <span className={s.tick} aria-hidden="true">
               {w.workspace_id === current.workspace_id ? (
@@ -47,8 +46,8 @@ export function WorkspaceSwitcher({ org, current }: { org: MeOrg; current: MeWor
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push("/settings/workspaces")}>
-          All engagements
+        <DropdownMenuItem asChild>
+          <Link href="/settings/workspaces">All engagements</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

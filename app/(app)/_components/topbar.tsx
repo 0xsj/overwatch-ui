@@ -1,18 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { Building2, PanelLeft } from "@/components/utility";
+import { PanelLeft } from "@/components/utility";
 import { Mock } from "@/components/display";
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/overlays";
 import { toggleSidebar, useSidebarHidden } from "@/lib/runtime";
 import type { Shell } from "../_shell";
+import { OrgSwitcher } from "./org-switcher";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { AccessBadge } from "./access-badge";
 import s from "./topbar.module.css";
@@ -45,13 +44,12 @@ export function Topbar({ shell }: { shell: Shell }) {
         <BreadcrumbList>
           {context ? (
             <>
+              {/* A switcher rather than a link, because a person can be in more
+                  than one org — accepting an invitation leaves you your own AND
+                  adds you to theirs. It renders as a plain label when there is
+                  only one, which is the solo hunter's whole experience of it. */}
               <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/settings/organisation">
-                    <Building2 size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-                    {context.org.name}
-                  </Link>
-                </BreadcrumbLink>
+                <OrgSwitcher me={shell.me} current={context.org} />
               </BreadcrumbItem>
 
               <BreadcrumbSeparator />

@@ -5,7 +5,13 @@ import { currentToken, isFixtureToken } from "./session";
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
 /** Every domain the client has a service for. */
-export type Domain = "identity" | "tenancy" | "ledger" | "access" | "entities";
+export type Domain =
+  | "identity"
+  | "tenancy"
+  | "ledger"
+  | "access"
+  | "pipeline"
+  | "entities";
 
 /** The domains the SERVER actually serves.
  *
@@ -13,11 +19,16 @@ export type Domain = "identity" | "tenancy" | "ledger" | "access" | "entities";
  *  right the day one endpoint was: pointing at a half-built backend then breaks
  *  every screen it does not serve, because there is no fallback — by design.
  *
- *  `access` is deliberately absent and is the interesting entry. Its model is
- *  sealed in `decisions/0019` and NONE of its commands exist over HTTP — no
- *  invite endpoint, no role change, no grant write. Putting it here the day the
- *  model landed would 404 every collaboration screen. */
-const SERVED: readonly Domain[] = ["identity", "tenancy", "ledger"];
+ *  `access` was deliberately ABSENT until 2026-09-07 and is the entry worth
+ *  reading twice. Its model was sealed in `decisions/0019` days before a single
+ *  one of its commands existed over HTTP, and putting it here then would have
+ *  404'd every collaboration screen. `0023` and `0025` built the invite and the
+ *  grant, so it moved — which is what this list is for: one line, one place, and
+ *  the startup banner prints it.
+ *
+ *  `pipeline` is where `access` was. Its nouns are sealed in §Scope and none of
+ *  `tool`, `check`, `run` or `invocation` is served. */
+const SERVED: readonly Domain[] = ["identity", "tenancy", "ledger", "access"];
 
 const fixtures = (token: string | null) =>
   createMemoryClient({ routes, getAccessToken: () => token });
@@ -70,7 +81,14 @@ export function adapterFor(domain: Domain): "fetch" | "memory" {
   return hasServer && SERVED.includes(domain) ? "fetch" : "memory";
 }
 
-export const DOMAINS: Domain[] = ["identity", "tenancy", "ledger", "access", "entities"];
+export const DOMAINS: Domain[] = [
+  "identity",
+  "tenancy",
+  "ledger",
+  "access",
+  "pipeline",
+  "entities",
+];
 
 export const transport = !baseUrl
   ? "No backend. Nothing is stored, no email is sent, and no session is created."

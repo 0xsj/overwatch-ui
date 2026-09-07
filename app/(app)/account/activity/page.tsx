@@ -5,6 +5,7 @@ import { clientFor } from "@/lib/root";
 import { getMyActivity, type AuditPage } from "@/lib/services/ledger";
 import { PageHead } from "../../_components/page-head";
 import { AuditTable } from "../../_components/audit-table";
+import { FacetRow } from "../../_components/facet-row";
 
 const TITLE = "Your record";
 const SUB =
@@ -15,13 +16,13 @@ export const metadata: Metadata = { title: TITLE };
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ after?: string }>;
+  searchParams: Promise<{ after?: string; facet?: string }>;
 }) {
-  const { after } = await searchParams;
+  const { after, facet } = await searchParams;
 
   let page: AuditPage | null = null;
   try {
-    page = await getMyActivity(await clientFor("ledger"), { after, limit: 50 });
+    page = await getMyActivity(await clientFor("ledger"), { after, facet, limit: 50 });
   } catch {
     page = null;
   }
@@ -35,11 +36,19 @@ export default async function Page({
         note="Yours only. It takes no id, because it is not a way to read anybody else's."
       >
         {page ? (
-          <AuditTable
-            entries={page.entries}
-            next={page.next}
-            more={(cursor) => `/account/activity?after=${encodeURIComponent(cursor)}`}
-          />
+          <>
+            <FacetRow
+              facets={page.facets ?? []}
+              active={facet}
+              href={(f) => (f ? `/account/activity?facet=${encodeURIComponent(f)}` : "/account/activity")}
+            />
+            <AuditTable
+              entries={page.entries}
+              next={page.next}
+              more={(cursor) => `/account/activity?after=${encodeURIComponent(cursor)}`}
+              empty={facet ? `Nothing under “${facet}”.` : "Nothing is attached to your name yet."}
+            />
+          </>
         ) : (
           <Text size="sm" tone="tertiary">
             Never checked — your record could not be read. That is not the same as

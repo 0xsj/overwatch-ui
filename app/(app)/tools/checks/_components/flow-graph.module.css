@@ -1,0 +1,153 @@
+/* OUTSIDE `@layer screen`, and that is the entire reason this works.
+ *
+ *  `@xyflow/react/dist/style.css` contains no `@layer` at all, and UNLAYERED CSS
+ *  BEATS EVERY LAYERED RULE regardless of specificity — that is the cascade's
+ *  rule, not a quirk. Written inside `@layer screen` these declarations lost to
+ *  React Flow's own defaults and the graph came out with invisible edges and a
+ *  white minimap on a dark page. Raising specificity would not have helped;
+ *  leaving the layer is the only fix.
+ *
+ *  It is the mirror of the bug this codebase spent an afternoon on — see
+ *  `a-layer-statement-orders-only-the-layers-it-has-not-met`. There, layered
+ *  rules lost to a reset because the ORDER was wrong. Here they lose to a
+ *  vendor sheet because unlayered outranks the whole order.
+ *
+ *  The variables are the `-default` ones on purpose: React Flow resolves each as
+ *  `var(--xy-thing, var(--xy-thing-default))`, so the undashed name is reserved
+ *  for a per-instance prop and the `-default` is the theming hook. Setting the
+ *  undashed one works until somebody passes the prop and then silently stops. */
+/* The rule that cost an hour, and it is in this repo's own reset:
+ *
+ *      img, picture, svg, video { display: block; max-inline-size: 100% }
+ *
+ *  React Flow draws each edge as its own `<svg>` inside a 0-width positioning
+ *  div. `max-inline-size: 100%` resolves against that parent, clamps the svg to
+ *  ZERO width, and an outermost svg clips to its own viewport — so every path
+ *  was computed correctly, reported `visibility: visible` and `opacity: 1`, and
+ *  drew into a box with no area. Four edges, all present in the DOM, none of
+ *  them on screen.
+ *
+ *  Fixed here rather than in the reset. That rule is right for the thing it was
+ *  written for — an image that must not overflow its column — and narrowing it
+ *  globally to accommodate one library is the wrong direction. */
+.canvas :global(svg) { max-inline-size: none; }
+
+.canvas :global(.react-flow) {
+  --xy-background-pattern-color-default: var(--line);
+  /* --line-heavy, not --line-strong. An edge is the only thing on this canvas
+     carrying the structure, and at 12% white on a dark ground it computed
+     correctly and was invisible. */
+  --xy-edge-stroke-default: var(--line-heavy);
+  --xy-edge-stroke-selected-default: var(--accent);
+  --xy-edge-stroke-width-default: 1.5;
+
+  --xy-handle-background-color-default: var(--surface-panel-2);
+  --xy-handle-border-color-default: var(--line-strong);
+
+  --xy-controls-button-background-color-default: var(--surface-panel);
+  --xy-controls-button-background-color-hover-default: var(--surface-panel-2);
+  --xy-controls-button-color-default: var(--ink-2);
+  --xy-controls-button-color-hover-default: var(--ink);
+  --xy-controls-button-border-color-default: var(--line);
+  --xy-controls-box-shadow-default: none;
+
+  --xy-minimap-background-color-default: var(--surface-sunk);
+  --xy-minimap-mask-background-color-default: color-mix(in oklab, var(--surface-ground) 72%, transparent);
+  --xy-minimap-mask-stroke-color-default: var(--line-strong);
+  --xy-minimap-node-background-color-default: var(--line-heavy);
+  --xy-minimap-node-stroke-color-default: transparent;
+
+  --xy-attribution-background-color-default: transparent;
+  --xy-selection-background-color-default: color-mix(in oklab, var(--accent) 12%, transparent);
+  --xy-selection-border-default: 1px dashed var(--accent);
+}
+
+/* An edge into a step that never received bytes. Dotted rather than coloured:
+   what matters is whether anything travelled, not why it did not.
+   
+   `.dead` is a LOCAL class so `s.dead` exists — a class written inside
+   `:global()` is not exported by CSS Modules, so the previous version handed
+   React Flow `undefined` and styled nothing. */
+.dead :global(.react-flow__edge-path) {
+  stroke: var(--line);
+  stroke-dasharray: 3 4;
+}
+
+@layer screen {
+  .canvas {
+    block-size: 30rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-3);
+    overflow: hidden;
+  }
+
+
+  .handle {
+    inline-size: 7px;
+    block-size: 7px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-panel-2);
+  }
+
+  /* A CARD, not a pill. The entity canvas draws beliefs; this draws programs,
+     and the two must not be mistakable for one another. */
+  .node {
+    position: relative;
+    display: grid;
+    gap: 2px;
+    align-content: center;
+    inline-size: 208px;
+    block-size: 64px;
+    padding: var(--space-3) var(--space-4) var(--space-3) var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+    background: var(--surface-panel);
+    text-align: start;
+    overflow: hidden;
+    transition: border-color var(--dur-1), background var(--dur-1);
+  }
+
+  .node:hover { border-color: var(--line-strong); }
+  .node[data-selected] { border-color: var(--accent); background: var(--surface-panel-2); }
+
+  .stripe {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: 3px;
+    background: var(--line-strong);
+  }
+
+  .node[data-state="ok"] .stripe      { background: var(--accent); }
+  .node[data-state="failed"] .stripe  { background: var(--crit); }
+  .node[data-state="refused"] .stripe,
+  .node[data-refused] .stripe         { background: var(--warn); }
+  .node[data-state="skipped"] .stripe { background: var(--ink-4); }
+  .node[data-state="running"] .stripe { background: var(--info); }
+  .node[data-state="pending"] .stripe { background: var(--line); }
+
+  .head { display: flex; align-items: center; gap: var(--space-3); }
+  .name { color: var(--ink); font-family: var(--font-mono); font-size: var(--text-12); }
+
+  .loud {
+    padding-inline: var(--space-2);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-1);
+    color: var(--warn);
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+  }
+
+  .argv {
+    color: var(--ink-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .foot { display: flex; gap: var(--space-3); }
+  .state { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--text-10); }
+  .feed { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-10); }
+}

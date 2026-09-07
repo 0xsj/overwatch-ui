@@ -4,7 +4,7 @@ import type { AuditPage, ChainStep, PageOptions } from "./ledger.types";
 /** All REAL, walked on 2026-09-07. */
 
 const paging = (options?: PageOptions) => ({
-  params: { after: options?.after, limit: options?.limit },
+  params: { after: options?.after, limit: options?.limit, facet: options?.facet },
   signal: options?.signal,
 });
 
@@ -25,6 +25,20 @@ export function getWorkspaceAudit(
     `/workspaces/${encodeURIComponent(workspaceId)}/audit`,
     paging(options),
   );
+}
+
+/** The FIRM's own log — membership, roles, invitations. Every member may read
+ *  it, and that is only safe because an org-scope entry can never name a
+ *  workspace: the database refuses it.
+ *
+ *  So this and `getWorkspaceAudit` are two screens rather than one with a
+ *  filter, and this one must never try to show engagement activity. */
+export function getOrgAudit(
+  http: HttpClient,
+  orgId: string,
+  options?: PageOptions,
+): Promise<AuditPage> {
+  return http.get<AuditPage>(`/orgs/${encodeURIComponent(orgId)}/audit`, paging(options));
 }
 
 /** What else was part of one act. */

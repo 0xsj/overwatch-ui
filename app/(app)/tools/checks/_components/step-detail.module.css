@@ -1,0 +1,30 @@
+@layer screen {
+  .panel { margin-block-start: var(--space-5); }
+
+  .facts { display: grid; gap: var(--space-4); }
+
+  .fact {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: 9rem 1fr;
+    align-items: baseline;
+  }
+
+  .fact dt {
+    color: var(--ink-4);
+    font-size: var(--text-11);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .fact dd { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+  .mono { color: var(--ink); font-family: var(--font-mono); font-size: var(--text-11-5); overflow-wrap: anywhere; }
+
+  /* Absent is italic and quiet, exactly as `Presence` draws `unattempted` —
+     because it is the same distinction: nothing happened, which is not the same
+     as something happening and returning nothing. */
+  .never { color: var(--ink-4); font-style: italic; font-size: var(--text-12); }
+
+  @media (max-width: 40rem) { .fact { grid-template-columns: 1fr; } }
+}

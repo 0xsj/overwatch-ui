@@ -5,6 +5,8 @@ export {
   GRANT_LADDER,
   GRANT_MEANING,
   INTERNAL_ROLES,
+  ROLE_CEILING,
+  levelsFor,
 } from "./tenancy.types";
 export type {
   GrantLevel,

@@ -20,6 +20,35 @@ export type GrantLevel = "none" | "read" | "write" | "admin";
 
 export const GRANT_LADDER: readonly GrantLevel[] = ["none", "read", "write", "admin"];
 
+/** How high each role may be granted — `decisions/0023`, sealed 2026-09-07.
+ *
+ *  This client deliberately had NO ceiling table until the day it was sealed,
+ *  because inventing one would have been a second implementation of an
+ *  authorisation rule, and a screen enabling a control the server refuses is the
+ *  quiet kind of wrong.
+ *
+ *  It is here now for ONE purpose: to offer only the levels a role permits, so
+ *  the 409 is a backstop rather than the design. It is still never used to
+ *  decide what somebody may do — `access` comes from the server, per workspace,
+ *  already reduced. */
+export const ROLE_CEILING: Record<OrgRole, GrantLevel> = {
+  owner: "admin",
+  admin: "admin",
+  member: "write",
+  guest: "write",
+  // Off the ladder in what it may DO, and capped at the bottom of it in what
+  // may be granted. A client receives deliverables; it does not do work.
+  client: "read",
+};
+
+/** The levels a dropdown may offer for a role. `none` is never among them: a
+ *  revocation is a DELETE rather than a level, so "no access" is the absence of
+ *  a row and not a value in the list. */
+export function levelsFor(role: OrgRole): GrantLevel[] {
+  const top = GRANT_LADDER.indexOf(ROLE_CEILING[role]);
+  return GRANT_LADDER.slice(1, top + 1);
+}
+
 /** What each rung adds, in the words `decisions/0019` used. Rendered beside a
  *  cell so the grid explains itself rather than needing a legend elsewhere. */
 export const GRANT_MEANING: Record<GrantLevel, string> = {

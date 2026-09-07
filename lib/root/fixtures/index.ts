@@ -3,6 +3,7 @@ import { accessRoutes } from "./access";
 import { entityRoutes } from "./entities";
 import { identityRoutes } from "./identity";
 import { ledgerRoutes } from "./ledger";
+import { pipelineRoutes } from "./pipeline";
 import { tenancyRoutes } from "./tenancy";
 
 /** Every fixture route, in the order they are tried. One array so a route that
@@ -12,6 +13,7 @@ export const routes: MemoryRoute[] = [
   ...tenancyRoutes,
   ...ledgerRoutes,
   ...accessRoutes,
+  ...pipelineRoutes,
   ...entityRoutes,
 ];
 

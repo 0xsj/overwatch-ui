@@ -98,15 +98,46 @@ const unauthenticated = () =>
 
 /** No `next`, because there is nothing beyond one page here — and `next`
  *  ABSENT is exactly how a caller learns that. A fixture that always sent a
- *  cursor would make "load more" unreachable to test and always drawn. */
-const page = (entries: AuditEntry[]): AuditPage => ({ entries });
+ *  cursor would make "load more" unreachable to test and always drawn.
+ *
+ *  `facets` counts the WHOLE set and ignores the filter, which is the rule that
+ *  is easy to get wrong and impossible to notice: counting the filtered set
+ *  shows every other facet as zero, and a reader who filtered into one can no
+ *  longer get out. It is also sent on the first page only — absent once `after`
+ *  is supplied — so a caller keeps the ones it has. */
+function page(all: AuditEntry[], facet?: string, after?: string): AuditPage {
+  const counts = new Map<string, number>();
+  for (const e of all) {
+    const f = e.action.split(".")[0] ?? e.action;
+    counts.set(f, (counts.get(f) ?? 0) + 1);
+  }
+  const entries = facet ? all.filter((e) => e.action.startsWith(`${facet}.`)) : all;
+  return {
+    entries,
+    ...(after ? {} : { facets: [...counts].map(([f, total]) => ({ facet: f, total })) }),
+  };
+}
 
 export const ledgerRoutes: MemoryRoute[] = [
+  (req) => {
+    const match = /^\/orgs\/([^/]+)\/audit$/.exec(req.path);
+    if (!(req.method === "GET" && match)) return undefined;
+    const name = personaFromToken(bearerOf(req));
+    if (!name) throw unauthenticated();
+    // Org scope ONLY. An entry here can never name a workspace — that
+    // constraint is the whole reason a firm-wide log is safe to serve.
+    return page(
+      entriesFor(name).filter((e) => e.scope !== "workspace"),
+      req.params.facet as string | undefined,
+      req.params.after as string | undefined,
+    );
+  },
+
   (req) => {
     if (!(req.method === "GET" && req.path === "/me/activity")) return undefined;
     const name = personaFromToken(bearerOf(req));
     if (!name) throw unauthenticated();
-    return page(entriesFor(name));
+    return page(entriesFor(name), req.params.facet as string | undefined, req.params.after as string | undefined);
   },
 
   (req) => {
@@ -117,6 +148,8 @@ export const ledgerRoutes: MemoryRoute[] = [
     const id = decodeURIComponent(match[1]);
     return page(
       entriesFor(name).filter((e) => e.scope === "workspace" && e.subject.endsWith(id)),
+      req.params.facet as string | undefined,
+      req.params.after as string | undefined,
     );
   },
 

@@ -35,11 +35,18 @@ export type AuditEntry = {
 export type AuditPage = {
   entries: AuditEntry[];
   next?: string;
-  /** Undocumented in `ALIGNMENT.md` and present on `/v1/me/activity` — measured
-   *  2026-09-07. Optional here because `/v1/workspaces/{id}/audit` does not send
-   *  it, and nothing renders it yet: it carries a `total`, which is the one
-   *  thing that entry says the ledger will never have. Asked rather than
-   *  assumed — see `STATUS.md`. */
+  /** One bucket per action prefix, and TWO rules that are easy to get wrong.
+   *
+   *  **The counts ignore the facet filter, on purpose.** Filter to `scope` and
+   *  every other facet keeps its real count — which is what lets a reader leave
+   *  a facet they have entered. Counting the filtered set would show every other
+   *  bucket as zero, and a UI that hides zero-count facets would then remove the
+   *  way back from the page. So render this AS GIVEN and never recompute it from
+   *  the visible entries.
+   *
+   *  **It arrives with the FIRST page only.** It describes the whole set and
+   *  does not change as you page, so it is absent once `after` is supplied.
+   *  Absent means "keep the ones you have", never "there are no facets". */
   facets?: { facet: string; total: number }[];
 };
 
@@ -58,4 +65,12 @@ export type ChainStep = {
   occurred_at: string;
 };
 
-export type PageOptions = { after?: string; limit?: number; signal?: AbortSignal };
+export type PageOptions = {
+  after?: string;
+  limit?: number;
+  /** An action's FIRST segment — `identity`, `org`, `workspace`. An unknown one
+   *  is an empty page and a 200, not an error, so a stale bookmark shows nothing
+   *  rather than a failure screen. */
+  facet?: string;
+  signal?: AbortSignal;
+};

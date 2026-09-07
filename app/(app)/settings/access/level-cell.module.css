@@ -3,6 +3,12 @@
      scannable as a shape before it is readable as words. `none` is the quietest
      rather than the loudest: most cells in a real firm are `none`, and a wall of
      red would read as a page full of errors. */
+  .cell { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+  /* The owner's row is a statement, not a control — there is nothing to write
+     and a DELETE would succeed while changing nothing. */
+  .fixed { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
+
   .trigger, .readonly {
     min-inline-size: 5.5rem;
     font-family: var(--font-mono);

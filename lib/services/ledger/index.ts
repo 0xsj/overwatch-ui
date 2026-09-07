@@ -1,4 +1,4 @@
-export { getChain, getMyActivity, getWorkspaceAudit } from "./ledger.api";
+export { getChain, getMyActivity, getOrgAudit, getWorkspaceAudit } from "./ledger.api";
 export type {
   AuditEntry,
   AuditPage,

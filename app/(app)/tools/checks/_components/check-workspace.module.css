@@ -1,0 +1,44 @@
+@layer screen {
+  .tabs { display: grid; gap: var(--space-5); }
+
+  .live {
+    display: inline-block;
+    inline-size: 5px;
+    block-size: 5px;
+    margin-inline-start: var(--space-3);
+    border-radius: 50%;
+    background: var(--info);
+  }
+
+  .reasons { display: grid; gap: var(--space-3); margin-block-start: var(--space-3); }
+  .reasons li { display: grid; gap: 1px; }
+  .mono { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--text-11); }
+
+  .split { display: grid; gap: var(--space-5); grid-template-columns: 15rem 1fr; align-items: start; }
+
+  .runs { display: grid; gap: var(--space-2); align-content: start; }
+  .runsHead { padding-inline: var(--space-3); }
+
+  .run {
+    display: grid;
+    gap: 1px;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid transparent;
+    border-radius: var(--radius-2);
+    text-align: start;
+  }
+  .run:hover { border-color: var(--line); background: var(--surface-panel); }
+  .run[data-selected] { border-color: var(--line-strong); background: var(--surface-panel-2); }
+
+  .runTarget { color: var(--ink); font-size: var(--text-12); }
+  .runWhen { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-10); }
+  .runState { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-10); }
+  .run[data-state="running"] .runState { color: var(--info); }
+
+  .detail { display: grid; gap: 0; min-inline-size: 0; }
+
+  .legend { display: grid; gap: var(--space-3); margin-block-start: var(--space-2); }
+  .legendRow { display: grid; grid-template-columns: 7rem 1fr; gap: var(--space-4); align-items: baseline; }
+
+  @media (max-width: 60rem) { .split { grid-template-columns: 1fr; } }
+}

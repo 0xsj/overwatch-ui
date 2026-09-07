@@ -1,5 +1,4 @@
-import type { Grant, Invite } from "@/lib/services/access";
-import type { Me, Member } from "@/lib/services/tenancy";
+import type { GrantLevel, Me, Member } from "@/lib/services/tenancy";
 
 /** The two tenants a fixture run can be.
  *
@@ -20,8 +19,9 @@ export type Persona = {
   blurb: string;
   me: Me;
   members: Member[];
-  grants: Grant[];
-  invites: Invite[];
+  /** What has been WRITTEN, which is not what anybody ends up with — the org
+   *  role caps it, and the owner holds none at all. `decisions/0023`. */
+  grants: { account_id: string; workspace_id: string; level: GrantLevel }[];
 };
 
 const HUNTER_ORG = "01a07b46-fa36-7001-a0b5-000000000001";
@@ -67,7 +67,6 @@ const hunter: Persona = {
     },
   ],
   grants: [],
-  invites: [],
 };
 
 /* ─── firm ─────────────────────────────────────────────────────────────────
@@ -156,20 +155,6 @@ const firm: Persona = {
     { account_id: acct(4), workspace_id: ws(5), level: "write" },
     { account_id: acct(5), workspace_id: ws(4), level: "read" },
     { account_id: acct(6), workspace_id: ws(3), level: "read" },
-  ],
-  invites: [
-    {
-      id: "inv_01JQ8H",
-      token: "inv_01JQ8H",
-      email: "k.mensah@31m.example",
-      role: "member",
-      org_id: FIRM_ORG,
-      org_name: "31m",
-      invited_by: "sj@31m.example",
-      first_grant: { workspace_id: ws(4), workspace_name: "Northbeam", level: "read" },
-      expires_at: "2026-09-14T09:00:00Z",
-      state: "pending",
-    },
   ],
 };
 
