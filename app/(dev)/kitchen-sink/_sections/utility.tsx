@@ -22,7 +22,7 @@ import {
   Waypoints,
   Wrench,
 } from "@/components/utility";
-import { Panel, Row, Section } from "../_components/section";
+import { Case, Row, Section } from "../_components/section";
 import { readSources } from "../_lib/source";
 import s from "../_components/sink.module.css";
 
@@ -60,7 +60,7 @@ export async function UtilitySection() {
       title="Utility"
       blurb="Four components with no appearance of their own. That makes them the hardest thing to put in a showcase — so each panel below demonstrates what it DOES rather than what it looks like."
     >
-      <Panel
+      <Case
         title="VisuallyHidden"
         note="there is a whole sentence between these two words"
         sources={[sources[0]]}
@@ -83,9 +83,9 @@ export async function UtilitySection() {
             never do.
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel
+      <Case
         title="AccessibleIcon"
         note="the label is what the icon MEANS, never what it depicts"
         sources={[sources[1]]}
@@ -105,9 +105,9 @@ export async function UtilitySection() {
             would make a screen reader say &ldquo;accepted, accepted&rdquo;
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel
+      <Case
         title="Icon"
         note={`the whole set — ${SET.length} names, and adding one is a line in a single file`}
         sources={[sources[2]]}
@@ -128,9 +128,9 @@ export async function UtilitySection() {
             being renamed privately at one call site.
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel title="Portal" note="the box below clips its children; one of them escapes anyway">
+      <Case title="Portal" note="the box below clips its children; one of them escapes anyway">
         <Row label="clipped">
           <div className={s.clipBox}>
             <Text size="xs">A child inside overflow: hidden</Text>
@@ -154,7 +154,7 @@ export async function UtilitySection() {
             transform creates a containing block and nothing escapes it.
           </Text>
         </Row>
-      </Panel>
+      </Case>
     </Section>
   );
 }

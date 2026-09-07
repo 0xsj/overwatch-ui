@@ -1,6 +1,6 @@
 import { Text } from "@/components/typography";
 import { Badge } from "@/components/display";
-import { Panel, Row, Section } from "../_components/section";
+import { Case, Row, Section } from "../_components/section";
 import { audit, type Check } from "../_lib/tokens";
 import s from "../_components/sink.module.css";
 
@@ -43,12 +43,12 @@ export async function TokensSection() {
       title="Tokens"
       blurb="Every value a component may read. The audit below is computed from the stylesheet at build time — this page fails visibly when a token stops clearing its contrast threshold, which is the failure that survived two visual reviews before it was measured."
     >
-      <Panel title="Contrast audit" note="computed from styles/tokens/*.css">
+      <Case title="Contrast audit" note="computed from styles/tokens/*.css">
         <Audit rows={checks.dark} theme="dark" />
         <Audit rows={checks.light} theme="light" />
-      </Panel>
+      </Case>
 
-      <Panel title="Ink" note="monotonic in prominence in both themes">
+      <Case title="Ink" note="monotonic in prominence in both themes">
         {INK.map((t) => (
           <Row key={t} label={t}>
             <Text as="span" style={{ color: `var(${t})` }}>
@@ -56,9 +56,9 @@ export async function TokensSection() {
             </Text>
           </Row>
         ))}
-      </Panel>
+      </Case>
 
-      <Panel title="Surfaces">
+      <Case title="Surfaces">
         <div className={s.swatches}>
           {SURFACES.map((t) => (
             <div key={t} className={s.swatch}>
@@ -67,9 +67,9 @@ export async function TokensSection() {
             </div>
           ))}
         </div>
-      </Panel>
+      </Case>
 
-      <Panel title="Accent and status" note="the accent is also the healthy state, so nothing is hue alone">
+      <Case title="Accent and status" note="the accent is also the healthy state, so nothing is hue alone">
         <div className={s.swatches}>
           {SWATCHES.map((t) => (
             <div key={t} className={s.swatch}>
@@ -83,7 +83,7 @@ export async function TokensSection() {
           <Badge glyph="—">none</Badge>
           <Badge glyph="··">never checked</Badge>
         </Row>
-      </Panel>
+      </Case>
     </Section>
   );
 }

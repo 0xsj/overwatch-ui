@@ -141,4 +141,22 @@
 
   .navDemo:hover { background: var(--surface-hover); color: var(--ink); }
   .navDemo[data-active] { background: var(--surface-hover-2); color: var(--ink); }
+
+  .statRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-5);
+    inline-size: 100%;
+  }
+
+  .bleedDemo {
+    padding: var(--space-6);
+    border-block-start: 1px solid var(--line);
+    font-size: var(--text-12);
+    color: var(--ink-3);
+  }
+
+  .markInk { color: var(--ink); display: inline-flex; }
+  .markAccent { color: var(--accent); display: inline-flex; }
+  .markQuiet { color: var(--ink-4); display: inline-flex; }
 }

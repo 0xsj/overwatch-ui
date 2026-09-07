@@ -1,6 +1,6 @@
 import { Separator } from "@/components/layout";
 import { Text } from "@/components/typography";
-import { Panel, Row, Section } from "../_components/section";
+import { Case, Row, Section } from "../_components/section";
 import { readSources } from "../_lib/source";
 
 export async function LayoutSection() {
@@ -12,7 +12,7 @@ export async function LayoutSection() {
       title="Layout"
       blurb="Arrangement with no opinion about content. Separator is the one that carries meaning as well as a line — and the default is the meaningful one, so a rule that means nothing has to say so."
     >
-      <Panel
+      <Case
         title="Separator"
         note="the role is the point; inspect it rather than look at it"
         sources={sources}
@@ -59,7 +59,7 @@ export async function LayoutSection() {
             <Text as="span" size="sm">Lineage</Text>
           </div>
         </Row>
-      </Panel>
+      </Case>
     </Section>
   );
 }

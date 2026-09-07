@@ -32,7 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/overlays";
 import { Text } from "@/components/typography";
-import { Panel, Row, Section } from "../_components/section";
+import { Case, Row, Section } from "../_components/section";
 import { readSources } from "../_lib/source";
 import s from "../_components/sink.module.css";
 
@@ -49,7 +49,7 @@ export async function OverlaysSection() {
       title="Overlays"
       blurb="Anything that renders above the page. All of them portal out of their parent, because a transform or an overflow anywhere above them is a bug no z-index reaches — and all of them sit on one shared elevated surface, so three of them cannot drift apart."
     >
-      <Panel
+      <Case
         title="Tooltip"
         note="never the only place the information exists"
         sources={[sources[0]]}
@@ -89,9 +89,9 @@ export async function OverlaysSection() {
             error belongs on the page.
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel
+      <Case
         title="DropdownMenu"
         note="actions — not a value, and not arbitrary content"
         sources={[sources[1]]}
@@ -124,9 +124,9 @@ export async function OverlaysSection() {
             options as commands, and there is nothing for a form to submit.
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel
+      <Case
         title="Dialog"
         note="five obligations, four of them invisible until somebody without a mouse arrives"
         sources={[sources[2]]}
@@ -176,9 +176,9 @@ export async function OverlaysSection() {
             </DialogContent>
           </Dialog>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel title="AlertDialog" note="the overlay does not dismiss it, and that is not styling">
+      <Case title="AlertDialog" note="the overlay does not dismiss it, and that is not styling">
         <Row label="interrupt">
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -205,9 +205,9 @@ export async function OverlaysSection() {
             that discards an unsaved edit is the bug this prevents.
           </Text>
         </Row>
-      </Panel>
+      </Case>
 
-      <Panel title="Popover" note="arbitrary content, including things you can put a cursor in">
+      <Case title="Popover" note="arbitrary content, including things you can put a cursor in">
         <Row label="popover">
           <Popover>
             <PopoverTrigger asChild><Button size="sm">Filter assets</Button></PopoverTrigger>
@@ -225,7 +225,7 @@ export async function OverlaysSection() {
             over it.
           </Text>
         </Row>
-      </Panel>
+      </Case>
     </Section>
   );
 }

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { ChromeSection } from "./chrome";
 import { DisplaySection } from "./display";
 import { LayoutSection } from "./layout";
 import { FormsSection } from "./forms";
@@ -19,4 +20,5 @@ export const SECTIONS: readonly Entry[] = [
   { id: "navigation", label: "Navigation", Section: NavigationSection },
   { id: "overlays", label: "Overlays", Section: OverlaysSection },
   { id: "utility", label: "Utility", Section: UtilitySection },
+  { id: "chrome", label: "Chrome", Section: ChromeSection },
 ];

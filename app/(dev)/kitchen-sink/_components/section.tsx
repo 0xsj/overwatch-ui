@@ -23,7 +23,9 @@ export function Row({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-export function Panel({ title, note, children, sources }: {
+/** The sink's own demo frame. Named `Case` and not `Panel` because
+ *  `display/Panel` is a component this page has to be able to show. */
+export function Case({ title, note, children, sources }: {
   title: string; note?: string; children: ReactNode;
   sources?: ReadonlyArray<{ path: string; code: string }>;
 }) {
