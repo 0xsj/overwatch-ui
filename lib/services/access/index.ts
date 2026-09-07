@@ -1,5 +1,8 @@
 export {
   acceptInvite,
+  changeRole,
+  leaveOrg,
+  removeMember,
   listWorkspaceMembers,
   revokeLevel,
   sendInvite,

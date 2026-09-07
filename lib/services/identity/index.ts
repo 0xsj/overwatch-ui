@@ -1,5 +1,6 @@
 export {
   changePassword,
+  closeAccount,
   confirmEmailChange,
   confirmReset,
   confirmVerification,

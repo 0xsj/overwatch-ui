@@ -6,6 +6,19 @@
     margin-block-end: var(--space-7);
   }
 
+  .rows { display: grid; gap: var(--space-2); }
+
+  .wsRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-block-end: 1px solid var(--line);
+  }
+  .wsRow:last-child { border-block-end: none; }
+  .wsRow > :first-child { flex: 1; min-inline-size: 0; }
+  .wsRow .rowControls { margin-inline-start: auto; }
+
   .links { display: grid; gap: var(--space-4); }
   .links li { display: grid; gap: var(--space-1); }
 
@@ -16,6 +29,7 @@
   .spacer { flex: 1; }
 
   .who { display: grid; gap: 1px; }
+  .rowControls { display: flex; align-items: center; gap: var(--space-3); }
   .name { color: var(--ink); font-size: var(--text-12-5); }
   .email { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
 

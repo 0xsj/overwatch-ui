@@ -1,37 +1,34 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type Node,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { Toggle } from "@/components/forms";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/overlays";
 import type { Attribution, ClaimState, EntityGraph, Pin } from "@/lib/services/entities";
-import { UNIT, bounds, place, snap, toPixels, toUnits, type Point } from "../_layout/place";
-import { nodeBox } from "../_layout/labels";
-import { Edges } from "./edges";
-import { Node } from "./node";
+import { degrees, diameterOf, hops, place, type Point } from "../_layout/rings";
+import { EntityNode, type EntityNodeData } from "./entity-node";
+import { HighlightProvider } from "./highlight";
+import { FloatingEdge } from "./floating-edge";
 import s from "./canvas.module.css";
 
-const MIN_SCALE = 0.35;
-const MAX_SCALE = 1.6;
-const CLICK_SLOP = 4;
-const MARGIN = { x: 130, y: 56 };
-
-/** Past this many nodes the kind and the glyph come off. The mock reaches the
- *  same threshold from the other direction and calls it `dense`: a canvas that
- *  keeps full-size nodes at sixty is not more informative, it is unreadable in a
- *  way that hides the fact that it is unreadable. */
+/** Past this many nodes the kind and the confidence come off. The mock reaches
+ *  the same threshold from the other direction and calls it `dense`: a canvas
+ *  that keeps full-size labels at sixty is not more informative, it is
+ *  unreadable in a way that hides the fact that it is unreadable. */
 const DENSE_ABOVE = 24;
 
-type Drag =
-  | { kind: "node"; id: string; pointer: number; from: Point; origin: Point; moved: boolean }
-  | { kind: "pan"; pointer: number; from: Point; origin: Point };
+const nodeTypes = { entity: EntityNode };
+const edgeTypes = { floating: FloatingEdge };
 
 export function Canvas({
   graph,
@@ -50,18 +47,10 @@ export function Canvas({
   onSelect: (id: string | null) => void;
   onPin: (nodeId: string, at: Point) => void;
   /** Keeps the record out of the way. The highlight is the whole answer while
-   *  it is on, and the drawer would cover 460px of the thing being read. */
+   *  it is on, and the drawer would cover a third of the thing being read. */
   focus: boolean;
   onFocusChange: (focus: boolean) => void;
 }) {
-  const viewport = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
-  // A ref, not state: `pointerdown` and the first `pointermove` can arrive in
-  // one task, and a drag that only starts once React has re-rendered drops the
-  // beginning of every fast gesture.
-  const drag = useRef<Drag | null>(null);
-  const [live, setLive] = useState<{ id: string; at: Point } | null>(null);
-  const [panning, setPanning] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
 
   /* Hover wins over selection: the drawer holds the selected record while you
@@ -84,71 +73,14 @@ export function Canvas({
     return ids;
   }, [graph.nodes, graph.root.id, claims, hidden]);
 
-  const dense = graph.nodes.length > DENSE_ABOVE;
-  const placement = useMemo(() => place(graph, pins), [graph, pins]);
-
-  // Half a wide label either side, and a node's height above and below.
-  const field = useMemo(() => {
-    const b = bounds(placement);
-    const px = { x: (b.maxX - b.minX) * UNIT, y: (b.maxY - b.minY) * UNIT };
-    return {
-      w: px.x + MARGIN.x * 2,
-      h: px.y + MARGIN.y * 2,
-      originX: -b.minX * UNIT + MARGIN.x,
-      originY: -b.minY * UNIT + MARGIN.y,
-    };
-  }, [placement]);
-
-  const at = useCallback(
-    (id: string): Point | undefined => {
-      const point = live?.id === id ? live.at : placement.get(id);
-      if (!point) return undefined;
-      const px = toPixels(point);
-      return { x: field.originX + px.x, y: field.originY + px.y };
-    },
-    [placement, live, field],
-  );
-
-  const fit = useCallback(() => {
-    const el = viewport.current;
-    if (!el) return;
-    const scale = Math.min(1, el.clientWidth / field.w, el.clientHeight / field.h);
-    setView({ x: 0, y: 0, scale: Math.max(MIN_SCALE, scale) });
-  }, [field.w, field.h]);
-
-  // Frame the whole graph on first paint and whenever the node count changes.
-  // Opening at 1:1 on a sixty-three node canvas shows the middle of it and
-  // nothing else, which reads as a bug rather than as a big graph.
-  useLayoutEffect(fit, [fit, graph.root.id, graph.nodes.length]);
-
-  // Keyed, because an edge has to clip against the box at each of its ends.
-  const boxes = useMemo(() => {
-    const out = new Map<string, ReturnType<typeof nodeBox>>();
-    const root = at(graph.root.id);
-    if (root)
-      out.set(
-        graph.root.id,
-        nodeBox({ label: graph.root.label, kind: graph.root.kind, ...root, dense, root: true }),
-      );
-    for (const node of graph.nodes) {
-      if (!visible.has(node.id)) continue;
-      const p = at(node.id);
-      if (p) out.set(node.id, nodeBox({ label: node.label, kind: node.kind, ...p, dense }));
-    }
-    return out;
-  }, [graph, at, visible, dense]);
-
-  const boxOf = useCallback((id: string) => boxes.get(id), [boxes]);
-  const boxList = useMemo(() => [...boxes.values()], [boxes]);
-
   const edges = useMemo(
     () => graph.edges.filter((e) => visible.has(e.from) && visible.has(e.to)),
     [graph.edges, visible],
   );
 
   /** Everything one hop from the lit node — the far end of every edge that
-   *  touches it. Attributions and derivations both count: the question is
-   *  "what is attached to this", and both kinds are an answer. */
+   *  touches it. Attributions and derivations both count: the question is what
+   *  is connected, not what kind of connection it is. */
   const near = useMemo(() => {
     if (lit === null) return null;
     const ids = new Set<string>([lit]);
@@ -159,180 +91,158 @@ export function Canvas({
     return ids;
   }, [edges, lit]);
 
-  const markFor = (id: string): "lit" | "near" | "dim" | undefined => {
-    if (near === null) return undefined;
-    if (id === lit) return "lit";
-    return near.has(id) ? "near" : "dim";
-  };
 
-  function startNodeDrag(id: string) {
-    return (event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (id === graph.root.id) return;
-      const origin = placement.get(id);
-      if (!origin) return;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      drag.current = {
-        kind: "node",
-        id,
-        pointer: event.pointerId,
-        from: { x: event.clientX, y: event.clientY },
-        origin,
-        moved: false,
-      };
-    };
-  }
+  const dense = graph.nodes.length > DENSE_ABOVE;
 
-  function startPan(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = {
-      kind: "pan",
-      pointer: event.pointerId,
-      from: { x: event.clientX, y: event.clientY },
-      origin: { x: view.x, y: view.y },
-    };
-    setPanning(true);
-  }
-
-  function onPointerMove(event: ReactPointerEvent) {
-    const current = drag.current;
-    if (!current || event.pointerId !== current.pointer) return;
-    const dx = event.clientX - current.from.x;
-    const dy = event.clientY - current.from.y;
-
-    if (current.kind === "pan") {
-      setView((v) => ({ ...v, x: current.origin.x + dx, y: current.origin.y + dy }));
-      return;
-    }
-
-    current.moved ||= Math.hypot(dx, dy) > CLICK_SLOP;
-    if (!current.moved) return;
-
-    const delta = toUnits({ x: dx / view.scale, y: dy / view.scale });
-    setLive({ id: current.id, at: { x: current.origin.x + delta.x, y: current.origin.y + delta.y } });
-  }
-
-  function onPointerUp() {
-    const current = drag.current;
-    if (current?.kind === "node" && current.moved && live) onPin(current.id, live.at);
-    drag.current = null;
-    setPanning(false);
-    setLive(null);
-  }
-
-  const zoomBy = (by: number) =>
-    setView((v) => ({ ...v, scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale + by)) }));
-
-  // Wheel zoom, anchored on the pointer, on a non-passive listener because
-  // React's onWheel cannot preventDefault.
-  //
-  // The page still has to be scrollable past a 600px canvas, so the default is
-  // only prevented when the zoom actually moved: at either limit the event falls
-  // through and the page scrolls, which is the way out.
-  useEffect(() => {
-    const el = viewport.current;
-    if (!el) return;
-
-    function onWheel(event: WheelEvent) {
-      const rect = el!.getBoundingClientRect();
-      const px = event.clientX - (rect.left + rect.width / 2);
-      const py = event.clientY - (rect.top + rect.height / 2);
-
-      setView((v) => {
-        const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0015));
-        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
-        if (scale === v.scale) return v;
-        event.preventDefault();
-        // Keep whatever is under the pointer under the pointer.
-        const k = scale / v.scale;
-        return { scale, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
-      });
-    }
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-
+  const placement = useMemo(() => place(graph, pins), [graph, pins]);
+  const degree = useMemo(() => degrees(graph), [graph]);
+  const depth = useMemo(() => hops(graph), [graph]);
   const pinned = useMemo(() => new Set(pins.map((p) => p.node_id)), [pins]);
+  const ringSummary = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const node of graph.nodes)
+      if (visible.has(node.id)) {
+        const d = depth.get(node.id) ?? 1;
+        counts.set(d, (counts.get(d) ?? 0) + 1);
+      }
+    const rings = [...counts].sort((a, b) => a[0] - b[0]);
+    if (rings.length === 0) return "just the root";
+    if (rings.length === 1)
+      return `${rings[0][1]} fragments, all one hop from the root`;
+    return rings.map(([hop, n]) => `${n} at ${hop}`).join(" · ") + " hops";
+  }, [graph.nodes, visible, depth]);
+
+
+  const rfNodes = useMemo<Node[]>(
+    () =>
+      [graph.root, ...graph.nodes]
+        .filter((n) => visible.has(n.id))
+        .flatMap((node) => {
+          const at = placement.get(node.id);
+          if (!at) return [];
+          const isRoot = node.id === graph.root.id;
+          return [{
+            id: node.id,
+            type: "entity",
+            position: at,
+            data: {
+              node,
+              claim: claims.get(node.id),
+              degree: degree.get(node.id) ?? 0,
+              diameter: diameterOf(degree.get(node.id) ?? 0, isRoot),
+              isRoot,
+              pinned: pinned.has(node.id),
+              dense,
+            } satisfies EntityNodeData,
+          } satisfies Node];
+        }),
+    // No highlight in here, deliberately. It used to be, and rebuilding this
+    // array on hover is what made the map flicker — `highlight.tsx` has the
+    // mechanism.
+    [graph, visible, placement, claims, degree, pinned, dense],
+  );
+
+  const rfEdges = useMemo<Edge[]>(
+    () =>
+      edges.map((e) => ({
+          id: `${e.kind}:${e.from}:${e.to}:${"label" in e ? e.label : ""}`,
+          source: e.from,
+          target: e.to,
+          /* Computed endpoints on each circle's boundary — see `floating-edge`.
+             A handle is a fixed point on one side of a node, which is right for
+             a flowchart and wrong for a layout where a neighbour can be in any
+             direction. */
+          type: "floating",
+          /* The two edge kinds stay apart, and `decisions/0003` is why: only one
+             of them is a claim. An attribution is somebody saying this fragment
+             belongs to that entity; a derivation is what a tool read out of
+             what. Drawing them the same would collapse the distinction the
+             graph exists to keep. */
+          className: e.kind === "derivation" ? s.derivation : s.attribution,
+          animated: false,
+          data: { label: e.kind === "derivation" && !dense ? e.label : undefined },
+      }) satisfies Edge),
+    [edges, dense],
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
+  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(rfEdges);
+
+  // These replace React Flow's whole state, so they must run RARELY — on a
+  // filter change or a new graph, never on a pointer move.
+  useEffect(() => setNodes(rfNodes), [rfNodes, setNodes]);
+  useEffect(() => setFlowEdges(rfEdges), [rfEdges, setFlowEdges]);
+
+  const highlight = useMemo(() => ({ lit, near }), [lit, near]);
 
   return (
-    <div
-      ref={viewport}
-      className={s.viewport}
-      data-panning={panning || undefined}
-      onPointerDown={startPan}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-    >
-      <div
-        className={s.field}
-        data-dense={dense || undefined}
-        style={{
-          width: `${snap(field.w)}px`,
-          height: `${snap(field.h)}px`,
-          transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
-        }}
+    <HighlightProvider value={highlight}>
+      <div className={s.canvas}>
+      <ReactFlow
+        nodes={nodes}
+        edges={flowEdges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={(_, n) => onSelect(selected === n.id ? null : n.id)}
+        onNodeMouseEnter={(_, n) => setHovered(n.id)}
+        onNodeMouseLeave={() => setHovered(null)}
+        onPaneClick={() => onSelect(null)}
+        /* A settled drag is a PIN — a constraint somebody stated, not a render.
+           Fired on stop rather than during, so one gesture is one write, and the
+           layout honours it while ringing everything else around it. */
+        onNodeDragStop={(_, n) =>
+          onPin(n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) })
+        }
+        nodesConnectable={false}
+        /* `position` is the node's CENTRE rather than its top-left, which is
+           what a ring layout means by a point — and it removes the margin hack
+           that was half-centring a fixed-width wrapper over a variable-diameter
+           circle. */
+        nodeOrigin={[0.5, 0.5]}
+        minZoom={0.25}
+        maxZoom={1.8}
+        fitView
+        /* Generous, and it has a reason: a node's measured box is its CIRCLE,
+           so the label underneath is invisible to `fitView` and the bottom row
+           gets clipped at a tighter padding. */
+        fitViewOptions={{ padding: 0.34 }}
+        proOptions={{ hideAttribution: true }}
       >
-        <Edges
-          edges={edges}
-          boxOf={boxOf}
-          boxes={boxList}
-          width={field.w}
-          height={field.h}
-          lit={lit}
-        />
-
-        {[graph.root, ...graph.nodes]
-          .filter((n) => visible.has(n.id))
-          .map((node) => {
-            const p = at(node.id);
-            if (!p) return null;
-            return (
-              <Node
-                key={node.id}
-                node={node}
-                claim={claims.get(node.id)}
-                x={p.x}
-                y={p.y}
-                selected={selected === node.id}
-                pinned={pinned.has(node.id)}
-                onSelect={() => onSelect(selected === node.id ? null : node.id)}
-                onDragStart={startNodeDrag(node.id)}
-                onHover={setHovered}
-                mark={markFor(node.id)}
-              />
-            );
-          })}
-      </div>
+        <Background gap={26} size={1} />
+        <Controls showInteractive={false} />
+        <MiniMap pannable zoomable nodeStrokeWidth={0} nodeBorderRadius={20} maskColor="transparent" />
+      </ReactFlow>
 
       <div className={s.bar}>
-        <span className={s.zoom}>{Math.round(view.scale * 100)}%</span>
-        <button type="button" className={s.zoomButton} onClick={() => zoomBy(-0.15)} aria-label="Zoom out">−</button>
-        <button type="button" className={s.zoomButton} onClick={() => zoomBy(0.15)} aria-label="Zoom in">+</button>
-        <button type="button" className={s.fit} onClick={fit}>Fit</button>
+        {/* Says what the rings ARE, not how many there are. A star-shaped
+            neighbourhood is one ring and that is a true picture of it — the
+            count alone reads as a defect when the answer is "everything here is
+            one hop from the root". */}
+        <span className={s.rings}>{ringSummary}</span>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Toggle
-              size="sm"
-              className={s.focus}
-              pressed={focus}
-              onPressedChange={onFocusChange}
-            >
+            <Toggle size="sm" className={s.focus} pressed={focus} onPressedChange={onFocusChange}>
               Focus
             </Toggle>
           </TooltipTrigger>
           <TooltipContent side="top" className={s.focusTip}>
             <span className={s.focusName}>Focus</span>
             <span className={s.focusSub}>
-              Clicking a node lights its edges and leaves the record closed. The drawer covers a
-              third of the canvas, which is the wrong trade while you are following linkages.
+              Clicking a node lights its edges and leaves the record closed. The drawer
+              covers a third of the canvas, which is the wrong trade while you are
+              following linkages.
             </span>
           </TooltipContent>
         </Tooltip>
-        <span className={s.hint}>scroll to zoom · drag the background to pan · click a node for its record</span>
+
+        <span className={s.hint}>
+          distance from the centre is hops from the root · size is how many edges touch it
+        </span>
+        </div>
       </div>
-    </div>
+    </HighlightProvider>
   );
 }

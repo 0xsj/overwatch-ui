@@ -1,6 +1,7 @@
 import { AppError } from "@/lib/kernel";
 import { bearerOf, type MemoryRoute } from "@/lib/http";
 import type { Invite, InviteInput, WorkspaceMember } from "@/lib/services/access";
+import type { OrgRole } from "@/lib/services/tenancy";
 import { ROLE_CEILING, GRANT_LADDER, type GrantLevel } from "@/lib/services/tenancy";
 import { PERSONAS, personaFromToken, type PersonaName } from "./personas";
 
@@ -61,7 +62,83 @@ function effective(role: keyof typeof ROLE_CEILING, written: GrantLevel | undefi
   return GRANT_LADDER[Math.min(cap, has)];
 }
 
+/** Roles as the fixture currently holds them, and the last-owner guard.
+ *
+ *  The guard refuses rather than disabling: `decisions/0026` is explicit that the
+ *  person must be told WHY, and the answer is "promote somebody first". A
+ *  control that is simply absent teaches nothing and reads as a bug. */
+const ROLES = new Map<PersonaName, Map<string, OrgRole>>();
+const REMOVED = new Map<PersonaName, Set<string>>();
+
+function rolesOf(name: PersonaName): Map<string, OrgRole> {
+  if (!ROLES.has(name))
+    ROLES.set(name, new Map(PERSONAS[name].members.map((m) => [m.account_id, m.role])));
+  return ROLES.get(name)!;
+}
+
+const removedOf = (name: PersonaName): Set<string> => {
+  if (!REMOVED.has(name)) REMOVED.set(name, new Set());
+  return REMOVED.get(name)!;
+};
+
+function guardLastOwner(name: PersonaName, accountId: string, next: OrgRole | null) {
+  const roles = rolesOf(name);
+  const gone = removedOf(name);
+  if (roles.get(accountId) !== "owner") return;
+  const owners = [...roles].filter(([id, r]) => r === "owner" && !gone.has(id)).length;
+  if (owners <= 1 && next !== "owner")
+    throw conflict(
+      "this is the organisation's last owner — promote somebody else to owner first",
+    );
+}
+
 export const accessRoutes: MemoryRoute[] = [
+  (req) => {
+    const match = /^\/orgs\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
+    if (!(req.method === "PATCH" && match)) return undefined;
+    const name = whose(req);
+    const accountId = decodeURIComponent(match[2]);
+    const role = (req.body as { role?: OrgRole })?.role;
+    if (!role) throw new AppError({ kind: "invalid", message: "a role is required", status: 400 });
+
+    const actor = PERSONAS[name].me.orgs[0].role;
+    const target = rolesOf(name).get(accountId);
+    // Only an owner may touch an owner — 403, and it is about the ACTOR, so no
+    // amount of explanation lets them proceed.
+    if (actor !== "owner" && (target === "owner" || role === "owner"))
+      throw forbidden("only an owner can change an owner");
+
+    guardLastOwner(name, accountId, role);
+    rolesOf(name).set(accountId, role);
+    return null;
+  },
+
+  (req) => {
+    const match = /^\/orgs\/([^/]+)\/members\/me$/.exec(req.path);
+    if (!(req.method === "DELETE" && match)) return undefined;
+    const name = whose(req);
+    guardLastOwner(name, PERSONAS[name].me.account_id, null);
+    removedOf(name).add(PERSONAS[name].me.account_id);
+    return null;
+  },
+
+  (req) => {
+    const match = /^\/orgs\/([^/]+)\/members\/([^/]+)$/.exec(req.path);
+    if (!(req.method === "DELETE" && match)) return undefined;
+    const name = whose(req);
+    const accountId = decodeURIComponent(match[2]);
+    const actor = PERSONAS[name].me.orgs[0].role;
+    if (actor !== "owner" && rolesOf(name).get(accountId) === "owner")
+      throw forbidden("only an owner can remove an owner");
+    guardLastOwner(name, accountId, null);
+    removedOf(name).add(accountId);
+    // Removal DELETES every grant. Demotion does not — that is the distinction
+    // the confirmation copy exists to carry.
+    for (const key of [...levelsOf(name).keys()])
+      if (key.endsWith(`:${accountId}`)) levelsOf(name).delete(key);
+    return null;
+  },
+
   (req) => {
     const match = /^\/orgs\/([^/]+)\/invites$/.exec(req.path);
     if (!(req.method === "POST" && match)) return undefined;
@@ -191,3 +268,11 @@ export const accessRoutes: MemoryRoute[] = [
     return null;
   },
 ];
+
+/** Read by the tenancy fixture so `GET /orgs/{org}/members` returns LIVE members
+ *  with their CURRENT roles. Two fixtures sharing state is the price of the
+ *  membership commands and the members list living in different domains, which
+ *  is where the real server puts them too. */
+export const removedFrom = (name: PersonaName): Set<string> => removedOf(name);
+export const roleIn = (name: PersonaName, accountId: string): OrgRole | undefined =>
+  rolesOf(name).get(accountId);

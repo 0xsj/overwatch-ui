@@ -1,0 +1,37 @@
+@layer composition {
+  .frame {
+    display: block;
+    /* Natural size, capped. A chart has a design size — the type is sized for
+       it — and stretching a 460px viewBox across 1200px scales the axis labels
+       to headline size. `max-inline-size` still lets it shrink on a narrow
+       screen, where scaling down is the right answer. */
+    max-inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+  }
+
+  /* Recessive. The grid is a reading aid and competing with the marks is the
+     one thing it must not do. */
+  .grid { stroke: var(--chart-grid); stroke-width: 1; }
+
+  /* A value the reader compares against, so it is dashed and darker than grid
+     but never as strong as a mark. */
+  .rule { stroke: var(--chart-axis); stroke-width: 1; stroke-dasharray: 3 3; }
+
+  .axis { stroke: var(--chart-axis); stroke-width: 1; }
+
+  .tick {
+    fill: var(--chart-label);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    /* Digits in a column have to line up or the eye reads the wrong magnitude. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  .axisLabel {
+    fill: var(--chart-label);
+    font-family: var(--font-sans, inherit);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+}

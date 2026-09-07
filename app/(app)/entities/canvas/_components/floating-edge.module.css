@@ -1,0 +1,16 @@
+@layer screen {
+  .label {
+    position: absolute;
+    /* The label is above the SVG layer, so it would swallow a click meant for a
+       node behind it. Nothing here is interactive. */
+    pointer-events: none;
+    padding-inline: var(--space-2);
+    /* Painted on the page ground rather than transparent, so the edge passes
+       behind the word instead of through it. */
+    background: var(--surface-sunk);
+    color: var(--ink-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,85 @@
+@layer screen {
+  .dot {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 50%;
+    /* Opaque, so an edge that runs under a circle is hidden by it rather than
+       drawn across the glyph. */
+    background: var(--surface-sunk);
+    transition: border-color var(--dur-1), background var(--dur-1), transform var(--dur-1);
+  }
+
+  /* The claim's state, which is the one thing here with three values and a
+     meaning. Accepted is the only one that got the accent. */
+  .dot[data-state="accepted"] { border-color: var(--accent); }
+  .dot[data-state="proposed"] { border-color: var(--warn); border-style: dashed; }
+  .dot[data-state="rejected"] { border-color: var(--line); opacity: 0.55; }
+
+  .dot[data-root] {
+    border-color: var(--accent);
+    border-width: 2px;
+    background: var(--accent-tint);
+  }
+
+  .dot[data-selected] { transform: scale(1.08); }
+  .dot:hover { border-color: var(--ink-3); }
+  .dot[data-selected],
+  .dot[data-mark="lit"] { box-shadow: 0 0 0 5px var(--accent-tint); }
+
+  /* One hop out stays legible; everything else recedes. Opacity rather than a
+     colour, so the encoding above survives being dimmed. */
+  .dot[data-mark="near"] { opacity: 0.92; }
+  .dot[data-mark="dim"] { opacity: 0.25; }
+
+  .glyph { color: var(--ink-2); font-size: var(--text-13); line-height: 1; }
+  .dot[data-root] .glyph { color: var(--accent); }
+
+  .pin {
+    position: absolute;
+    inset-block-start: 2px;
+    inset-inline-end: 2px;
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+
+  /* Absolute, so the circle stays the measured box. Centred on it and hanging
+     below; `pointer-events: none` because the circle is the target. */
+  .label {
+    position: absolute;
+    inset-block-start: calc(100% + var(--space-2));
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    justify-items: center;
+    inline-size: 150px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .kind {
+    color: var(--ink-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-10);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Text, not a picture of text — searchable with the browser's own find, which
+     is what a canvas renderer would have cost. */
+  .name {
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .dot[data-root] .name { font-size: var(--text-12); }
+
+  .confidence { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-10); }
+
+  .handle { opacity: 0; pointer-events: none; inline-size: 1px; block-size: 1px; border: 0; }
+}

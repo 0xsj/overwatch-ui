@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { anonymousClient, clientFor } from "@/lib/root";
+import { redirect } from "next/navigation";
+import { anonymousClient, clientFor, endSession } from "@/lib/root";
 import {
   changePassword,
+  closeAccount,
   listSessions,
   rename,
   requestEmailChange,
@@ -95,4 +97,24 @@ export async function revokeSessionAction(id: string): Promise<FormState> {
   }
   revalidatePath("/account/security");
   return { status: "ok" };
+}
+
+/** The response signs the caller out — every session goes, including the one
+ *  that made the request — so the local cookie goes too and the route leaves the
+ *  application entirely. Re-fetching anything afterwards would 401.
+ *
+ *  The 409 is the interesting path: it NAMES the orgs where somebody would be
+ *  stranded, and that message is the only place the person is told what to do.
+ *  It is returned unchanged. */
+export async function closeAccountAction(
+  _prev: FormState,
+  data: FormData,
+): Promise<FormState> {
+  try {
+    await closeAccount(await clientFor("identity"), str(data, "current_password"));
+  } catch (error) {
+    return toFormState(error);
+  }
+  await endSession();
+  redirect("/");
 }

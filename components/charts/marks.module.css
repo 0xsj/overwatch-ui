@@ -1,0 +1,68 @@
+@layer composition {
+  .point {
+    fill: var(--chart-grid);
+    transition: r var(--dur-1);
+  }
+  .point[data-state="up"]   { fill: var(--chart-pos); }
+  .point[data-state="down"] { fill: var(--chart-neg); }
+  .point[data-state="quiet"]{ fill: var(--chart-grid); }
+
+  .pointLabel {
+    fill: var(--chart-ink);
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+  }
+
+  .bubble {
+    fill: var(--chart-1);
+    fill-opacity: 0.55;
+    stroke: var(--surface-panel);
+    /* A 2px ring of the surface between overlapping bubbles, so a cluster reads
+       as several marks and not one shape. */
+    stroke-width: 1.5;
+  }
+
+  .bar { fill: var(--chart-1); }
+  .barValue {
+    fill: var(--chart-label);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+  .barLabel { fill: var(--chart-label); font-family: var(--font-mono); font-size: 9px; }
+
+  .matrix {
+    display: block;
+    /* Natural size, capped. A chart has a design size — the type is sized for
+       it — and stretching a 460px viewBox across 1200px scales the axis labels
+       to headline size. `max-inline-size` still lets it shrink on a narrow
+       screen, where scaling down is the right answer. */
+    max-inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+  }
+
+  .cell { fill: var(--chart-mid); }
+  /* Looked, found nothing — a MEASURED zero, so it is filled. */
+  .cell[data-state="absent"] { fill: var(--chart-absent); }
+  /* Never asked — genuinely empty, so no fill, and the outline below says so. */
+  .cell[data-state="unattempted"] { fill: var(--chart-unattempted); }
+  /* No question to ask — a quiet ground plus a slash. */
+  .cell[data-state="na"] { fill: var(--chart-na); }
+
+  .unattempted {
+    fill: none;
+    stroke: var(--chart-grid);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    pointer-events: none;
+  }
+
+  .na { stroke: var(--chart-grid); stroke-width: 1; pointer-events: none; }
+
+  .matrixLabel {
+    fill: var(--chart-label);
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+  }
+}

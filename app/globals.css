@@ -1,4 +1,5 @@
 @import "../styles/layers.css";
 @import "../styles/reset.css";
 @import "../styles/tokens/index.css";
+@import "../styles/tokens/chart.css";
 @import "../styles/base.css";

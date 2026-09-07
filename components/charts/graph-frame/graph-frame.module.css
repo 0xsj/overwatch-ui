@@ -1,0 +1,72 @@
+@layer composition {
+  .frame {
+    display: block;
+    /* Natural size, capped. A chart has a design size — the type is sized for
+       it — and stretching a 460px viewBox across 1200px scales the axis labels
+       to headline size. `max-inline-size` still lets it shrink on a narrow
+       screen, where scaling down is the right answer. */
+    max-inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+  }
+
+  .edge {
+    fill: none;
+    /* `--line` at 7% white was invisible against the panel. An edge is the
+       structure — it is the least optional mark on the canvas — so it gets the
+       heavier line and the grid keeps the light one. */
+    stroke: var(--line-heavy);
+    stroke-width: 1;
+    /* Every interaction state below is CSS on a `data-*` attribute. Nothing
+       here costs a React render, which is the whole performance argument. */
+    transition: stroke-opacity var(--dur-1), stroke var(--dur-1);
+  }
+
+  /* A second edge KIND is dashed, not a second colour — decisions/0003's
+     distinction survives being printed in black and white. */
+  .edge[data-kind="derivation"],
+  .edge[data-kind="dashed"] { stroke-dasharray: 4 4; }
+  .edge[data-faded] { stroke-opacity: 0.1; }
+
+  .mark {
+    fill: var(--chart-1);
+    stroke: var(--surface-panel);
+    /* A ring of the surface between overlapping marks, so a dense cluster reads
+       as many things rather than one blob.
+
+       PAINTED INSIDE the shape, not centred on its edge. SVG strokes straddle
+       the path, so a 1.5px stroke eats 0.75px of radius from every side — on a
+       4px mark that is a third of it, and the smallest nodes were rendering as
+       specks. `paint-order` puts the fill on top so the stroke only ever
+       encroaches from the outside. */
+    stroke-width: 1.5;
+    paint-order: stroke fill;
+    transition: opacity var(--dur-1);
+  }
+
+  .node { cursor: default; }
+  .node[tabindex] { cursor: pointer; }
+  .node:focus-visible { outline: none; }
+  .node:focus-visible .mark { stroke: var(--accent); stroke-width: 2.5; }
+
+  .node[data-mark="near"] { opacity: 0.92; }
+  .node[data-mark="dim"] { opacity: 0.22; }
+  .node[data-selected] .mark { stroke: var(--accent); stroke-width: 2.5; }
+
+  .label {
+    fill: var(--chart-label);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    pointer-events: none;
+  }
+  .node[data-mark="lit"] .label { fill: var(--chart-ink); }
+
+  /* The annotation layer. Deliberately weak: it groups, it does not compete. */
+  .hull { fill: var(--chart-1); opacity: 0.07; }
+  .hullLabel {
+    fill: var(--chart-label);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}

@@ -1,5 +1,5 @@
 import type { HttpClient } from "@/lib/http";
-import type { GrantLevel } from "@/lib/services/tenancy";
+import type { GrantLevel, OrgRole } from "@/lib/services/tenancy";
 import type { Accepted, Invite, InviteInput, WorkspaceMember } from "./access.types";
 
 /** REAL since 2026-09-07 — `decisions/0023` (grants) and `0025` (invitations).
@@ -76,4 +76,52 @@ export function revokeLevel(
   accountId: string,
 ): Promise<void> {
   return http.delete<void>(`${ws(workspaceId)}/members/${encodeURIComponent(accountId)}`);
+}
+
+/* ─── Membership. `decisions/0026`. ───────────────────────────────────────── */
+
+/** 204. Four refusals the caller has to be able to render:
+ *
+ *  **409 for the last owner** — and the control must NOT be disabled for it. The
+ *  person needs telling why, and the answer is "promote somebody first". A
+ *  disabled button with a tooltip is fine; a missing one is not.
+ *
+ *  **403 — only an owner may touch an owner.** An admin cannot promote to owner,
+ *  demote an owner, or remove one.
+ *
+ *  There is no transfer endpoint: promote them, THEN demote yourself. The other
+ *  order is refused, correctly — it has a moment with no owner in it. */
+export function changeRole(
+  http: HttpClient,
+  orgId: string,
+  accountId: string,
+  role: OrgRole,
+): Promise<void> {
+  return http.patch<void>(`${org(orgId)}/members/${encodeURIComponent(accountId)}`, {
+    body: { role },
+  });
+}
+
+/** 204, and it is NOT the reverse of a demotion.
+ *
+ *      demote   role drops, grants STAY, access is capped. Restore the role
+ *               and the access comes back
+ *      remove   membership ends and every grant is DELETED. Re-inviting them
+ *               starts from nothing
+ *
+ *  Which is why this needs a confirmation naming the count rather than an
+ *  "are you sure". */
+export function removeMember(
+  http: HttpClient,
+  orgId: string,
+  accountId: string,
+): Promise<void> {
+  return http.delete<void>(`${org(orgId)}/members/${encodeURIComponent(accountId)}`);
+}
+
+/** `me` in the account position, rather than the caller's own id. It saves a
+ *  lookup and it is what makes *"did they leave or were they removed"*
+ *  answerable afterwards — the server records it as its own event. */
+export function leaveOrg(http: HttpClient, orgId: string): Promise<void> {
+  return http.delete<void>(`${org(orgId)}/members/me`);
 }

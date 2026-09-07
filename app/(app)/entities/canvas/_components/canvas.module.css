@@ -1,233 +1,75 @@
-@layer composition {
-  .viewport {
+/* Unlayered, and that is deliberate: `@xyflow/react/dist/style.css` carries no
+ * `@layer`, and unlayered CSS beats every layered rule regardless of
+ * specificity. Written inside `@layer screen` these lose to the vendor defaults.
+ * See `a-responsive-image-reset-clips-a-graph-librarys-svg`. */
+.canvas :global(svg) { max-inline-size: none; }
+
+.canvas :global(.react-flow) {
+  --xy-background-pattern-color-default: var(--line);
+  --xy-edge-stroke-default: var(--line-heavy);
+  --xy-edge-stroke-selected-default: var(--accent);
+  --xy-edge-stroke-width-default: 1.25;
+  --xy-controls-button-background-color-default: var(--surface-panel);
+  --xy-controls-button-background-color-hover-default: var(--surface-panel-2);
+  --xy-controls-button-color-default: var(--ink-2);
+  --xy-controls-button-color-hover-default: var(--ink);
+  --xy-controls-button-border-color-default: var(--line);
+  --xy-controls-box-shadow-default: none;
+  --xy-minimap-background-color-default: var(--surface-sunk);
+  --xy-minimap-mask-background-color-default: color-mix(in oklab, var(--surface-ground) 72%, transparent);
+  --xy-minimap-node-background-color-default: var(--line-heavy);
+  --xy-minimap-node-stroke-color-default: transparent;
+  --xy-attribution-background-color-default: transparent;
+}
+
+/* Two edge kinds, and only one of them is a claim — `decisions/0003`.
+ *
+ * An ATTRIBUTION is somebody saying this fragment belongs to that entity. A
+ * DERIVATION is what a tool read out of what: it happened, nobody asserted it.
+ * Solid against dashed, and the derivation carries its label because "read out
+ * of" is only useful if you can see what read what. */
+.canvas :global(.react-flow__edge.attribution .react-flow__edge-path) {
+  stroke: var(--line-heavy);
+}
+
+.canvas :global(.react-flow__edge.derivation .react-flow__edge-path) {
+  stroke: var(--warn);
+  stroke-dasharray: 4 4;
+  opacity: 0.75;
+}
+
+.canvas :global(.react-flow__edge-text) {
+  fill: var(--ink-4);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+@layer screen {
+  .canvas {
     position: relative;
-    block-size: 600px;
+    block-size: 37rem;
     border: 1px solid var(--line);
     border-radius: var(--radius-3);
-    background: var(--surface-panel);
-    background-image: radial-gradient(var(--line-strong) 0.9px, transparent 0.9px);
-    background-size: 22px 22px;
     overflow: hidden;
-    cursor: grab;
-    touch-action: none;
   }
 
-  .viewport[data-panning] { cursor: grabbing; }
-
-  .field {
+  .bar {
     position: absolute;
-    inset-inline-start: 50%;
-    inset-block-start: 50%;
-    transform-origin: center;
-    will-change: transform;
-  }
-
-  .edges {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: visible;
-  }
-
-  .accepted     { stroke: var(--line-heavy); stroke-width: 1.4; stroke-opacity: 0.85; }
-  .proposed     { stroke: var(--warn); stroke-width: 1.4; stroke-dasharray: 5 4; stroke-opacity: 0.8; }
-  .rejectedEdge { stroke: var(--line-strong); stroke-width: 1.4; stroke-dasharray: 2 5; stroke-opacity: 0.5; }
-  .derivation   { stroke: var(--info); stroke-width: 1.2; stroke-dasharray: 1 3.5; stroke-opacity: 0.85; }
-
-  .edgeLabel {
-    fill: var(--ink-3);
-    font-family: var(--font-mono);
-    font-size: var(--text-9);
-    text-anchor: middle;
-    dominant-baseline: middle;
-    paint-order: stroke;
-    stroke: var(--surface-panel);
-    stroke-width: 3px;
-    stroke-linejoin: round;
-  }
-
-  .node {
-    position: absolute;
-    transform: translate(-50%, -50%);
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 5;
     display: flex;
     align-items: center;
     gap: var(--space-4);
     padding: var(--space-3) var(--space-5);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-2);
-    background: var(--surface-raised);
-    font-size: var(--text-11-5);
-    white-space: nowrap;
-    cursor: grab;
-    user-select: none;
-    z-index: 1;
-    transition: border-color var(--dur-1), box-shadow var(--dur-1);
-  }
-
-  .node:hover { border-color: var(--line-heavy); }
-
-  .node[data-selected] {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-tint);
-    z-index: 3;
-  }
-
-  /* The centre of the argument, and every attribution ends at it — so it is the
-     one node that must never be read through. An opaque ground rather than the
-     accent tint, which is translucent and let thirteen lines show through it. */
-  .node[data-root] {
-    padding: var(--space-4) var(--space-6);
-    border-color: var(--accent);
-    background: var(--surface-raised);
-    box-shadow: 0 0 0 5px var(--accent-tint), var(--shadow);
-    cursor: default;
-    z-index: 2;
-  }
-
-  .node[data-root] .glyph { color: var(--accent); font-size: var(--text-12-5); }
-  .node[data-root] .label { font-size: var(--text-12-5); color: var(--ink); }
-  .node[data-root] .kind { color: var(--accent-dim); }
-
-  [data-dense] .node[data-root] .glyph,
-  [data-dense] .node[data-root] .kind { display: flex; }
-
-  .node[data-state="proposed"] { border-style: dashed; color: var(--ink-2); }
-
-  .node[data-state="rejected"] {
-    opacity: 0.5;
-    border-style: dotted;
-    text-decoration: line-through;
-  }
-
-  .node[data-pinned]::after {
-    content: "";
-    position: absolute;
-    inset-block-start: -3px;
-    inset-inline-end: -3px;
-    inline-size: 6px;
-    block-size: 6px;
-    border-radius: var(--radius-pill);
-    background: var(--accent);
-  }
-
-  [data-dense] .node { padding: var(--space-2) var(--space-4); gap: var(--space-3); }
-  [data-dense] .node .glyph,
-  [data-dense] .node .kind { display: none; }
-  [data-dense] .node .label { font-size: var(--text-10); }
-
-  .glyph { font-size: var(--text-11); color: var(--ink-4); line-height: 1; }
-
-  .kind {
-    font-family: var(--font-mono);
-    font-size: var(--text-9);
-    color: var(--ink-4);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-label);
-  }
-
-  .label { font-family: var(--font-mono); font-size: var(--text-11); }
-  .confidence { font-family: var(--font-mono); font-size: var(--text-9); color: var(--warn); }
-  .rejected { font-family: var(--font-mono); font-size: var(--text-9); color: var(--ink-4); }
-
-  .bar {
-    position: absolute;
-    inset-inline-start: var(--space-6);
-    inset-block-end: var(--space-6);
-    display: flex;
-    gap: var(--space-3);
-    align-items: center;
+    border-block-start: 1px solid var(--line);
     background: var(--surface-panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-2);
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--text-11-5);
-    color: var(--ink-3);
   }
 
-  .zoom {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    min-inline-size: 4ch;
-  }
+  .rings { color: var(--ink-4); font-family: var(--font-mono); font-size: var(--text-11); }
+  .hint { margin-inline-start: auto; color: var(--ink-4); font-size: var(--text-11); }
 
-  .zoomButton {
-    inline-size: 20px;
-    block-size: 20px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-1);
-    color: var(--ink-2);
-    display: grid;
-    place-items: center;
-    line-height: 1;
-  }
-
-  .zoomButton:hover { background: var(--surface-hover); color: var(--ink); }
-
-  /* Zooming and panning can put the graph anywhere, including nowhere. This is
-     the way back, and it is why panning is not clamped. */
-  .fit {
-    block-size: 20px;
-    padding-inline: var(--space-4);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-1);
-    color: var(--ink-2);
-    font-size: var(--text-11);
-    line-height: 1;
-  }
-
-  .fit:hover { background: var(--surface-hover); color: var(--ink); }
-
-  .hint { margin-inline-start: var(--space-2); color: var(--ink-4); }
-
-  /* ── one-hop highlight ───────────────────────────────────────────────────
-     `lit` raises an edge's own weight and NEVER recolours it. An attribution
-     and a derivation both lit to the accent would erase the distinction this
-     canvas exists to draw, so the emphasis is opacity and width — more of what
-     each edge already is — and the dim is what makes it read. */
-
-  .edges [data-mark="lit"] {
-    stroke-opacity: 1;
-    stroke-width: 2;
-  }
-
-  .edges [data-mark="lit"] line {
-    stroke-opacity: 1;
-    stroke-width: 1.9;
-  }
-
-  .edges [data-mark="dim"],
-  .edges [data-mark="dim"] line {
-    stroke-opacity: 0.14;
-  }
-
-  .edges [data-mark="dim"] text { opacity: 0.18; }
-  .edges [data-mark="lit"] text { fill: var(--ink); }
-
-  .edges line,
-  .edges text {
-    transition: stroke-opacity var(--dur-1), opacity var(--dur-1), stroke-width var(--dur-1);
-  }
-
-  /* The node itself, and the ones an edge reaches. `near` is a border rather
-     than a fill: the far end of an edge is context, not the subject. */
-  .node[data-mark="lit"] { border-color: var(--accent); z-index: 4; }
-  .node[data-mark="near"] { border-color: var(--line-heavy); }
-
-  .node[data-mark="dim"] {
-    opacity: 0.34;
-    /* Still readable, still clickable — dimming is an answer to "what is
-       attached to this", not a way to take the rest of the graph away. */
-  }
-
-  .node { transition: border-color var(--dur-1), box-shadow var(--dur-1), opacity var(--dur-1); }
-
-  .focus { margin-inline-start: var(--space-3); }
-  .focusTip { max-inline-size: 34ch; }
-  .focusName { display: block; font-weight: var(--weight-medium); color: var(--ink); }
-  .focusSub {
-    display: block;
-    margin-block-start: 2px;
-    font-size: var(--text-11);
-    color: var(--ink-3);
-  }
+  .focusTip { display: grid; gap: var(--space-2); max-inline-size: 22rem; }
+  .focusName { color: var(--ink); font-size: var(--text-12); }
+  .focusSub { color: var(--ink-3); font-size: var(--text-11-5); line-height: 1.5; }
 }

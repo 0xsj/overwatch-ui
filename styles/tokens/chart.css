@@ -1,0 +1,86 @@
+@layer token {
+  /* Chart colour, and every value here was COMPUTED rather than chosen.
+   *
+   * Run through the six-check validator on each theme's own surface — OKLCH
+   * lightness band, chroma floor, CVD separation, normal-vision separation, and
+   * contrast against the ground. The record of what passed is in the family's
+   * `doc.ts`; what matters here is the shape of the answer.
+   *
+   * FOUR primary slots, not six. Six passes when only ADJACENT pairs are
+   * compared and fails when any two might be — teal against blue at ΔE 10.7,
+   * amber against green at ΔE 7.1 for a deuteranope. Four passes all pairs on
+   * both themes with room to spare. So four is the cap, a fifth category folds
+   * into `other`, and slots 5 and 6 exist only for the charts where neighbours
+   * touch and nothing further apart is ever compared.
+   *
+   * That the computed answer is four, and this build already had four hues, is
+   * not a coincidence: four is about what a palette this size can honestly keep
+   * apart. */
+
+  :root {
+    /* light — validated against #fafafa */
+    --chart-1: #1f7dcf;
+    --chart-2: #a51105;
+    --chart-3: #25984d;
+    --chart-4: #6f29a7;
+    /* adjacent-only. Never used where any two series may be compared. */
+    --chart-5: #b38400;
+    --chart-6: #007d9b;
+
+    /* Diverging: two hues and a NEUTRAL midpoint. A coloured midpoint makes
+     * zero look like a value, which is the classic wrong diverging scale. */
+    --chart-pos: #a51105;
+    --chart-neg: #1f7dcf;
+    --chart-mid: #f0f0f2;
+
+    /* Sequential: ONE hue, light to dark. Never a rainbow — a rainbow ramp has
+     * no order anybody can read off it. */
+    --chart-seq: #1f7dcf;
+
+    /* The three kinds of nothing, which is the reason this build cannot use an
+     * off-the-shelf charting library for its coverage matrix. `absent` is a
+     * measured zero; `unattempted` was never asked; `n/a` has no question to
+     * ask and is excluded from both halves of the ratio — decisions/0011. */
+    --chart-absent:      var(--surface-panel-2);
+    --chart-unattempted: transparent;
+    --chart-na:          var(--surface-sunk);
+
+    --chart-grid:  var(--line);
+    --chart-axis:  var(--line-strong);
+    --chart-label: var(--ink-3);
+    --chart-ink:   var(--ink);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      /* dark — validated against #171717 */
+      --chart-1: #4d97de;
+      --chart-2: #af3e30;
+      --chart-3: #47aa62;
+      --chart-4: #7d4dad;
+      --chart-5: #ad8100;
+      --chart-6: #0086a4;
+
+      --chart-pos: #af3e30;
+      --chart-neg: #4d97de;
+      --chart-mid: #22222a;
+
+      --chart-seq: #4d97de;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --chart-1: #4d97de;
+    --chart-2: #af3e30;
+    --chart-3: #47aa62;
+    --chart-4: #7d4dad;
+    --chart-5: #ad8100;
+    --chart-6: #0086a4;
+
+    --chart-pos: #af3e30;
+    --chart-neg: #4d97de;
+    --chart-mid: #22222a;
+
+    --chart-seq: #4d97de;
+  }
+}

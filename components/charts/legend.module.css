@@ -1,0 +1,36 @@
+@layer composition {
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--chart-label);
+    font-size: var(--text-11-5);
+  }
+  .legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .swatch { inline-size: 11px; block-size: 11px; }
+
+  .bar { margin: var(--space-4) 0 0; display: grid; gap: var(--space-1); justify-items: start; }
+  .barSvg { inline-size: 11rem; block-size: auto; }
+  .barTick {
+    fill: var(--chart-label);
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar figcaption { color: var(--chart-label); font-size: var(--text-11); }
+
+  .chipAbsent, .chipUnattempted, .chipNa {
+    inline-size: 11px;
+    block-size: 11px;
+    border-radius: 2px;
+  }
+  .chipAbsent { background: var(--chart-absent); }
+  .chipUnattempted { border: 1px dashed var(--chart-grid); }
+  .chipNa {
+    background: var(--chart-na);
+    background-image: linear-gradient(45deg, transparent 45%, var(--chart-grid) 45%, var(--chart-grid) 55%, transparent 55%);
+  }
+}

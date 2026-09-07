@@ -1,18 +1,14 @@
 import type { Metadata } from "next";
-import { Badge, Panel } from "@/components/display";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeaderCell,
-  TableRow,
-} from "@/components/display";
+import { Panel } from "@/components/display";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
+import { clientFor } from "@/lib/root";
+import { listWorkspaces, type OrgWorkspace } from "@/lib/services/tenancy";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
 import { OpenWorkspaceForm } from "./open-form";
+import { WorkspaceRow } from "./workspace-row";
+import s from "../settings.module.css";
 
 const TITLE = "Engagements";
 const SUB =
@@ -20,6 +16,11 @@ const SUB =
 
 export const metadata: Metadata = { title: TITLE };
 
+/** Reads the LISTING, not `/v1/me`, and the difference is the point.
+ *
+ *  `/v1/me` is the boot call and the switcher's source, so it excludes closed
+ *  engagements — a firm's history does not belong in a switcher. This listing
+ *  includes them, and is the only way to reach a closed one at all. */
 export default async function Page() {
   const shell = await loadShell();
   const org = shell.context?.org;
@@ -32,6 +33,15 @@ export default async function Page() {
     );
   }
 
+  let all: OrgWorkspace[] = [];
+  try {
+    all = await listWorkspaces(await clientFor("tenancy"), org.org_id);
+  } catch {
+    all = [];
+  }
+
+  const live = all.filter((w) => !w.closed);
+  const closed = all.filter((w) => w.closed);
   const mayOpen = org.role === "owner" || org.role === "admin";
 
   return (
@@ -39,26 +49,27 @@ export default async function Page() {
       <PageHead title={TITLE}>{SUB}</PageHead>
 
       <Panel
-        title="Engagements you can see"
-        note="Not the organisation's total. One you have no grant on is absent from this list, and that is the wall working rather than a filter."
+        title="Open"
+        note="Engagements you can see. One you have no grant on is absent from this list, and that is the wall working rather than a filter."
       >
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Your access</TableHeaderCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {org.workspaces.map((w) => (
-              <TableRow key={w.workspace_id}>
-                <TableCell>{w.name}</TableCell>
-                <TableCell><Badge tone="neutral" mono>{w.access}</Badge></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className={s.rows}>
+          {live.map((w) => <WorkspaceRow key={w.workspace_id} workspace={w} />)}
+          {live.length === 0 ? (
+            <Text size="sm" tone="tertiary">Nothing open.</Text>
+          ) : null}
+        </div>
       </Panel>
+
+      {closed.length > 0 ? (
+        <Panel
+          title="Closed"
+          note="Readable, not workable. The record stays and so does everybody's access to it — which is what makes the trail readable by the people who made it rather than only by the owner."
+        >
+          <div className={s.rows}>
+            {closed.map((w) => <WorkspaceRow key={w.workspace_id} workspace={w} />)}
+          </div>
+        </Panel>
+      ) : null}
 
       {mayOpen ? (
         <Panel
@@ -86,13 +97,14 @@ export default async function Page() {
         </Alert>
       )}
 
-      <Panel title="Renaming and closing">
-        <Text size="sm" tone="tertiary">
-          `Workspace.Rename` and `Workspace.Archive` both exist in the backend with
-          no caller. Closing is not deleting — the record is what the product exists
-          to keep — and neither has an endpoint yet.
+      <Alert tone="info">
+        <Text size="sm">
+          <strong>Closing frees the name.</strong> The uniqueness rule only covers
+          open engagements, so another may take it — and reopening then fails on
+          the name rather than on the engagement you are reopening. Rename one of
+          them first.
         </Text>
-      </Panel>
+      </Alert>
     </>
   );
 }

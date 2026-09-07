@@ -132,3 +132,22 @@ export type ShellContext = {
   org: MeOrg;
   workspace: MeWorkspace;
 };
+
+/** One engagement as `GET /v1/orgs/{org}/workspaces` reports it — CLOSED ONES
+ *  INCLUDED, which is the only way to reach a closed one at all.
+ *
+ *  `/v1/me` and this listing answer different questions and both are right.
+ *  `/v1/me` is the boot call and the switcher's source, so it excludes closed
+ *  engagements: a firm's history does not belong in the switcher. This is the
+ *  archive view. Both filter to what the caller can reach, so `access` is on
+ *  every row of both. */
+export type OrgWorkspace = {
+  workspace_id: string;
+  org_id: string;
+  name: string;
+  access: GrantLevel;
+  /** Closed means READABLE and not WORKABLE. Grants survive it — the people who
+   *  were on an engagement keep access to its record, which is what makes the
+   *  trail readable by the people who made it rather than only by the owner. */
+  closed: boolean;
+};

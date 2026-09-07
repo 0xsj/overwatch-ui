@@ -5,6 +5,7 @@ import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
+import { RenameOrgForm } from "./rename-form";
 import s from "../settings.module.css";
 
 const TITLE = "Organisation";
@@ -54,14 +55,14 @@ export default async function Page() {
         />
       </div>
 
-      <Panel title="Renaming" >
-        <Text size="sm" tone="tertiary">
-          `SaveOrg` exists in the backend with no caller, so there is no endpoint
-          that changes this name. It is listed here rather than shown as a
-          disabled input, because a control that cannot work is worse than a
-          sentence saying so.
-        </Text>
-      </Panel>
+      {org.role === "owner" || org.role === "admin" ? (
+        <Panel
+          title="Rename"
+          note="Owner and admin. The organisation log keeps what it was called before."
+        >
+          <RenameOrgForm orgId={org.org_id} name={org.name} />
+        </Panel>
+      ) : null}
 
       <Panel title="Where the rest of this lives">
         <ul className={s.links}>

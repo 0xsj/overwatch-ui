@@ -10,11 +10,14 @@ import {
 } from "@/components/display";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
-import type { OrgRole } from "@/lib/services/tenancy";
+import { listWorkspaces, type OrgRole } from "@/lib/services/tenancy";
+import { clientFor } from "@/lib/root";
+import { listWorkspaceMembers } from "@/lib/services/access";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
 import { Owed } from "../../_components/owed";
 import { InviteForm } from "./invite-form";
+import { MemberRow } from "./member-row";
 import s from "../settings.module.css";
 
 const TITLE = "Members";
@@ -48,6 +51,30 @@ export default async function Page() {
 
   const manages = org.role === "owner" || org.role === "admin";
 
+  /* How many engagements each person is on, so the removal confirmation can name
+     the cost.
+     
+     Counted from the LISTING and not from `/v1/me`, which is the correction that
+     matters: `/v1/me` excludes closed engagements, and removal deletes grants on
+     those too. Counting from the switcher's source undercounts, and the number
+     in that dialog is the whole reason the dialog exists.
+
+     One call per engagement. `ALIGNMENT.md` says to show it "from the seat lists
+     it already has", and there is no org-wide grants read by design — a
+     workspace the caller cannot see 404s rather than appearing empty. Fine at a
+     firm's worth of engagements and wrong at a thousand; the answer then is an
+     endpoint, not a cache here. */
+  const seats = new Map<string, number>();
+  if (manages) {
+    const [access, tenancy] = [await clientFor("access"), await clientFor("tenancy")];
+    const every = await listWorkspaces(tenancy, org.org_id).catch(() => []);
+    const lists = await Promise.all(
+      every.map((w) => listWorkspaceMembers(access, w.workspace_id).catch(() => [])),
+    );
+    for (const list of lists)
+      for (const row of list) seats.set(row.account_id, (seats.get(row.account_id) ?? 0) + 1);
+  }
+
   return (
     <>
       <PageHead title={TITLE}>{SUB}</PageHead>
@@ -78,14 +105,19 @@ export default async function Page() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {/* READ-ONLY, and it was an editable dropdown until
-                      2026-09-07. Nothing can change a role over HTTP, and a
-                      control that cannot work is worse than a value that is
-                      plainly just a value. */}
-                  <Badge tone={ROLE_TONE[m.role]} mono>{m.role}</Badge>
-                  {m.account_id === shell.me.account_id ? (
-                    <Text size="xs" tone="quiet">this is you</Text>
-                  ) : null}
+                  {manages ? (
+                    <MemberRow
+                      orgId={org.org_id}
+                      accountId={m.account_id}
+                      role={m.role}
+                      name={m.name}
+                      self={m.account_id === shell.me.account_id}
+                      mayActOnOwners={org.role === "owner"}
+                      seats={seats.get(m.account_id) ?? 0}
+                    />
+                  ) : (
+                    <Badge tone={ROLE_TONE[m.role]} mono>{m.role}</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className={s.muted}>{m.joined_at.slice(0, 10)}</span>
@@ -132,10 +164,18 @@ export default async function Page() {
         />
       ) : null}
 
-      <Owed
-        title="Changing a role, removing somebody, leaving"
-        note="None of the three exists over HTTP. ErrLastOwner is declared in the backend and unreachable, so 'an org cannot lose its last owner' is true today only because nothing can remove one — which is why the roles above are read-only rather than a dropdown that would fail."
-      />
+      <Alert tone="info">
+        <Text size="sm">
+          <strong>There is no transfer-ownership button, and that is two calls
+          rather than one.</strong> Promote somebody to <code>owner</code>, then
+          demote yourself. The other order is refused, correctly — it has a moment
+          with no owner in it.
+        </Text>
+        <Text size="sm" tone="tertiary">
+          Demoting caps somebody&rsquo;s access and is reversible. Removing deletes
+          every grant they hold, and re-inviting them starts from nothing.
+        </Text>
+      </Alert>
     </>
   );
 }

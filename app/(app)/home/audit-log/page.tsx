@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Panel } from "@/components/display";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { clientFor } from "@/lib/root";
 import { getWorkspaceAudit, type AuditPage } from "@/lib/services/ledger";
+import { listWorkspaces } from "@/lib/services/tenancy";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
 import { AuditTable } from "../../_components/audit-table";
@@ -28,11 +30,31 @@ export const metadata: Metadata = { title: TITLE };
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ after?: string; facet?: string }>;
+  searchParams: Promise<{ after?: string; facet?: string; workspace?: string }>;
 }) {
-  const { after, facet } = await searchParams;
+  const { after, facet, workspace: wanted } = await searchParams;
   const shell = await loadShell();
-  const workspace = shell.context?.workspace;
+
+  /* `?workspace=` exists for the CLOSED case, and only for it.
+   *
+   *  An engagement id can now stop appearing in `/v1/me` without being deleted
+   *  and without the caller losing access — `decisions/0027`. So the old rule,
+   *  *absent from `/v1/me` means gone or forbidden*, is no longer safe:
+   *
+   *      absent + 404 from its endpoints   no grant. Not yours to see
+   *      absent + 200 from its audit       CLOSED. Yours, and read-only
+   *
+   *  The chrome's workspace can only ever be a live one, so a closed
+   *  engagement's record would be unreachable without this — and reading it is
+   *  precisely what closing is supposed to leave you. Reached from the Closed
+   *  section on the engagements screen. */
+  const listed = wanted
+    ? await listWorkspaces(await clientFor("tenancy"), shell.context?.org.org_id ?? "")
+        .then((all) => all.find((w) => w.workspace_id === wanted))
+        .catch(() => undefined)
+    : undefined;
+
+  const workspace = listed ?? shell.context?.workspace;
 
   if (!workspace) {
     return (
@@ -59,6 +81,17 @@ export default async function Page({
   return (
     <>
       <PageHead title={TITLE}>{SUB}</PageHead>
+
+      {listed?.closed ? (
+        <Alert tone="warn">
+          <Text size="sm">
+            <strong>{listed.name} is closed.</strong> Its record stays readable and
+            nothing can be done in it — which is the point of closing rather than
+            deleting. Reopen it from{" "}
+            <Link href="/settings/workspaces">Engagements</Link>.
+          </Text>
+        </Alert>
+      ) : null}
 
       <Panel
         title={workspace.name}

@@ -7,8 +7,8 @@ import { clientFor } from "@/lib/root";
 import { listSessions, type MeSession } from "@/lib/services/identity";
 import { loadShell } from "../../_shell";
 import { PageHead } from "../../_components/page-head";
-import { Owed } from "../../_components/owed";
 import { PasswordForm } from "./password-form";
+import { CloseAccountForm } from "./close-form";
 import { Sessions } from "./sessions";
 import s from "../account.module.css";
 
@@ -64,10 +64,12 @@ export default async function Page() {
         </Text>
       </Panel>
 
-      <Owed
-        title="Closing your account"
-        note="Account.Archive exists in the backend with no caller. It is last on the list on purpose: archiving the last owner of an organisation has to be refused, and that guard needs the membership commands that are not built yet."
-      />
+      <Panel
+        title="Close your account"
+        note="Terminal. Refused only where somebody would be stranded — being the last owner of an org that is only you does not count."
+      >
+        <CloseAccountForm />
+      </Panel>
 
       <Alert tone="info">
         <Text size="sm">

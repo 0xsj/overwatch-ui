@@ -1,4 +1,13 @@
-export { getMe, listMembers, openWorkspace } from "./tenancy.api";
+export {
+  closeWorkspace,
+  getMe,
+  listMembers,
+  listWorkspaces,
+  openWorkspace,
+  renameOrg,
+  renameWorkspace,
+  reopenWorkspace,
+} from "./tenancy.api";
 export { emptyReason, selectShellContext } from "./shell";
 export {
   EXTERNAL_ROLES,
@@ -16,5 +25,6 @@ export type {
   Member,
   OpenedWorkspace,
   OrgRole,
+  OrgWorkspace,
   ShellContext,
 } from "./tenancy.types";

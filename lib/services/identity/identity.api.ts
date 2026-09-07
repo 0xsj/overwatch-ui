@@ -104,3 +104,19 @@ export function listSessions(http: HttpClient): Promise<MeSession[]> {
 export function revokeSession(http: HttpClient, id: string): Promise<void> {
   return http.delete<void>(`/me/sessions/${encodeURIComponent(id)}`);
 }
+
+/** 204, and it SIGNS THE CALLER OUT — every session goes, including the one that
+ *  made the request. So the client clears its own session and routes away rather
+ *  than re-fetching anything.
+ *
+ *  The 409 names the orgs where somebody would be stranded:
+ *  *"you are the last owner of Vertex Labs, Acme Holdings — transfer ownership
+ *  or remove the other members first"*. Render that message; it is the only
+ *  place the person is told what to do.
+ *
+ *  A solo account is never blocked — being the last owner of an org that is only
+ *  you does not strand anybody. If it counted, nobody could ever close an
+ *  account, because registration makes everyone the last owner of their own. */
+export function closeAccount(http: HttpClient, currentPassword: string): Promise<void> {
+  return http.post<void>("/me/close", { body: { current_password: currentPassword } });
+}
