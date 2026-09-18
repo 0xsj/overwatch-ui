@@ -21,7 +21,7 @@ const mono = JetBrains_Mono({ variable: "--font-mono-src", subsets: ["latin"], d
 
 export const metadata: Metadata = {
   title: "Overwatch",
-  description: "Is this asset ours, and what is the evidence.",
+  description: "Investigate sources, record evidence, and develop a sourced account.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

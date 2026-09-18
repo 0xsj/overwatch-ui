@@ -1,0 +1,40 @@
+/* React Flow's SVGs are nested in zero-width positioning elements. The global
+   reset's max-inline-size rule would clip every edge, so this stays outside the
+   screen layer just like the existing execution graph. */
+.canvas :global(svg) { max-inline-size: none; }
+
+.canvas :global(.react-flow) {
+  --xy-background-pattern-color-default: var(--line);
+  --xy-edge-stroke-default: var(--line-heavy);
+  --xy-edge-stroke-selected-default: var(--accent);
+  --xy-edge-stroke-width-default: 1.5;
+  --xy-controls-button-background-color-default: var(--surface-panel);
+  --xy-controls-button-background-color-hover-default: var(--surface-panel-2);
+  --xy-controls-button-color-default: var(--ink-2);
+  --xy-controls-button-color-hover-default: var(--ink);
+  --xy-controls-button-border-color-default: var(--line);
+  --xy-controls-box-shadow-default: none;
+  --xy-minimap-background-color-default: var(--surface-sunk);
+  --xy-minimap-mask-background-color-default: color-mix(in oklab, var(--surface-ground) 72%, transparent);
+  --xy-minimap-mask-stroke-color-default: var(--line-strong);
+  --xy-minimap-node-background-color-default: var(--line-heavy);
+  --xy-minimap-node-stroke-color-default: transparent;
+  --xy-attribution-background-color-default: transparent;
+}
+
+.edgeAccepted :global(.react-flow__edge-path) { stroke: var(--accent); }
+.edgeRejected :global(.react-flow__edge-path) { stroke: var(--crit); stroke-dasharray: 3 4; }
+.edgeProposed :global(.react-flow__edge-path) { stroke: var(--warn); stroke-dasharray: 6 3; }
+.canvas :global(.react-flow__edge-text) { fill: var(--ink-2); font-size: 10px; }
+.canvas :global(.react-flow__edge-textbg) { fill: var(--surface-ground); }
+
+@layer screen {
+  .canvas { block-size: 34rem; border: 1px solid var(--line); border-radius: var(--radius-3); overflow: hidden; }
+  .node { position: relative; display: grid; gap: var(--space-2); align-content: center; inline-size: 220px; min-block-size: 102px; padding: var(--space-4) var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); color: var(--ink); }
+  .node strong { overflow-wrap: anywhere; font-size: var(--text-13); line-height: 1.4; }
+  .node { cursor: pointer; }
+  .node:hover, .node[data-selected="true"] { border-color: var(--accent); background: var(--surface-hover); }
+  .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .handle { inline-size: 7px; block-size: 7px; border: 1px solid var(--line-strong); background: var(--surface-panel-2); }
+  .minimap { background: var(--surface-sunk); }
+}

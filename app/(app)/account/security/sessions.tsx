@@ -6,6 +6,8 @@ import { Button } from "@/components/forms";
 import { Text } from "@/components/typography";
 import type { MeSession } from "@/lib/services/identity";
 import { revokeSessionAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useAfterWrite } from "../../_hooks";
 import s from "../account.module.css";
 
 /** `user_agent` and `address` are shown RAW, and that is a request from the
@@ -19,10 +21,11 @@ import s from "../account.module.css";
 export function Sessions({ sessions }: { sessions: MeSession[] }) {
   const [ended, setEnded] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+  const afterWrite = useAfterWrite();
 
   const end = (id: string) =>
     start(async () => {
-      const result = await revokeSessionAction(id);
+      const result = (await afterWrite(() => revokeSessionAction(id), [keys.identity.sessions()])) as { status: string; message?: string };
       // A session that is not yours answers 404, the same as one that does not
       // exist. There is nothing to tell apart, so success and "already gone"
       // land in the same place.

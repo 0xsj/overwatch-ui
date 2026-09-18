@@ -118,6 +118,45 @@ export function StepDetail({
             </div>
 
             <div className={s.fact}>
+              {/* WHERE THE SCOPE PROOF LIVES — `decisions/0039`. A step touches
+                  many things once a chain feeds itself, and the refused ones
+                  are the half a client's report cites: *we would have looked at
+                  these and a rule said no*. A step can be `ok` and still have
+                  been kept off part of what it was pointed at, so this is never
+                  filtered to the permitted ones. */}
+              <dt>Aimed at</dt>
+              <dd>
+                {invocation.candidates.length === 0 ? (
+                  // Empty is "nothing resolved yet", not "nothing was aimed at".
+                  <span className={s.never}>nothing resolved yet</span>
+                ) : (
+                  <ul className={s.candidates}>
+                    {invocation.candidates.map((c) => (
+                      <li key={c.candidate_id} data-permitted={c.permitted}>
+                        <span className={s.mono}>{c.value}</span>
+                        <Badge tone={c.permitted ? "accent" : "warn"} mono>
+                          {c.kind}
+                        </Badge>
+                        {c.permitted ? null : (
+                          <Text size="xs" tone="tertiary">
+                            {c.refusal}
+                            {/* A rule EXCLUDED it, versus nothing having
+                                PERMITTED it. The second is `0010`'s default and
+                                the commonest one, and its fix is adding a rule
+                                rather than reading one. */}
+                            {c.refusal_rule
+                              ? ` — rule ${c.refusal_rule.slice(0, 8)}`
+                              : " — nothing in scope permits it yet"}
+                          </Text>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
+            </div>
+
+            <div className={s.fact}>
               <dt>Observations</dt>
               <dd>
                 {/* Not in the response AT ALL yet — nothing parses output, so

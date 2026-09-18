@@ -3,9 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { clientFor } from "@/lib/root";
 import { addMapping, addTool, archiveTool, promoteMapping } from "@/lib/services/tooling";
-import type { Intensity } from "@/lib/services/tooling";
+import type { Intensity, MappingRole } from "@/lib/services/tooling";
 import { normaliseKind, type FeedKind } from "@/lib/kernel";
 import { toFormState, type FormState } from "../../(auth)/_form-state";
+import { loadShell } from "../_shell";
+import { CATALOGUE } from "./_catalogue";
+
+/** The org the caller is in. Read here rather than passed from the client,
+ *  because an org id arriving from a browser is a claim about who is asking
+ *  and the session already answers that. */
+async function currentOrg(): Promise<string | null> {
+  const shell = await loadShell();
+  return shell.context?.org.org_id ?? null;
+}
 
 const str = (d: FormData, k: string) => String(d.get(k) ?? "").trim();
 
@@ -35,6 +45,46 @@ function codes(raw: string): number[] | undefined {
     .map(Number)
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 255);
   return parsed.length > 0 ? parsed : undefined;
+}
+
+/** Installing a bundled definition, and it is the SAME calls the forms make.
+ *
+ *  No catalogue endpoint, no import format, no second write path — the bodies
+ *  below are what `/tools/add` and the mapping form post, with the fields
+ *  already filled in. That is the whole of what "bundled" means here.
+ *
+ *  **The mappings are part of the install and not a follow-up.** A tool with no
+ *  live mapping runs, exits zero, writes its artifact and extracts nothing, for
+ *  ever — a state with no error, no empty screen and no way to tell it apart
+ *  from a tool that found nothing. Installing the definition without them hands
+ *  somebody that state and calls it success. */
+export async function installToolAction(name: string): Promise<FormState> {
+  const entry = CATALOGUE.find((c) => c.name === name);
+  if (!entry) return { status: "error", scope: "form", message: "No such definition." };
+  const org = await currentOrg();
+  if (!org) return { status: "error", scope: "form", message: "No organisation." };
+  try {
+    const http = await clientFor("tooling");
+    const tool = await addTool(http, org, {
+      name: entry.name,
+      argv: entry.argv,
+      intensity: entry.intensity,
+      consumes: entry.consumes,
+      produces: entry.produces,
+      success_exit_codes: entry.success_exit_codes,
+    });
+    /* SEQUENTIALLY, and the subject first. `mapping_one_subject` refuses a
+       second live subject per tool, so a parallel write that raced two of them
+       would fail one at random — and there is no ordering here worth the
+       concurrency of three requests. */
+    for (const mapping of entry.mappings ?? []) {
+      await addMapping(http, org, tool.tool_id, { ...mapping, promote: true });
+    }
+  } catch (error) {
+    return toFormState(error);
+  }
+  revalidatePath("/tools/installed");
+  return { status: "ok" };
 }
 
 export async function addToolAction(
@@ -88,6 +138,9 @@ export async function addMappingAction(
     await addMapping(await clientFor("tooling"), orgId, toolId, {
       field: str(data, "field"),
       expression: str(data, "expression"),
+      // Absent means `attribute`. An UNKNOWN one is a 400 rather than a silent
+      // downgrade, so this is sent as typed rather than defaulted here.
+      role: (str(data, "role") || undefined) as MappingRole | undefined,
       promote: data.get("promote") === "on",
     });
   } catch (error) {

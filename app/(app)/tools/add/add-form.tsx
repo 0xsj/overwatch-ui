@@ -9,6 +9,8 @@ import { Text } from "@/components/typography";
 import { FEED_KINDS } from "@/lib/kernel";
 import type { Intensity } from "@/lib/services/tooling";
 import { addToolAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useInvalidateOnOk } from "../../_hooks";
 import { initialFormState } from "../../../(auth)/_form-state";
 import { errorFor, FormError } from "../../../(auth)/_components/form-error";
 import s from "../tools.module.css";
@@ -31,8 +33,24 @@ export function AddToolForm({ orgId }: { orgId: string }) {
     addToolAction.bind(null, orgId),
     initialFormState,
   );
+
+  /* The write landed on the server; the query cache does not know. */
+  useInvalidateOnOk(state, [keys.tooling.all(orgId)]);
   const [argv, setArgv] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("passive");
+
+  /* SINGLE braces are the mistake this screen exists to catch.
+   *
+   *  `{host}` matches no placeholder, so it survives substitution and reaches
+   *  the process as the literal string `{host}` — the tool then scans a
+   *  hostname that does not exist, exits 0, and writes an artifact full of
+   *  nothing. It is not an error at any layer: the run succeeds and the
+   *  extraction is empty, which reads as "the target had no subdomains".
+   *
+   *  So it is a warning under the command rather than a refusal. A single brace
+   *  is legal argv and some tool will one day want one. */
+  const singleBraced = /(^|[^{])\{[^{}\s]+\}/.test(argv);
+  const placeholders = [...argv.matchAll(/\{\{([^{}\s]*)\}\}/g)].map((m) => m[1]);
 
   return (
     <form action={action} noValidate className={s.form}>
@@ -54,7 +72,7 @@ export function AddToolForm({ orgId }: { orgId: string }) {
       <Field
         label="Command"
         error={errorFor(state, "argv")}
-        hint="Braced names are filled from the thing being looked at. There is no shell — it is argv, so a pipe or a semicolon here is an argument rather than an operator."
+        hint="A DOUBLE-braced placeholder is filled from the thing being looked at — {{host}}. There is no shell: the template is split on whitespace first and then substituted, so a pipe or a semicolon here is an argument rather than an operator, and a substituted value is always exactly one argument whatever is in it."
         required
       >
         {(aria) => (
@@ -63,7 +81,7 @@ export function AddToolForm({ orgId }: { orgId: string }) {
             name="argv"
             value={argv}
             onChange={(e) => setArgv(e.target.value)}
-            placeholder="httpx -u {host} -silent -json"
+            placeholder="httpx -u {{host}} -silent -json"
           />
         )}
       </Field>
@@ -129,8 +147,32 @@ export function AddToolForm({ orgId }: { orgId: string }) {
         <Text size="xs" tone="tertiary">
           {intensity === "loud"
             ? "A loud tool raises the gate on any check that contains it to admin, and a scope rule admitting passive collection will still refuse it."
-            : "Braced names are substituted at spawn time; everything else is passed through verbatim."}
+            : "Double-braced placeholders are substituted at spawn time; everything else is passed through verbatim."}
         </Text>
+        {singleBraced ? (
+          <Text size="xs" tone="tertiary">
+            <strong>That looks like a single brace.</strong> Only{" "}
+            <code>{"{{name}}"}</code> is substituted — <code>{"{name}"}</code>{" "}
+            reaches the process verbatim, so the tool scans a hostname that does
+            not exist, exits 0, and writes an artifact full of nothing. Nothing
+            downstream reports that as a failure.
+          </Text>
+        ) : null}
+        {placeholders.length === 0 && argv.trim() !== "" ? (
+          <Text size="xs" tone="tertiary">
+            No placeholder, so this command runs the same way against every
+            target. That is a real kind of tool — and if you meant it to take the
+            target, it needs <code>{"{{host}}"}</code> somewhere.
+          </Text>
+        ) : null}
+        {placeholders.length > 1 ? (
+          <Text size="xs" tone="tertiary">
+            {placeholders.length} placeholders, and they all get the same value.
+            The name inside the braces binds nothing — a source step has exactly
+            one input, so <code>{"{{host}}"}</code> and <code>{"{{target}}"}</code>{" "}
+            read as documentation rather than as variables.
+          </Text>
+        ) : null}
       </Alert>
 
       <Button type="submit" intent="primary" loading={pending}>

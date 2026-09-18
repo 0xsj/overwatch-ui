@@ -12,7 +12,7 @@ import type { GrantLevel, Me, Member } from "@/lib/services/tenancy";
  *  Both are shaped exactly as the live server answers — walked on 2026-09-07:
  *  a personal org is named after the person, its first workspace is `Personal`,
  *  and the owner reads `access: "admin"` on it with no grant row written. */
-export type PersonaName = "hunter" | "firm";
+export type PersonaName = "hunter" | "firm" | "client";
 
 export type Persona = {
   label: string;
@@ -158,7 +158,57 @@ const firm: Persona = {
   ],
 };
 
-export const PERSONAS: Record<PersonaName, Persona> = { hunter, firm };
+/* ─── client ───────────────────────────────────────────────────────────────
+   THE SAME TENANT, FROM THE OTHER SIDE OF THE WALL. Femi Osei is already a
+   member of the firm above — role `client`, `read` on Halcyon — so signing in
+   as him is not a fourth invented org, it is 31m's engagement seen by the
+   person it is about.
+
+   That is the whole reason this persona exists. `decisions/0042` made `client`
+   remove ROUTES rather than lower a level, and a rule about what somebody
+   cannot see is not demonstrable from the side that can see everything. Every
+   screen but the report answers 404 for him, which is a claim only checkable
+   by being him.
+
+   His address is at the CLIENT's domain and the analysts' are not — that is
+   the tell, and it is why the member list above reads the way it does.      */
+
+const client: Persona = {
+  label: "Client",
+  blurb:
+    "The person an engagement is about, not the people doing it. A client generates a report and receives nothing else — every other screen answers 404, which is non-disclosure rather than a fault.",
+  me: {
+    account_id: acct(6),
+    email: "f.osei@halcyon.example",
+    status: "active",
+    verified: true,
+    orgs: [
+      {
+        org_id: FIRM_ORG,
+        name: "31m",
+        role: "client",
+        // ONE engagement, the one they are the subject of. `read` is written,
+        // and the role's ceiling is what actually bounds them.
+        workspaces: [{ workspace_id: ws(3), name: "Halcyon", access: "read" }],
+      },
+    ],
+  },
+  // Just themselves. A client is not shown the firm's roster — who else works
+  // on an engagement is the firm's business, not the client's.
+  members: [
+    {
+      account_id: acct(6),
+      email: "f.osei@halcyon.example",
+      name: "Femi Osei",
+      role: "client",
+      status: "active",
+      joined_at: "2026-09-04T16:30:44Z",
+    },
+  ],
+  grants: [{ account_id: acct(6), workspace_id: ws(3), level: "read" }],
+};
+
+export const PERSONAS: Record<PersonaName, Persona> = { hunter, firm, client };
 
 export const PERSONA_NAMES = Object.keys(PERSONAS) as PersonaName[];
 

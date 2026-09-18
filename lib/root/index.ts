@@ -16,7 +16,18 @@ export type Domain =
   | "observed"
   | "targets"
   | "entities"
-  | "coverage";
+  | "coverage"
+  | "findings"
+  | "reports"
+  | "sources"
+  | "notes"
+  | "review"
+  | "questions"
+  | "events"
+  | "brief"
+  | "research-records"
+  | "research-connections"
+  | "research-resolutions";
 
 /** The domains the SERVER actually serves.
  *
@@ -45,7 +56,7 @@ export type Domain =
  *  not reached, and the only way to see one is to sign in as a persona. */
 const SERVED: readonly Domain[] = [
   "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
-  "observed", "targets", "entities", "coverage",
+  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions",
 ];
 
 const fixtures = (token: string | null) =>
@@ -101,11 +112,11 @@ export function adapterFor(domain: Domain): "fetch" | "memory" {
 
 export const DOMAINS: Domain[] = [
   "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
-  "observed", "targets", "entities", "coverage",
+  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions",
 ];
 
 export const transport = !baseUrl
-  ? "No backend. Nothing is stored, no email is sent, and no session is created."
+  ? "No backend. Fixture changes last while this UI server runs; no email is sent."
   : `Talking to ${baseUrl} for ${SERVED.join(", ")}. Everything else is still fixtures.`;
 
 export { currentToken, endSession, startSession } from "./session";

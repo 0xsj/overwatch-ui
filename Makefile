@@ -15,8 +15,8 @@ dev:   ## the client dev server
 build: ## a production build
 	@npx next build
 
-test:  ## the tests. None yet, and saying so beats exiting 0 silently
-	@echo "overwatch-ui has no tests yet."
+test:  ## the focused research and navigation regression suite
+	@npm run test:research
 
 check: ## types and lint
 	@npx tsc --noEmit

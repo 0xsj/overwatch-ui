@@ -111,7 +111,37 @@ export type Canvas = {
   truncated: boolean;
 };
 
-export type FragmentDetail = Fragment & { attributions: Attribution[] };
+/** fragment → fragment. **NOT a claim** — *"read out of"* — so there is no
+ *  claimant, no confidence and no state, and there is nowhere in this shape to
+ *  put one. `decisions/0003` drew two edge kinds and this is the second.
+ *
+ *  `invocation_id` and `artifact_id` are **never absent**. An edge without them
+ *  is a similarity edge wearing a costume, which §out_of_scope bans outright —
+ *  so one arriving without them is not data this server emits, and treating it
+ *  as data would be the bug. */
+export type Derivation = {
+  derivation_id: string;
+  /** What it was read OUT OF. */
+  from: string;
+  /** What was read. */
+  to: string;
+  /** Names the act — `input`, `SAN entry`, `commit author`. Render it on the
+   *  edge: it is the whole difference between a line and an explanation. */
+  label: string;
+  invocation_id: string;
+  artifact_id: string;
+  mapping_id: string;
+  created_at: string;
+};
+
+/** TWO ARRAYS, never one list with a `kind` discriminator. `0003` says the
+ *  shapes are disjoint, and the decoder rule it names is checkable here:
+ *  *reject a derivation carrying `claimant`, `confidence` or `state`; reject an
+ *  attribution with no `claimant`.* Neither is expressible in this object. */
+export type FragmentDetail = Fragment & {
+  attributions: Attribution[];
+  derivations: Derivation[];
+};
 
 /** A person's arrangement of one canvas, and **there is no endpoint for it.**
  *

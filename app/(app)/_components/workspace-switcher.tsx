@@ -47,8 +47,11 @@ export function WorkspaceSwitcher({ org, current }: { org: MeOrg; current: MeWor
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings/workspaces">All engagements</Link>
+          <Link href="/investigation">All investigations</Link>
         </DropdownMenuItem>
+        {(org.role === "owner" || org.role === "admin") ? <DropdownMenuItem asChild>
+          <Link href="/investigation#new-investigation">New investigation</Link>
+        </DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

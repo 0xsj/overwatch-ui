@@ -28,6 +28,10 @@ const REGISTER_FIELDS = new Set(["email", "password", "name"]);
  *  — so every refusal here is form-level too. A fixture more helpful than the
  *  server is the wrong kind of wrong: the screens come out built against a
  *  contract nobody serves. */
+/** Failed attempts per address. Per process, so it resets with the server —
+ *  the right lifetime for a demonstration of a lockout. */
+const ATTEMPTS = new Map<string, number>();
+
 const invalid = (message: string) => new AppError({ kind: "invalid", message, status: 400 });
 
 const unauthenticated = (message: string) =>
@@ -118,7 +122,38 @@ export const identityRoutes: MemoryRoute[] = [
   },
 
   (req) => {
+    /* A persona's sessions. Missing until 2026-09-08, so the security screen
+       read `never checked — the session list could not be read` for every
+       fixture run: correct copy for a read that did not happen, and a gap in
+       the fixture rather than a screen doing the wrong thing. It is the pair
+       working, and it is still better to have the rows. */
+    if (!(req.method === "GET" && req.path === "/me/sessions")) return undefined;
+    return [
+      {
+        session_id: "01a07bd8-0001-7000-9000-000000000001",
+        user_agent: "Chrome on macOS",
+        address: "203.0.113.9",
+        issued_at: "2026-09-08T09:02:00Z",
+        expires_at: "2026-09-22T09:02:00Z",
+        // The caller's own row. A screen uses this rather than tracking which
+        // token it holds.
+        current: true,
+      },
+      {
+        session_id: "01a07bd8-0001-7000-9000-000000000002",
+        user_agent: "Safari on iOS",
+        address: "198.51.100.71",
+        issued_at: "2026-09-02T18:20:00Z",
+        expires_at: "2026-09-16T18:20:00Z",
+        current: false,
+      },
+    ];
+  },
+
+  (req) => {
     if (!(req.method === "POST" && req.path === "/sessions")) return undefined;
+    // Keyed by ADDRESS here. The server also keys by IP, which a fixture has
+    // no notion of — and that half is what locks a shared office out together.
     const { email, password } = body(req) as { email?: string; password?: string };
     const at = String(email ?? "").trim().toLowerCase();
 
@@ -128,6 +163,19 @@ export const identityRoutes: MemoryRoute[] = [
       (n) => PERSONAS[n].me.email === at,
     );
     if (persona && password === FIXTURE_PASSWORD) return sessionFor(persona);
+
+    /* TEN failures, then one back every thirty seconds — and the budget is
+       charged on FAILURE only, so signing in on four devices after a password
+       change costs nothing. Reproduced because the shape matters more than the
+       number: once it is spent, **a correct password is refused too**, which is
+       the branch a sign-in screen has to render and would otherwise never see. */
+    const spent = (ATTEMPTS.get(at) ?? 0) >= 10;
+    if (spent)
+      throw new AppError({
+        kind: "rate_limited",
+        status: 429,
+        message: "too many sign-in attempts — try again shortly",
+      });
 
     const registered = REGISTERED.get(at);
     if (registered && registered.password === password)
@@ -139,6 +187,7 @@ export const identityRoutes: MemoryRoute[] = [
         expires_at: "2026-09-21T08:36:24Z",
       } satisfies Session;
 
+    ATTEMPTS.set(at, (ATTEMPTS.get(at) ?? 0) + 1);
     throw unauthenticated("that email and password do not match an account");
   },
 

@@ -1,0 +1,85 @@
+@layer composition {
+  .context { margin-block-end: var(--space-8); }
+  .contextTop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); margin-block-end: var(--space-5); }
+  .contextName { overflow-wrap: anywhere; font-size: var(--text-12-5); color: var(--ink-2); border-inline-start: 1px solid var(--line-strong); padding-inline-start: var(--space-5); }
+  .back, .inlineLink { color: var(--accent); font-size: var(--text-12-5); text-decoration: underline; text-underline-offset: 3px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); border-block-end: 1px solid var(--line-strong); }
+  .tabs a { padding: var(--space-4) var(--space-6); color: var(--ink-2); font-size: var(--text-12-5); border-block-end: 2px solid transparent; }
+  .tabs a[aria-current] { color: var(--accent); border-color: var(--accent); }
+  .tabs a:hover { background: var(--surface-hover); }
+  .stack { min-inline-size: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: var(--space-5); }
+  .columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: var(--space-7); align-items: start; }
+  .readerColumns { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(290px, 1fr); gap: var(--space-7); align-items: start; }
+  .notice { margin-block-end: var(--space-7); }
+  .investigationCard { display: flex; align-items: center; gap: var(--space-5); justify-content: space-between; padding: var(--space-6); border: 1px solid var(--line-strong); border-radius: var(--radius-2); }
+  .investigationCard:hover { border-color: var(--accent-line); background: var(--surface-hover); }
+  .investigationCard strong { display: block; margin-block-end: var(--space-2); font-size: var(--text-13); }
+  .sourceList { display: flex; flex-direction: column; gap: var(--space-4); }
+  .evidenceList { display: flex; flex-direction: column; gap: var(--space-4); }
+  .evidenceCard { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6); border: 1px solid var(--line-strong); border-radius: var(--radius-2); }
+  .evidenceCardSelected { border-color: var(--accent); background: var(--surface-hover); }
+  .evidenceStatement { margin: 0; font-weight: var(--weight-medium); line-height: 1.6; }
+  .comparisonPair { display: flex; flex-direction: column; gap: var(--space-4); }
+  .comparisonItem { display: flex; flex-direction: column; gap: var(--space-2); padding-block-end: var(--space-4); border-block-end: 1px solid var(--line); }
+  .questionList { display: flex; flex-direction: column; gap: var(--space-4); }
+  .questionCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); color: var(--ink); text-align: start; inline-size: 100%; }
+  .questionCard:hover, .questionCardActive { border-color: var(--accent); background: var(--surface-hover); }
+  .questionCardSelect { display: flex; flex-direction: column; gap: var(--space-3); padding: 0; border: 0; background: transparent; color: inherit; text-align: start; inline-size: 100%; cursor: pointer; }
+  .questionStateRow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .questionTitle { display: block; overflow-wrap: anywhere; font-size: var(--text-14); line-height: 1.55; }
+  .questionLinks { display: flex; flex-direction: column; gap: var(--space-2); }
+  .questionEditor { display: flex; flex-direction: column; gap: var(--space-5); }
+  .checkboxList { display: flex; flex-direction: column; gap: var(--space-3); margin-block-start: var(--space-4); }
+  .checkboxLabel { display: flex; align-items: flex-start; gap: var(--space-3); font-size: var(--text-12-5); line-height: 1.5; cursor: pointer; }
+  .checkboxLabel input { margin-block-start: 0.25em; accent-color: var(--accent); }
+  .questionLinkText { overflow-wrap: anywhere; }
+  .sourceCard { display: grid; gap: var(--space-4); padding: var(--space-6); border: 1px solid var(--line-strong); border-radius: var(--radius-2); }
+  .sourceCard:hover { background: var(--surface-hover); }
+  .sourceTitle { overflow-wrap: anywhere; color: var(--ink); font-size: var(--text-15); font-weight: var(--weight-medium); }
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+  .muted { color: var(--ink-3); font-size: var(--text-11-5); }
+  .body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; font-size: var(--text-13); }
+  .retained { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-12-5); line-height: 1.8; max-block-size: 70vh; overflow-y: auto; padding: var(--space-6); background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--radius-2); }
+  .retained mark { color: var(--ink); background: var(--warn-tint); outline: 1px solid var(--warn-line); }
+  .retained .searchMatch { background: var(--accent-tint); outline: 1px solid var(--accent-line); }
+  .retained .searchMatchCurrent { background: var(--warn-tint); outline: 1px solid var(--warn-line); }
+  .diff { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-12-5); line-height: 1.8; max-block-size: 55vh; overflow-y: auto; padding: var(--space-5); background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--radius-2); }
+  .diffSame, .diffAdded, .diffRemoved { display: block; }
+  .diffAdded { color: var(--accent); background: var(--accent-tint); }
+  .diffRemoved { color: var(--crit); background: var(--crit-tint); }
+  .quote { margin: 0; padding: var(--space-4) var(--space-5); border-inline-start: 2px solid var(--accent-line); background: var(--surface-sunk); font-size: var(--text-12-5); line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .observation { display: flex; flex-direction: column; gap: var(--space-4); border-block-end: 1px solid var(--line); padding-block-end: var(--space-6); }
+  .assistanceMeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .proposalList { display: flex; flex-direction: column; gap: var(--space-5); }
+  .proposalCard { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); }
+  .eventList { display: flex; flex-direction: column; gap: var(--space-4); }
+  .eventCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); }
+  .eventCard:hover, .eventCardActive { border-color: var(--accent); background: var(--surface-hover); }
+  .eventCardSelect { display: flex; flex-direction: column; gap: var(--space-3); padding: 0; border: 0; background: transparent; color: inherit; text-align: start; inline-size: 100%; cursor: pointer; }
+  .eventMeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .eventTitle { display: block; overflow-wrap: anywhere; font-size: var(--text-14); line-height: 1.55; }
+  .eventEditor { display: flex; flex-direction: column; gap: var(--space-5); }
+  .briefEditor { display: flex; flex-direction: column; gap: var(--space-5); }
+  .briefMeta { padding-block-end: var(--space-4); border-block-end: 1px solid var(--line); }
+  .briefSection { display: flex; flex-direction: column; gap: var(--space-3); padding-block-end: var(--space-5); border-block-end: 1px solid var(--line); }
+  .briefHistory { display: flex; flex-direction: column; gap: var(--space-4); padding-block-start: var(--space-5); border-block-start: 1px solid var(--line); }
+  .snapshotList { display: flex; flex-direction: column; gap: var(--space-4); }
+  .snapshotCard { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); }
+  .snapshotCardSelected { border-color: var(--accent); background: var(--surface-hover); }
+  .snapshotCompareColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+  .comparisonSummary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); padding-block-start: var(--space-5); border-block-start: 1px solid var(--line); }
+  .metadata { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-3) var(--space-5); font-size: var(--text-11-5); }
+  .metadata dt { color: var(--ink-3); }
+  .metadata dd { margin: 0; overflow-wrap: anywhere; }
+  .select { min-block-size: var(--control-md); border: 1px solid var(--line-strong); border-radius: var(--radius-2); padding: var(--space-3); background: var(--surface-panel); color: var(--ink); font-size: var(--text-12-5); inline-size: 100%; }
+  .input { min-block-size: var(--control-md); border: 1px solid var(--line-strong); border-radius: var(--radius-2); padding: var(--space-3); background: var(--surface-panel); color: var(--ink); font-size: var(--text-12-5); inline-size: 100%; }
+  .help { font-size: var(--text-12-5); color: var(--ink-3); line-height: 1.7; }
+  .empty { padding: var(--space-7); border: 1px dashed var(--line-heavy); border-radius: var(--radius-2); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-5); }
+  .details { border-block-start: 1px solid var(--line); padding-block-start: var(--space-5); }
+  .details summary { cursor: pointer; font-size: var(--text-12-5); color: var(--ink-2); margin-block-end: var(--space-5); }
+  .file { font-size: var(--text-12-5); max-inline-size: 100%; }
+  .note { padding-block-end: var(--space-6); border-block-end: 1px solid var(--line); }
+  .noteActive { padding: var(--space-4); border: 1px solid var(--accent); border-radius: var(--radius-2); background: var(--surface-hover); }
+  @media (max-width: 1150px) { .readerColumns { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .columns, .snapshotCompareColumns { grid-template-columns: 1fr; } .tabs a { padding-inline: var(--space-4); } }
+}

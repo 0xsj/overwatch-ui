@@ -32,6 +32,15 @@ export type Check = {
    *  seven kinds and no interval, so it never goes stale — there is no clock. */
   interval_seconds?: number;
   enabled: boolean;
+  /** `READ BY YOU` — a person reading the thing is the whole act, so nothing
+   *  spawns and it never goes stale.
+   *
+   *  **A FLAG, and not "has no chain"** — `decisions/0037` §3. The backend
+   *  derived it from an empty chain for about a minute and the grid reported
+   *  `fresh` the moment an asset was read, which was coverage it did not have:
+   *  a check nobody has wired a chain to yet is *also* chainless, and that one
+   *  reports `never` forever, correctly, because it cannot run. */
+  human: boolean;
   archived: boolean;
   created_at: string;
 };
@@ -42,7 +51,13 @@ export type CheckInput = {
   applies_to: Targetable[];
   /** Omit, or `0`, for "when somebody asks". */
   interval_seconds?: number;
+  /** Enabling a check that has an interval IS the standing authorisation for
+   *  every future scheduled run of it, **including a loud one** —
+   *  `decisions/0038`. Disabling withdraws it, within one tick. So the control
+   *  deserves to read nearer *"run this automatically every 6 hours"* than
+   *  *"enabled"*, because that is what it does. */
   enabled: boolean;
+  human: boolean;
 };
 
 /** One step of a chain. `x`, `y` and `pinned` are FLAT.

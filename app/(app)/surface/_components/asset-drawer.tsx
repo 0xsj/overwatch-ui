@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Badge, Presence } from "@/components/display";
 import { Text } from "@/components/typography";
 import { absent, present, unattempted } from "@/lib/kernel";
-import type { Asset, Fragment } from "@/lib/services/entities";
+import type { Asset, Fragment, FragmentDetail } from "@/lib/services/entities";
 import type { Target } from "@/lib/services/targets";
 import {
   RecordDrawer,
@@ -27,6 +27,8 @@ import s from "../surface.module.css";
 export function AssetDrawer({
   workspaceId: _workspaceId,
   row,
+  detail,
+  nameOf,
   target,
   onClose,
   pending,
@@ -34,6 +36,14 @@ export function AssetDrawer({
 }: {
   workspaceId: string;
   row: Fragment | Asset | null;
+  /** `null` until the read lands. The drawer opens on the row it already has
+   *  rather than waiting, because both edge kinds are extra rather than
+   *  essential to identifying what you clicked. */
+  detail: FragmentDetail | null;
+  /** The far end of a derivation is an id on the wire and the detail does not
+   *  carry its value, so the table lends the labels it already holds. A miss
+   *  falls back to the id rather than to a blank. */
+  nameOf: (fragmentId: string) => string | undefined;
   target?: Target;
   onClose: () => void;
   pending: boolean;
@@ -152,6 +162,60 @@ export function AssetDrawer({
           </RecordField>
         </RecordFields>
         {footer}
+      </RecordSection>
+
+      {/* THE SECOND EDGE KIND — `decisions/0003`, and it finally has a
+          producer. Its own section rather than folded in beside the
+          attributions, because the two shapes are DISJOINT: a derivation has no
+          claimant, no confidence and no state, and there is nothing here to
+          accept. One source said so, and the bytes are on disk. */}
+      <RecordSection
+        heading="Read out of"
+        count={detail?.derivations.length}
+      >
+        {!detail ? (
+          <Text size="xs" tone="tertiary">reading…</Text>
+        ) : detail.derivations.length === 0 ? (
+          <>
+            <Presence of={absent()} />
+            <Text size="xs" tone="tertiary" className={s.prose}>
+              Nothing was read out of anything to produce this. A derivation is
+              drawn from the field a tool echoes its input in — so a source
+              tool&rsquo;s output has none, and a chain of one step draws none.
+            </Text>
+          </>
+        ) : (
+          <div className={s.rows}>
+            {detail.derivations.map((d) => (
+              <div key={d.derivation_id} className={s.drawerRow}>
+                <span className={s.mono}>
+                  {d.to === row?.fragment_id ? "←" : "→"}
+                </span>
+                {/* The label is the whole difference between a line and an
+                    explanation. */}
+                <Badge mono>{d.label}</Badge>
+                <span className={s.mono}>
+                  {(() => {
+                    const far = d.to === row?.fragment_id ? d.from : d.to;
+                    return nameOf(far) ?? far.slice(0, 8);
+                  })()}
+                </span>
+                {/* NEVER absent. An edge without these is a similarity edge
+                    wearing a costume, which §out_of_scope bans outright — so
+                    they are rendered rather than treated as optional. */}
+                <Text size="xs" tone="tertiary">
+                  invocation {d.invocation_id.slice(0, 8)} · artifact{" "}
+                  {d.artifact_id.slice(0, 8)}
+                </Text>
+              </div>
+            ))}
+          </div>
+        )}
+        <Text size="xs" tone="tertiary" className={s.prose}>
+          A derivation is <strong>not a claim</strong> — there is nothing here to
+          accept or reject. It is what a tool emitted, with an invocation and an
+          artifact behind it.
+        </Text>
       </RecordSection>
 
       <RecordSection heading="Findings">

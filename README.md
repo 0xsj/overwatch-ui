@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Overwatch UI
 
-## Getting Started
+The Next.js frontend for Overwatch, a source-grounded investigation workspace.
+It helps researchers collect and inspect retained source material, record exact
+observations, review evidence, author research records and relationships, and
+produce qualified investigation briefs without losing provenance or human
+control.
 
-First, run the development server:
+## What it supports
+
+- Source references and retained text, URL, PDF, and image captures.
+- Capture history, comparison, local text search, workspace-wide search, and
+  Unicode-exact citation handoffs.
+- Manual observations tied to an immutable capture or named extraction.
+- Evidence review, comparison of observations, and bounded synthesis runs.
+- Research records for people, accounts, organisations, and places.
+- Qualified connections with supporting and opposing observations, review
+  states, and append-only assessment history.
+- Human-reviewed identity-resolution proposals that preserve the original
+  records and citations.
+- Investigation questions, reported events, working notes, timelines, briefs,
+  frozen handoffs, and source-grounded navigation between them.
+- Bounded assistance that suggests passages or candidates; it never silently
+  creates evidence, resolves identity, accepts relationships, or publishes a
+  conclusion.
+
+The UI can run against the Overwatch backend or a supported in-memory fixture
+adapter. Fixture-backed screens identify themselves with a `mock` badge; this
+is useful for UI work when the backend is not running.
+
+## Stack
+
+- Next.js App Router, React, and TypeScript.
+- CSS Modules with the project token and cascade-layer system.
+- TanStack Query for server state and pagination.
+- Shared service adapters under `lib/services` and transport/runtime seams
+  under `lib/http`, `lib/query`, and `lib/root`.
+- React Flow and Cytoscape are confined behind the investigation graph
+  surfaces; layouts remain deterministic and owned by the project.
+
+## Local development
+
+From this repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local
+npm run dev -- --port 7010
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:7010>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Set `NEXT_PUBLIC_API_URL` in `.env.local` to the backend API, normally:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+NEXT_PUBLIC_API_URL=http://localhost:7002/v1
+```
 
-## Learn More
+To work without the backend, remove or comment out `NEXT_PUBLIC_API_URL` in
+`.env.local`. The client uses its fixture adapter in that mode.
 
-To learn more about Next.js, take a look at the following resources:
+The workspace root also provides the coordinated workflow:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+make up       # start PostgreSQL, the test database, and Mailpit
+make dev      # run the live repositories
+make test     # run repository tests
+make check    # repository checks, decision verification, and workspace checks
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run `make up` before `make dev` when using the real backend. The shared local
+ports are documented in the workspace `RUNNING.md`: the UI uses `7010`, the
+API uses `7002`, PostgreSQL uses `7020`, and Mailpit is at `7026`.
 
-## Deploy on Vercel
+## Commands
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev           # development server
+npm run build         # production build
+npm run start         # serve a production build
+npm run lint          # ESLint
+npm run test:research # research/navigation regression suite
+npx tsc --noEmit      # TypeScript check
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The repository Makefile exposes `make dev`, `make build`, `make test`, and
+`make check` for the same workflow.
+
+## Project layout
+
+```text
+app/                 routes and investigation screens
+components/          UI primitives and composed display/form components
+lib/services/        domain-shaped API clients, types, navigation, and helpers
+lib/http/             transport boundary and API/memory adapters
+lib/query/            query client and cache keys
+lib/root/             runtime composition and fixture selection
+tests/                focused research and navigation regression tests
+```
+
+The backend is maintained in the sibling `overwatch-backend` repository.
+
+## Product boundaries
+
+Overwatch is not an OCR-only document viewer. OCR and PDF extraction are
+provenance-linked ways to make retained material inspectable. Observations,
+records, connections, questions, and briefs remain authored investigation
+artifacts. Assistance is deliberately bounded and reviewable; model output is
+never evidence by itself.

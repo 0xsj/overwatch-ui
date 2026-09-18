@@ -2,8 +2,8 @@ import { AppError } from "@/lib/kernel";
 import type { MemoryRoute } from "@/lib/http";
 import { isTargetable } from "@/lib/kernel";
 import type {
-  Asset, Attribution, Canvas, ClaimState, Claimant, Entity, Fragment,
-  FragmentKind,
+  Asset, Attribution, Canvas, ClaimState, Claimant, Derivation, Entity,
+  Fragment, FragmentKind,
 } from "@/lib/services/entities";
 import { CHECKS } from "./work";
 
@@ -478,6 +478,35 @@ const READ = new Set<string>(["n4"]);
 const seedOf = (fragmentId: string): string | undefined =>
   allFragments().find((f) => f.fragment_id === fragmentId)?.seedId;
 
+/** The second edge kind, drawn from the field httpx echoes its input in.
+ *
+ *  `invocation_id` and `artifact_id` are present on every one and that is not a
+ *  courtesy: an edge that cannot be sourced is a similarity edge wearing a
+ *  costume, and §out_of_scope bans those outright. There is no claimant, no
+ *  confidence and no state, because there is nothing here to agree with. */
+const DERIVATIONS: Derivation[] = [
+  {
+    derivation_id: wireId("d1"),
+    from: wireId("n4"),
+    to: wireId("n6"),
+    label: "input",
+    invocation_id: "01a07bc4-7005-7000-9000-000000000002",
+    artifact_id: "01a07bc5-7006-7000-9000-000000000002",
+    mapping_id: "01a07bc6-7007-7000-9000-000000000007",
+    created_at: "2026-09-08T09:15:00Z",
+  },
+  {
+    derivation_id: wireId("d2"),
+    from: wireId("n2"),
+    to: wireId("n11"),
+    label: "SAN entry",
+    invocation_id: "01a07bc4-7005-7000-9000-000000000002",
+    artifact_id: "01a07bc5-7006-7000-9000-000000000002",
+    mapping_id: "01a07bc6-7007-7000-9000-000000000004",
+    created_at: "2026-09-08T09:15:00Z",
+  },
+];
+
 export const graphRoutes: MemoryRoute[] = [
   /** The VIEW. An ACCEPTED attribution to the target's root AND a targetable
    *  kind — both conditions, because either alone is a different list. */
@@ -508,6 +537,23 @@ export const graphRoutes: MemoryRoute[] = [
     return allFragments()
       .filter((f) => !kind || f.kind === kind)
       .map(({ seedId: _s, rootId: _r, edge: _e, ...fragment }) => fragment);
+  },
+
+  (req) => {
+    const m = /^\/workspaces\/([^/]+)\/fragments\/([^/]+)$/.exec(req.path);
+    if (!(req.method === "GET" && m)) return undefined;
+    const wanted = decodeURIComponent(m[2]);
+    const found = allFragments().find((f) => f.fragment_id === wanted);
+    if (!found) throw notFound("fragment");
+    const { seedId: _s, rootId: _r, edge, ...fragment } = found;
+    /* TWO ARRAYS, never one list with a discriminator. `0003` says the shapes
+       are disjoint and there is nowhere here to put a claimant on a derivation
+       — which is the decoder rule made structural rather than checked. */
+    return {
+      ...fragment,
+      attributions: [asAttribution(GRAPHS.org.root.id, edge)],
+      derivations: DERIVATIONS.filter((d) => d.to === wanted || d.from === wanted),
+    };
   },
 
   (req) => {

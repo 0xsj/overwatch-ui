@@ -12,6 +12,8 @@ import { Button } from "@/components/forms";
 import { Text } from "@/components/typography";
 import { GRANT_MEANING, levelsFor, type GrantLevel, type OrgRole } from "@/lib/services/tenancy";
 import { revokeLevelAction, setLevelAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useAfterWrite } from "../../_hooks";
 import s from "./level-cell.module.css";
 
 /** One person's level on one engagement.
@@ -42,6 +44,7 @@ export function LevelCell({
   const [value, setValue] = useState<GrantLevel>(access);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const afterWrite = useAfterWrite();
 
   /* The org owner is on the list with `admin` and holds no grant row. A DELETE
      for them succeeds, deletes nothing and changes nothing, which looks broken —
@@ -63,7 +66,10 @@ export function LevelCell({
     setValue(next);
     setRefusal(null);
     start(async () => {
-      const result = await act();
+      const result = (await afterWrite(act, [
+        keys.access.grants(workspaceId),
+        keys.shell(),
+      ])) as { status: string; message?: string };
       if (result.status === "error") {
         setValue(previous);
         setRefusal(result.message ?? "That was refused.");

@@ -10,10 +10,12 @@ import { GRANT_MEANING, type GrantLevel } from "@/lib/services/tenancy";
  *  reach for it by accident. */
 const TONE = { read: "neutral", write: "info", admin: "warn" } as const;
 
-export function AccessBadge({ level }: { level: GrantLevel }) {
+const RESEARCH_MEANING = { read: "Read sources, cited observations, and working notes", write: "Add sources and observations; write and edit your notes", admin: "Manage this investigation and access; add sources, observations, and notes" };
+
+export function AccessBadge({ level, research = false }: { level: GrantLevel; research?: boolean }) {
   if (level === "none") return null;
   return (
-    <Badge tone={TONE[level]} mono title={GRANT_MEANING[level]}>
+    <Badge tone={TONE[level]} mono title={research ? RESEARCH_MEANING[level] : GRANT_MEANING[level]}>
       {level}
     </Badge>
   );

@@ -1,18 +1,14 @@
 import type { Metadata } from "next";
-import { PageHead } from "../../_components/page-head";
-import { Unbuilt } from "../../_components/unbuilt";
+import { RunsScreen } from "./runs-screen";
 
-const TITLE = "Runs";
-const SUB =
-  "A run is a pipeline against a target; an invocation is one process inside it. Both are kept, including the ones that failed and the ones that were refused.";
-
-export const metadata: Metadata = { title: TITLE };
+/* The page file is a manifest, not a screen.
+ *
+ *  `metadata` is server-only — a module carrying "use client" cannot export it
+ *  — so the four lines that name the tab stay here and everything that reads
+ *  data, holds state or renders is the client component beside this one. That
+ *  is the whole of what a `page.tsx` does in this build now. */
+export const metadata: Metadata = { title: "Runs" };
 
 export default function Page() {
-  return (
-    <>
-      <PageHead title={TITLE}>{SUB}</PageHead>
-      <Unbuilt />
-    </>
-  );
+  return <RunsScreen />;
 }

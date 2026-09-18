@@ -4,6 +4,6 @@ export {
 } from "./entities.api";
 export { FRAGMENT_KINDS } from "./entities.types";
 export type {
-  Asset, Attribution, Canvas, ClaimState, Claimant, Entity, Fragment,
+  Asset, Attribution, Canvas, ClaimState, Claimant, Derivation, Entity, Fragment,
   FragmentDetail, FragmentKind, Judgement, JudgementState, Pin,
 } from "./entities.types";

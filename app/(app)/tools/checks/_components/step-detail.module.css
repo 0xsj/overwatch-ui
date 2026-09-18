@@ -27,4 +27,12 @@
   .never { color: var(--ink-4); font-style: italic; font-size: var(--text-12); }
 
   @media (max-width: 40rem) { .fact { grid-template-columns: 1fr; } }
+
+  /* Refused candidates read differently from permitted ones without being
+     hidden: the list is the scope proof, and a filter on it would throw away
+     the half that proves the gate did anything. */
+  .candidates { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+  .candidates li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+  .candidates li[data-permitted="false"] { opacity: 0.82; }
+  .candidates li[data-permitted="false"] .mono { text-decoration: line-through; }
 }

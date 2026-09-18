@@ -8,6 +8,8 @@ import { Text } from "@/components/typography";
 import type { OrgWorkspace } from "@/lib/services/tenancy";
 import { closeWorkspaceAction, renameWorkspaceAction, reopenWorkspaceAction } from "../_actions";
 import { initialFormState } from "../../../(auth)/_form-state";
+import { keys } from "@/lib/query";
+import { useAfterWrite, useContext } from "../../_hooks";
 import s from "../settings.module.css";
 
 /** Closing is not deleting, and the controls say so.
@@ -25,13 +27,21 @@ export function WorkspaceRow({ workspace }: { workspace: OrgWorkspace }) {
   const [name, setName] = useState(workspace.name);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const afterWrite = useAfterWrite();
+  const { org } = useContext();
 
   const mayAct = workspace.access === "admin";
 
   const run = (act: () => Promise<{ status: string; message?: string }>) =>
     start(async () => {
       setRefusal(null);
-      const result = await act();
+      /* Closing or renaming an engagement changes the switcher as well as this
+         list, so the shell key goes with it — otherwise the chrome keeps the
+         old name until a reload. */
+      const result = (await afterWrite(act, [
+        keys.shell(),
+        keys.tenancy.workspaces(org ?? ""),
+      ])) as { status: string; message?: string };
       if (result.status === "error") setRefusal(result.message ?? "That was refused.");
       else setRenaming(false);
     });

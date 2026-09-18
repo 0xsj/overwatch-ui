@@ -35,12 +35,16 @@
     color: var(--ink);
   }
 
-  .button[aria-current] {
+  .button[aria-current], .button[data-current] {
     background: var(--surface-hover-2);
     color: var(--ink);
   }
 
 
+
+  .legacy { display: flex; flex-direction: column; gap: var(--space-1); border-block: 1px solid var(--line); padding-block: var(--space-2); }
+  .settings { margin-block-start: auto; padding-block-start: var(--space-4); }
+  .expanded { transform: rotate(180deg); }
 
   /* The tooltip carries the section's subtitle as well as its name. The name
      alone would repeat the link's own aria-label, and Radix wires the tooltip in

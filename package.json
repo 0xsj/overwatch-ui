@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:research": "node --experimental-strip-types --test tests/research.test.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "@types/cytoscape": "^3.21.9",
     "@xyflow/react": "^12.11.6",
     "class-variance-authority": "^0.7.1",

@@ -130,7 +130,7 @@ export type OpenedWorkspace = {
 export type ShellContext = {
   account: { id: string; email: string; verified: boolean };
   org: MeOrg;
-  workspace: MeWorkspace;
+  workspace: MeWorkspace & { closed?: boolean };
 };
 
 /** One engagement as `GET /v1/orgs/{org}/workspaces` reports it — CLOSED ONES

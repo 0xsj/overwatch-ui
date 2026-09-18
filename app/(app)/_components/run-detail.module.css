@@ -1,0 +1,25 @@
+@layer screen {
+  .steps { display: grid; gap: var(--space-3); }
+  .step {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-2);
+  }
+  /* A refused step is not a fault, so it is not painted like one — it is drawn
+     quieter, which is what "the gate answered" looks like. */
+  .step[data-state="refused"] { border-style: dashed; }
+  .step[data-state="failed"] { border-color: var(--warn, var(--line-strong)); }
+
+  .head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: baseline; }
+  .argv {
+    font-family: var(--font-mono);
+    font-size: var(--text-11-5);
+    color: var(--ink-3);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .refused { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+  .refused li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+}

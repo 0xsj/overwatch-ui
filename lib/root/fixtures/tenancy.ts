@@ -18,23 +18,31 @@ const unauthenticated = () =>
 /** Workspaces opened during this process, per persona. Kept so #24 is walkable
  *  end to end rather than optimistic: open one, and it is in `/v1/me` next
  *  read. */
-const OPENED = new Map<string, { org_id: string; workspace_id: string; name: string }[]>();
-
-/** Renames and closures, per persona, keyed by workspace id. Held apart from the
- *  persona itself so a reset is one map rather than a deep clone. */
-const RENAMED = new Map<string, string>();
-const CLOSED = new Set<string>();
-const ORG_NAME = new Map<string, string>();
-
-let seq = 0;
+type FixtureTenancyState = {
+  opened: Map<string, { org_id: string; workspace_id: string; name: string }[]>;
+  renamed: Map<string, string>;
+  closed: Set<string>;
+  orgNames: Map<string, string>;
+  sequence: number;
+};
+// Next may evaluate fixture modules in more than one route bundle. Keeping only
+// demo mutations here lets an investigation survive navigation and hot reload.
+const fixtureGlobal = globalThis as typeof globalThis & { __owFixtureTenancy?: FixtureTenancyState };
+const state: FixtureTenancyState = fixtureGlobal.__owFixtureTenancy ??= {
+  opened: new Map(), renamed: new Map(), closed: new Set(), orgNames: new Map(), sequence: 0,
+};
+const OPENED = state.opened;
+const RENAMED = state.renamed;
+const CLOSED = state.closed;
+const ORG_NAME = state.orgNames;
 const nextWorkspaceId = () =>
-  `01a07b46-fa56-7001-9bd7-1${(++seq).toString(16).padStart(11, "0")}`;
+  `01a07b46-fa56-7001-9bd7-1${(++state.sequence).toString(16).padStart(11, "0")}`;
 
 const nameOf = (id: string, fallback: string) => RENAMED.get(id) ?? fallback;
 
 /** `/v1/me` EXCLUDES closed engagements. It is the boot call and the switcher's
  *  source, and a firm's history does not belong in a switcher. */
-function meFor(name: PersonaName): Me {
+export function meFor(name: PersonaName): Me {
   const base = PERSONAS[name].me;
   const extra = OPENED.get(name) ?? [];
   return {
@@ -59,7 +67,7 @@ function meFor(name: PersonaName): Me {
 }
 
 /** The LISTING, which includes closed ones — the only way to reach one. */
-function workspacesFor(name: PersonaName, orgId: string) {
+export function workspacesFor(name: PersonaName, orgId: string) {
   const persona = PERSONAS[name];
   const org = persona.me.orgs.find((o) => o.org_id === orgId);
   if (!org) return null;

@@ -27,6 +27,8 @@ import {
 import { Text } from "@/components/typography";
 import { EXTERNAL_ROLES, INTERNAL_ROLES, type OrgRole } from "@/lib/services/tenancy";
 import { changeRoleAction, leaveOrgAction, removeMemberAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useAfterWrite } from "../../_hooks";
 import s from "../settings.module.css";
 
 /** Writable again as of `decisions/0026`, and it was read-only for an hour on a
@@ -61,6 +63,7 @@ export function MemberRow({
   const [value, setValue] = useState<OrgRole>(role);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const afterWrite = useAfterWrite();
 
   const locked = role === "owner" && !mayActOnOwners;
 
@@ -70,10 +73,10 @@ export function MemberRow({
     setValue(wanted);
     setRefusal(null);
     start(async () => {
-      const result = await changeRoleAction(orgId, accountId, wanted);
+      const result = (await afterWrite(() => changeRoleAction(orgId, accountId, wanted), [keys.shell(), keys.tenancy.members(orgId)])) as { status: string; message?: string };
       if (result.status === "error") {
         setValue(previous);
-        setRefusal(result.message);
+        setRefusal(result.message ?? "That was refused.");
       }
     });
   };

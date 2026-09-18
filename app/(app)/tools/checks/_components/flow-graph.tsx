@@ -101,6 +101,10 @@ export type FlowGraphProps = {
    *  the Executions tab wants: a run happened at particular positions and moving
    *  them afterwards would be editing the record of it. */
   onPin?: (stepId: string, at: { x: number; y: number }) => void;
+  /** A new edge, drawn by dragging one node's handle onto another. Absent
+   *  leaves the graph unconnectable — which is right wherever the graph is a
+   *  record rather than a definition. */
+  onConnect?: (from: string, to: string) => void;
 };
 
 export function FlowGraph({
@@ -110,6 +114,7 @@ export function FlowGraph({
   selected,
   onSelect,
   onPin,
+  onConnect,
 }: FlowGraphProps) {
   const toolOf = useMemo(() => new Map(tools.map((t) => [t.tool_id, t])), [tools]);
   const stateOf = useMemo(
@@ -183,7 +188,14 @@ export function FlowGraph({
         onNodeDragStop={onNodeDragStop}
         onNodeClick={(_, n) => onSelect?.(selected === n.id ? null : n.id)}
         onPaneClick={() => onSelect?.(null)}
-        nodesConnectable={false}
+        /* An edge is bytes moving from one program to another, so it is drawn
+           rather than typed. The save sends the WHOLE graph and the server diffs
+           it, which is why drawing one is cheap and why a cycle is refused
+           before anything is written. */
+        onConnect={(c) => {
+          if (c.source && c.target && c.source !== c.target) onConnect?.(c.source, c.target);
+        }}
+        nodesConnectable={Boolean(onConnect)}
         fitView
         fitViewOptions={{ padding: 0.25 }}
         proOptions={{ hideAttribution: true }}

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Badge, Panel, Presence } from "@/components/display";
 import { Button, Input } from "@/components/forms";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { absent, present } from "@/lib/kernel";
-import type { Asset, Fragment, JudgementState } from "@/lib/services/entities";
+import type { Asset, Fragment, FragmentDetail, JudgementState } from "@/lib/services/entities";
 import type { Target } from "@/lib/services/targets";
-import { judgeAction, markReadAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useAfterWrite } from "../../_hooks";
+import { judgeAction, markReadAction, readFragmentAction } from "../_actions";
 import { AssetDrawer } from "./asset-drawer";
 import s from "../surface.module.css";
 
@@ -35,15 +37,60 @@ export function AssetTable({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
+  const afterWrite = useAfterWrite();
+  /** `null` while it is still being read — the drawer renders the row it
+   *  already has and fills the edges in when they land, rather than blocking. */
+  const [detail, setDetail] = useState<FragmentDetail | null>(null);
 
   const open = rows.find((r) => r.fragment_id === openId);
+
+  /* OPENING THE DRAWER IS READING IT — `decisions/0037` §4.
+   *
+   *  A person who opened the record and looked at it has read it. The obvious
+   *  implementation sets the judgement and calls that a read; the wire keeps
+   *  the two apart on purpose and **nothing but the client can keep them apart
+   *  in practice**, because only the client knows a drawer was opened.
+   *
+   *  Fired once per fragment, guarded by a ref rather than by state: this must
+   *  not re-fire under Strict Mode's double invocation, and it must not re-fire
+   *  when the row re-renders after the write lands. */
+  const sent = useRef(new Set<string>());
+  useEffect(() => {
+    if (!open || open.read_at || sent.current.has(open.fragment_id)) return;
+    sent.current.add(open.fragment_id);
+    void afterWrite(() => markReadAction(workspaceId, open.fragment_id), [
+      keys.entities.all(workspaceId),
+      keys.coverage(workspaceId),
+    ]);
+  }, [open, workspaceId, afterWrite]);
+
+  /* Opening a row is an ACT, so the read hangs off the click rather than off a
+     render. The guard is the id rather than a cleanup flag: clicking through
+     three rows quickly must not let the first read land last and show the wrong
+     record's edges. */
+  const wanted = useRef<string | null>(null);
+  function openRow(fragmentId: string) {
+    setOpenId(fragmentId);
+    setDetail(null);
+    wanted.current = fragmentId;
+    void readFragmentAction(workspaceId, fragmentId).then((r) => {
+      if (wanted.current === fragmentId && "detail" in r) setDetail(r.detail);
+    });
+  }
   const asAsset = (row: Fragment | Asset): Asset | null =>
     "attribution_id" in row ? row : null;
 
   const run = (act: () => Promise<{ status: string; message?: string }>) =>
     start(async () => {
       setRefusal(null);
-      const result = await act();
+      /* A judgement and a read both move the coverage grid — `READ BY YOU` is
+         a check, so marking one read changes a cell. Naming both domains here
+         is the difference between the grid updating and it lying until a
+         reload. */
+      const result = (await afterWrite(act, [
+        keys.entities.all(workspaceId),
+        keys.coverage(workspaceId),
+      ])) as { status: string; message?: string };
       if (result.status === "error") setRefusal(result.message ?? "That was refused.");
     });
 
@@ -74,7 +121,7 @@ export function AssetTable({
                   key={row.fragment_id}
                   className={s.row}
                   data-open={row.fragment_id === openId}
-                  onClick={() => setOpenId(row.fragment_id)}
+                  onClick={() => openRow(row.fragment_id)}
                 >
                   <td><Badge mono>{row.kind}</Badge></td>
                   <td className={s.value}>{row.value}</td>
@@ -104,19 +151,30 @@ export function AssetTable({
       <AssetDrawer
         workspaceId={workspaceId}
         row={open ?? null}
+        detail={detail?.fragment_id === openId ? detail : null}
+        nameOf={(id) => rows.find((r) => r.fragment_id === id)?.value}
         target={targets?.find((t) => t.target_id === asAsset(open ?? ({} as Fragment))?.target_id)}
-        onClose={() => { setOpenId(null); setReason(""); }}
+        onClose={() => {
+          setOpenId(null);
+          setDetail(null);
+          wanted.current = null;
+          setReason("");
+        }}
         pending={pending}
         footer={
           open ? (
             <>
               <div className={s.actions}>
+                {/* Still here, and it is not redundant. Opening the drawer
+                    records the read, but a write can fail and this is the
+                    retry — and a person who wants to say "yes, I looked"
+                    explicitly should be able to. */}
                 <Button
                   size="sm"
                   disabled={pending || Boolean(open.read_at)}
                   onClick={() => run(() => markReadAction(workspaceId, open.fragment_id))}
                 >
-                  {open.read_at ? "Already read" : "Mark read"}
+                  {open.read_at ? "Read" : "Mark read"}
                 </Button>
                 {JUDGEMENTS.filter((j) => j !== open.judgement.state).map((j) => (
                   <Button

@@ -1,7 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { PanelLeft } from "@/components/utility";
-import { Mock } from "@/components/display";
+import { Badge, Mock } from "@/components/display";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,6 +19,7 @@ import s from "./topbar.module.css";
 
 export function Topbar({ shell }: { shell: Shell }) {
   const sidebarHidden = useSidebarHidden();
+  const research = usePathname().startsWith("/investigation");
   const action = sidebarHidden ? "Show sidebar" : "Hide sidebar";
   const { context } = shell;
 
@@ -68,7 +70,8 @@ export function Topbar({ shell }: { shell: Shell }) {
                   useful thing to have in the chrome anyway: it is the answer to
                   "why is this button not here". */}
               <BreadcrumbItem>
-                <AccessBadge level={context.workspace.access} />
+                <AccessBadge level={context.workspace.closed ? "read" : context.workspace.access} research={research} />
+                {context.workspace.closed ? <Badge tone="neutral">Closed</Badge> : null}
               </BreadcrumbItem>
             </>
           ) : (
@@ -84,7 +87,7 @@ export function Topbar({ shell }: { shell: Shell }) {
           {shell.fixtures ? (
             <BreadcrumbItem>
               <Mock
-                note="You are signed in as a fixture persona, so every name, count and record on this screen is invented. Sign out to use a real account."
+                note="You are signed in as a fixture persona. Changes are demo data held by this UI server and reset when it restarts. Sign out to use a real account."
                 className={s.mock}
               />
             </BreadcrumbItem>

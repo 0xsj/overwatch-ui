@@ -1,5 +1,5 @@
 import type { HttpClient } from "@/lib/http";
-import type { RunDetail, RunPage } from "./runs.types";
+import type { Refusals, RunDetail, RunPage } from "./runs.types";
 
 /** REAL — `internal/run`. Under `/workspaces`: a run is a CLAIM ABOUT A CLIENT,
  *  which is the side of `0031`'s test that keeps the narrow key.
@@ -10,6 +10,8 @@ import type { RunDetail, RunPage } from "./runs.types";
  *  non-disclosure rule as everything else on this surface. */
 const ws = (id: string) => `/workspaces/${encodeURIComponent(id)}`;
 
+/** The default page is 50 and `next` is present only when there is another
+ *  page — so no `limit` is the right call for a screen that wants a page. */
 export function listRuns(
   http: HttpClient,
   workspaceId: string,
@@ -66,6 +68,25 @@ export function readRun(
   return http.get<RunDetail>(`${ws(workspaceId)}/runs/${encodeURIComponent(runId)}`, {
     signal: options?.signal,
   });
+}
+
+/** What one scope rule refused — an OBJECT, not the array it used to be.
+ *
+ *  This is what makes an append-only scope ledger worth the rows: `0030` keeps
+ *  a rule forever because three surfaces cite its id, and this is one of them.
+ *  A rule refuses two shapes of thing — a whole step, and a single candidate
+ *  inside a step that ran anyway — and the second is the majority once a chain
+ *  is more than one step long. */
+export function listRefusals(
+  http: HttpClient,
+  workspaceId: string,
+  ruleId: string,
+  options?: { signal?: AbortSignal },
+): Promise<Refusals> {
+  return http.get<Refusals>(
+    `${ws(workspaceId)}/rules/${encodeURIComponent(ruleId)}/refusals`,
+    { signal: options?.signal },
+  );
 }
 
 /** The URL only. **Never render these bytes inline.**

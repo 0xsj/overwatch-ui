@@ -17,9 +17,37 @@ export type NavSection = {
   sub: string;
   Icon: LucideIcon;
   pages: NavPage[];
+  /** Reachable by a `client` — and `false` is the default, deliberately.
+   *
+   *  `decisions/0042` made the role remove ROUTES rather than lower a level:
+   *  every workspace route answers 404 to a client except the report ones,
+   *  and 404 rather than 403 because a client learning that an invocation log
+   *  exists is a client learning what was run against them.
+   *
+   *  The gate is FAIL-CLOSED on the server — a route added tomorrow excludes
+   *  clients without anybody remembering to think about it — and this list
+   *  mirrors that: a section added here is hidden from a client until somebody
+   *  says otherwise. Offering a link that answers 404 is the one thing a nav
+   *  must not do, because to the reader it is indistinguishable from a fault. */
+  client?: true;
 };
 
 export const SECTIONS: NavSection[] = [
+  {
+    id: "investigation",
+    label: "Research",
+    sub: "Sources, observations, and working questions.",
+    Icon: House,
+    pages: [
+      { href: "/investigation/overview", label: "Overview" },
+      { href: "/investigation/sources", label: "Sources" },
+      { href: "/investigation/evidence", label: "Evidence review" },
+      { href: "/investigation/questions", label: "Open questions" },
+      { href: "/investigation/timeline", label: "Timeline" },
+      { href: "/investigation/notes", label: "Working notes" },
+      { href: "/investigation", label: "All investigations" },
+    ],
+  },
   {
     id: "home",
     label: "Home",
@@ -64,6 +92,11 @@ export const SECTIONS: NavSection[] = [
     label: "Findings",
     sub: "Claims that something is wrong, with a lifecycle.",
     Icon: ChartColumn,
+    /* The REPORT is a client's only door, and the board is not behind it —
+       §Scope's *"generate a report vs receive its artifacts: the client gets
+       one, not both"*. `pagesFor` drops the board rather than this section
+       carrying two client flags. */
+    client: true,
     pages: [
       { href: "/findings/board", label: "Board" },
       { href: "/findings/report", label: "Report" },
@@ -102,7 +135,7 @@ export const SECTIONS: NavSection[] = [
     pages: [
       { href: "/settings/organisation", label: "Organisation" },
       { href: "/settings/members", label: "Members" },
-      { href: "/settings/workspaces", label: "Engagements" },
+      { href: "/settings/workspaces", label: "Investigations" },
       // "Access", not "Target access". A grant is member x WORKSPACE — the wall
       // a consultancy buys is per engagement, not per target, and a target does
       // not close one at a time. Renamed 2026-09-07 with the noun.
@@ -115,11 +148,41 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-export const HOME = SECTIONS[0].pages[0].href;
+export const HOME = "/investigation";
+
+export function navHref(href: string, workspace?: string): string {
+  const match = /^\/investigation\/(overview|sources|evidence|questions|timeline|notes)$/.exec(href);
+  return match ? (workspace ? `/investigation/${encodeURIComponent(workspace)}/${match[1]}` : HOME) : href;
+}
+
+/** Where a role LANDS, which is not always the first section.
+ *
+ *  A `client` sent to `/home/overview` arrives at a screen that answers 404 for
+ *  them — the first thing they see after signing in is a wall. Their door is
+ *  the report, and it is the only room they have. */
+export function homeFor(role: string | undefined): string {
+  return role === "client" ? "/findings/report" : HOME;
+}
 
 /** The first path segment IS the section id, which is why the routes are nested
  *  under one. Nothing scans a table to find out where it is. */
 export function sectionFor(pathname: string): NavSection {
   const id = pathname.split("/")[1] ?? "";
   return SECTIONS.find((s) => s.id === id) ?? SECTIONS[0];
+}
+
+/** The navigation a role can actually reach.
+ *
+ *  A `client` sees the report and nothing else. Everything else 404s for them,
+ *  and a link that answers 404 is worse than a missing link: to the reader it
+ *  is indistinguishable from a broken product, and the 404 is deliberate
+ *  non-disclosure rather than a fault.
+ *
+ *  Every other role is unchanged — this returns the whole list. */
+export function sectionsFor(role: string | undefined): NavSection[] {
+  if (role !== "client") return SECTIONS;
+  return SECTIONS.filter((s) => s.client).map((s) => ({
+    ...s,
+    pages: s.pages.filter((p) => p.href.startsWith("/findings/report")),
+  }));
 }

@@ -24,12 +24,17 @@ export type Tool = {
    *  and treating that as a failure would turn "no vulnerabilities" into an
    *  error.
    *
-   *  **Optional because the server currently never sends it** — walked
-   *  2026-09-07: `root/tools.go`'s `asTool` builds the response without the
-   *  field, so it arrives `null` on every tool including one stored with
-   *  `[0, 1]`. The stored value is right and only the projection drops it. Read
-   *  it through `successCodes` rather than directly, so a screen cannot render
-   *  "exit 0 only" for a tool the server would accept `1` from. */
+   *  **Optional because rows written before 2026-09-07 answer `null`.** The
+   *  projection dropped the field for a while — `asTool` built the response
+   *  without it, so every tool read back as `null` whatever was stored. That is
+   *  fixed and both the create response and the list carry it now; the
+   *  optionality remains because the old rows do.
+   *
+   *  Read it through `successCodes` rather than directly, so a screen cannot
+   *  render "exit 0 only" for a tool the server would accept `1` from — one
+   *  helper rather than two inlined `?? [0]`, so the day the guess stops being
+   *  a guess there is one place that changes. This is the first backend bug a
+   *  client note found. */
   success_exit_codes?: number[] | null;
   archived: boolean;
   created_at: string;
@@ -66,15 +71,48 @@ export type Mapping = {
    *  stays reachable forever. `listMappings` returns every version, retired
    *  ones included, because they are the history the citations point at. */
   state: MappingState;
+  /** What this mapping is FOR — `decisions/0040`. **Always present, including
+   *  `attribute`**: omitting a default makes a client guess, and the guess is
+   *  right only until the default moves. */
+  role: MappingRole;
   created_at: string;
 };
 
 export type MappingState = "draft" | "live" | "retired";
 
+/** Five roles, and each does something different to what is written.
+ *
+ *      subject       what every other reading in this record is ABOUT
+ *      attribute     a value about that subject — THE DEFAULT
+ *      derived_from  the value this record was READ OUT OF. Draws a derivation
+ *      signature     what the TOOL calls this class of problem — `0041`
+ *      severity      how bad the tool says it is
+ *
+ *  It replaced matching on the field's spelling, which is the same class of
+ *  error as naming a field from the source's own key: a guess dressed as a
+ *  reading.
+ *
+ *  **A tool that produces `finding` needs a LIVE `signature` mapping or it
+ *  extracts nothing.** Signature is half a finding's identity — it is what
+ *  makes a rescan a sighting rather than a new row — so without one every
+ *  match on a URL collapses into a single finding whose identity is a lie. A
+ *  scanner configured without it produces zero findings and looks like a clean
+ *  scan, which is the worst way for this to fail. */
+export type MappingRole =
+  | "subject" | "attribute" | "derived_from" | "signature" | "severity";
+
 /** `promote: true` writes it live in one call. `correction` gets no endpoint of
  *  its own — §Scope calls it *"a person fixing a mapping"*, and that is this
  *  request with an author, not a second noun. */
-export type MappingInput = { field: string; expression: string; promote: boolean };
+/** `role` absent means `attribute`. An UNKNOWN one is a 400 rather than a silent
+ *  downgrade — a `derived_from` spelled wrong would otherwise become a mapping
+ *  that reads a value and quietly draws nothing. */
+export type MappingInput = {
+  field: string;
+  expression: string;
+  role?: MappingRole;
+  promote: boolean;
+};
 
 /** What the tool actually treats as success.
  *

@@ -1,4 +1,4 @@
-import { isAppError } from "@/lib/kernel";
+import { isAppError, type ErrorKind } from "@/lib/kernel";
 import type { RegisteredAccount } from "@/lib/services/identity";
 
 /** The shape a form's action returns.
@@ -23,11 +23,22 @@ export type FormState =
    *  one. It exists only in the reply to the request that started it, and is
    *  gone on reload — which the screen says rather than hides. */
   | { status: "ok"; account?: RegisteredAccount; pendingEmail?: string }
-  /** No field was named. The message belongs to the form. */
-  | { status: "error"; scope: "form"; message: string }
+  /** No field was named. The message belongs to the form.
+   *
+   *  `kind` rides along because some refusals are not the caller's mistake and
+   *  a screen has to say so differently. A rate limit is the case that forced
+   *  it: once the budget is spent **a correct password is refused too**, so
+   *  "check your details" is advice that cannot work. */
+  | { status: "error"; scope: "form"; message: string; kind?: ErrorKind }
   /** At least one field was named. `fields` is REQUIRED on this arm, so a caller
    *  never reaches for it optionally. */
-  | { status: "error"; scope: "fields"; message: string; fields: Record<string, string> };
+  | {
+      status: "error";
+      scope: "fields";
+      message: string;
+      fields: Record<string, string>;
+      kind?: ErrorKind;
+    };
 
 export const initialFormState: FormState = { status: "idle" };
 
@@ -41,8 +52,11 @@ export const initialFormState: FormState = { status: "idle" };
 export function toFormState(error: unknown): FormState {
   if (isAppError(error)) {
     return error.fields
-      ? { status: "error", scope: "fields", message: error.message, fields: error.fields }
-      : { status: "error", scope: "form", message: error.message };
+      ? {
+          status: "error", scope: "fields", message: error.message,
+          fields: error.fields, kind: error.kind,
+        }
+      : { status: "error", scope: "form", message: error.message, kind: error.kind };
   }
   return {
     status: "error",

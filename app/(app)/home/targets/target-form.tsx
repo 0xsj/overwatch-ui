@@ -8,6 +8,8 @@ import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import type { TargetKind } from "@/lib/services/targets";
 import { addTargetAction } from "../_actions";
+import { keys } from "@/lib/query";
+import { useInvalidateOnOk } from "../../_hooks";
 import { initialFormState } from "../../../(auth)/_form-state";
 import { errorFor, FormError } from "../../../(auth)/_components/form-error";
 import s from "../../tools/tools.module.css";
@@ -22,6 +24,9 @@ export function TargetForm({ workspaceId }: { workspaceId: string }) {
     addTargetAction.bind(null, workspaceId),
     initialFormState,
   );
+
+  /* The write landed on the server; the query cache does not know. */
+  useInvalidateOnOk(state, [keys.targets.all(workspaceId)]);
   const [kind, setKind] = useState<TargetKind>("organisation");
 
   return (

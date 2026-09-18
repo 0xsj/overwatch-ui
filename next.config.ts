@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
    * repo's rule is that no agent artifact exists in it at all. This is the flag
    * that stops the writing. */
   agentRules: false,
+  // A 256 KiB text capture can exceed 1 MiB after JSON escaping.
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
 };
 
 export default nextConfig;
