@@ -3,6 +3,7 @@ import { accessRoutes } from "./access";
 import { clientGate } from "./gate";
 import { entityRoutes, graphRoutes } from "./entities";
 import { identityRoutes } from "./identity";
+import { changeRoutes } from "./changes";
 import { ledgerRoutes } from "./ledger";
 import { workRoutes } from "./work";
 import { researchRoutes } from "./research";
@@ -15,6 +16,7 @@ export const routes: MemoryRoute[] = [
      else; everything below never sees the request. */
   clientGate,
   ...identityRoutes,
+  ...changeRoutes,
   ...tenancyRoutes,
   ...ledgerRoutes,
   ...accessRoutes,

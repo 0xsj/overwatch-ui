@@ -10,7 +10,7 @@ import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
 import { filterLoadedRows } from "@/lib/query/filter";
-import type { Capture, ManualObservation, SourceDetail, SourceSensitivity, TextCapture } from "@/lib/services/sources";
+import type { Capture, CitationShare, ManualObservation, SourceDetail, SourceDuplicatePolicy, SourceSensitivity, SourceWatch, TextCapture } from "@/lib/services/sources";
 import { citedParts, quoteOccurrences } from "@/lib/services/sources/citation";
 import { diffText, type TextDiffLine } from "@/lib/services/sources/diff";
 import { duplicateCaptureVersion } from "@/lib/services/sources/history";
@@ -20,9 +20,9 @@ import type { ResearchConnectionKind } from "@/lib/services/research-connections
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { assistanceHistoryQuery, captureExtractionQuery, captureExtractionsQuery, captureQuery, latestAssistanceQuery, sourceObservationQuery, sourceObservationsQuery, sourceQuery, sourceRetentionReviewQuery } from "../_queries";
-import { extractCaptureAction, fetchSourceAction, generateAssistanceAction, purgeSourceAction, reviewAssistanceProposalAction, setSourcePrivacyAction, setSourceRetentionAction } from "./_actions";
-import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, recordHref, sourceHref, useResearchWrite } from "./_shared";
+import { assistanceHistoryQuery, captureExtractionQuery, captureExtractionsQuery, captureQuery, latestAssistanceQuery, sourceObservationQuery, sourceObservationSharesQuery, sourceObservationsQuery, sourceQuery, sourceRetentionReviewQuery, sourceWatchQuery } from "../_queries";
+import { configureSourceWatchAction, createCitationShareAction, extractCaptureAction, fetchSourceAction, generateAssistanceAction, purgeSourceAction, revokeCitationShareAction, reviewAssistanceProposalAction, runSourceWatchAction, setSourceDuplicatePolicyAction, setSourcePrivacyAction, setSourcePublicationAction, setSourceRetentionAction } from "./_actions";
+import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, recordHref, ReviewBoundary, sourceHref, useResearchWrite } from "./_shared";
 import { ObservationForm, type ObservationPrefill } from "./observation-form";
 import { SourceForm } from "./source-form";
 import s from "./investigation.module.css";
@@ -46,8 +46,12 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
   const [sensitivity, setSensitivity] = useState<SourceSensitivity>(source.sensitivity ?? "internal");
   const [legalHold, setLegalHold] = useState(source.legal_hold ?? false);
   const [legalHoldReason, setLegalHoldReason] = useState(source.legal_hold_reason ?? "");
+  const [publishedAt, setPublishedAt] = useState(() => dateTimeLocal(source.published_at));
+  const [duplicatePolicy, setDuplicatePolicy] = useState<SourceDuplicatePolicy>(source.duplicate_policy ?? "warn");
   const [purgeReason, setPurgeReason] = useState("");
   const [purgeConfirmed, setPurgeConfirmed] = useState(false);
+  const [watchEnabledOverride, setWatchEnabledOverride] = useState<boolean>();
+  const [watchIntervalOverride, setWatchIntervalOverride] = useState<number>();
   const mayWrite = mayWriteResearch(shell?.context?.workspace);
   const citationId = params.get("citation") ?? "";
   const searchQuery = params.get("find")?.trim().slice(0, 200) ?? "";
@@ -57,6 +61,7 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
   const requestedObservationStart = optionalNonNegativeIndex(params.get("observe_start"));
   const observationDraft = requestedObservationQuote && requestedObservationStart !== undefined ? { statement: "", quote: requestedObservationQuote, quoteStart: requestedObservationStart, origin: "workspace-search" as const } : undefined;
   const citation = useQuery({ queryKey: keys.sources.observation(workspace, source.source_id, citationId), queryFn: () => sourceObservationQuery(workspace, source.source_id, citationId), enabled: Boolean(citationId), retry: false });
+  const citationShares = useQuery({ queryKey: keys.sources.observationShares(workspace, source.source_id, citationId), queryFn: () => sourceObservationSharesQuery(workspace, source.source_id, citationId), enabled: Boolean(citation.data), retry: false });
   const captureId = params.get("capture") ?? citation.data?.capture_id ?? source.latest_capture?.capture_id;
   const selected = captures.find((capture) => capture.capture_id === captureId);
   const duplicateVersion = duplicateCaptureVersion(captures, selected);
@@ -78,9 +83,16 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
   const visibleCaptures = filterLoadedRows(captures, captureFilter, (capture) => [capture.capture_id, String(capture.version), capture.media_type, capture.sha256, capture.captured_at]);
   const captureOptions = selected && !visibleCaptures.some((capture) => capture.capture_id === selected.capture_id) ? [selected, ...visibleCaptures] : visibleCaptures;
   const retentionReview = useQuery({ queryKey: keys.sources.retentionReview(workspace, source.source_id), queryFn: () => sourceRetentionReviewQuery(workspace, source.source_id), retry: false });
+  const watch = useQuery({ queryKey: keys.sources.watch(workspace, source.source_id), queryFn: () => sourceWatchQuery(workspace, source.source_id), enabled: source.origin === "reference", retry: false });
+  const watchEnabled = watchEnabledOverride ?? watch.data?.enabled ?? false;
+  const watchInterval = watchIntervalOverride ?? watch.data?.interval_seconds ?? 3600;
   const fetch = useResearchWrite(() => fetchSourceAction(workspace, source.source_id), [keys.sources.all(workspace)], (captured) => router.push(sourceHref(workspace, source.source_id, captured.capture_id, undefined, returnTo)));
+  const configureWatch = useResearchWrite(() => configureSourceWatchAction(workspace, source.source_id, { enabled: watchEnabled, interval_seconds: watchInterval }), [keys.sources.watch(workspace, source.source_id), keys.sources.one(workspace, source.source_id)], (updated) => { setWatchEnabledOverride(updated.enabled); setWatchIntervalOverride(updated.interval_seconds); });
+  const runWatch = useResearchWrite(() => runSourceWatchAction(workspace, source.source_id), [keys.sources.watch(workspace, source.source_id), keys.sources.one(workspace, source.source_id), keys.sources.list(workspace)], (result) => { if (result.capture) router.push(sourceHref(workspace, source.source_id, result.capture.capture_id, undefined, returnTo)); });
   const retention = useResearchWrite(() => setSourceRetentionAction(workspace, source.source_id, { retention_until: retentionDate ? new Date(`${retentionDate}T23:59:59.000Z`).toISOString() : null }), [keys.sources.one(workspace, source.source_id), keys.sources.list(workspace), keys.sources.retentionReview(workspace, source.source_id)], (updated) => setRetentionDate(updated.source.retention_until ? updated.source.retention_until.slice(0, 10) : ""));
   const privacy = useResearchWrite(() => setSourcePrivacyAction(workspace, source.source_id, { sensitivity, legal_hold: legalHold, legal_hold_reason: legalHold ? legalHoldReason : "" }), [keys.sources.one(workspace, source.source_id), keys.sources.list(workspace), keys.sources.retentionReview(workspace, source.source_id)], (updated) => { setSensitivity(updated.source.sensitivity); setLegalHold(updated.source.legal_hold); setLegalHoldReason(updated.source.legal_hold_reason ?? ""); });
+  const publication = useResearchWrite(() => setSourcePublicationAction(workspace, source.source_id, { published_at: publishedAt ? new Date(publishedAt).toISOString() : null }), [keys.sources.one(workspace, source.source_id), keys.sources.list(workspace)], (updated) => setPublishedAt(dateTimeLocal(updated.source.published_at)));
+  const duplicatePolicyMutation = useResearchWrite(() => setSourceDuplicatePolicyAction(workspace, source.source_id, { duplicate_policy: duplicatePolicy }), [keys.sources.one(workspace, source.source_id), keys.sources.list(workspace)], (updated) => setDuplicatePolicy(updated.source.duplicate_policy ?? "warn"));
   const purge = useResearchWrite(() => purgeSourceAction(workspace, source.source_id, purgeReason), [keys.sources.one(workspace, source.source_id), keys.sources.list(workspace), keys.sources.retentionReview(workspace, source.source_id)], () => { setPurgeReason(""); setPurgeConfirmed(false); });
 
   return <div className={s.stack}>
@@ -88,12 +100,13 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
     <div className={s.row}>
       <Badge tone={source.latest_capture ? "neutral" : "warn"}>{source.latest_capture ? `${captures.length} captured version${captures.length === 1 ? "" : "s"}` : "URL reference only"}</Badge>
       {duplicateVersion ? <Badge tone="warn">Identical bytes to v{duplicateVersion}</Badge> : null}
-      <span className={s.muted}>Added by {authorLabel(source.created_by, shell)} · {dateLabel(source.created_at)}</span>
+      <span className={s.muted}>Analyst record: {authorLabel(source.created_by, shell)} · {dateLabel(source.created_at)}</span>
+      {source.published_at ? <span className={s.muted}>Publication: {dateLabel(source.published_at)}</span> : <span className={s.muted}>Publication time not recorded</span>}
       {source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer" className={s.inlineLink}>Open original URL ↗</a> : null}
-      {mayWrite && !source.purged_at && source.origin === "reference" ? <Button type="button" size="sm" intent="ghost" loading={fetch.isPending} onClick={() => fetch.mutate()}>{fetch.isPending ? "Fetching…" : "Fetch latest capture"}</Button> : null}
+    {mayWrite && !source.purged_at && source.origin === "reference" ? <Button type="button" size="sm" intent="ghost" loading={fetch.isPending} onClick={() => fetch.mutate()}>{fetch.isPending ? "Fetching…" : "Fetch latest capture"}</Button> : null}
       {source.filename ? <span className={s.muted}>{source.filename}</span> : null}
     </div>
-    {captures.length ? <div className={s.stack}><label className={s.row}><Text as="span" size="sm">Filter retained captures</Text><Input aria-label="Filter retained captures" value={captureFilter} onChange={(event) => setCaptureFilter(event.target.value)} placeholder="Filter versions, IDs, or hashes" /></label><Text size="xs" tone="tertiary">Showing {visibleCaptures.length} of {captures.length} loaded capture{captures.length === 1 ? "" : "s"}.</Text><label className={s.row}><Text as="span" size="sm">Retained version</Text><select aria-label="Retained version" className={s.select} value={selected?.capture_id ?? ""} onChange={(event) => { setCompareCaptureId(undefined); router.push(sourceHref(workspace, source.source_id, event.target.value, undefined, returnTo)); }}>
+      {captures.length ? <div className={s.stack}><Text size="xs" tone="tertiary">Capture time is immutable per retained version; observation time is shown with each citation below.</Text><label className={s.row}><Text as="span" size="sm">Filter retained captures</Text><Input aria-label="Filter retained captures" value={captureFilter} onChange={(event) => setCaptureFilter(event.target.value)} placeholder="Filter versions, IDs, or hashes" /></label><Text size="xs" tone="tertiary">Showing {visibleCaptures.length} of {captures.length} loaded capture{captures.length === 1 ? "" : "s"}.</Text><label className={s.row}><Text as="span" size="sm">Retained version</Text><select aria-label="Retained version" className={s.select} value={selected?.capture_id ?? ""} onChange={(event) => { setCompareCaptureId(undefined); router.push(sourceHref(workspace, source.source_id, event.target.value, undefined, returnTo)); }}>
       {!selected ? <option value="" disabled>Requested capture unavailable</option> : null}
       {captureOptions.map((capture) => <option key={capture.capture_id} value={capture.capture_id}>v{capture.version} · {dateLabel(capture.captured_at)}</option>)}
     </select></label></div> : null}
@@ -101,7 +114,24 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
     {compareCaptureId ? comparison.isPending ? <Text size="sm">Loading retained versions…</Text> : comparison.error ? <Failure error={comparison.error} /> : comparison.data ? <CaptureComparison earlier={comparison.data.earlier} later={comparison.data.later} /> : null : null}
     {citationId && citation.isPending ? <Text size="sm">Opening cited passage…</Text> : null}
     <Failure error={fetch.error} />
+    {source.origin === "reference" && !source.purged_at ? <Panel title="Source monitoring" note="Monitoring polls this URL only when a writer runs the watch. Identical bytes do not create duplicate captures; changed bytes become a new immutable version."><div className={s.stack}>
+      {watch.isPending ? <Text size="sm" tone="tertiary">Loading monitoring settings…</Text> : watch.error ? <Failure error={watch.error} /> : <>
+        {mayWrite ? <form className={s.stack} onSubmit={(event) => { event.preventDefault(); configureWatch.mutate(); }}>
+          <label className={s.checkboxLabel}><input type="checkbox" checked={watchEnabled} onChange={(event) => setWatchEnabledOverride(event.target.checked)} /><span>Enable monitoring for this URL</span></label>
+          <Field label="Polling interval" hint="The next scheduled time is recorded for an external worker or deliberate run-now action.">{(aria) => <select {...aria} className={s.select} value={watchInterval} onChange={(event) => setWatchIntervalOverride(Number(event.target.value))}><option value={900}>Every 15 minutes</option><option value={3600}>Every hour</option><option value={21600}>Every 6 hours</option><option value={86400}>Every day</option><option value={604800}>Every 7 days</option></select>}</Field>
+          <Failure error={configureWatch.error} />
+          <Button type="submit" intent="ghost" loading={configureWatch.isPending}>Save monitoring settings</Button>
+        </form> : <Text size="sm" tone="tertiary">This investigation is read-only. Monitoring settings and runs require write access.</Text>}
+        <WatchState watch={watch.data} />
+        {mayWrite ? <div className={s.row}><Button type="button" intent="primary" loading={runWatch.isPending} disabled={!watchEnabled} onClick={() => runWatch.mutate()}>Run check now</Button><Failure error={runWatch.error} /></div> : null}
+      </>}
+    </div></Panel> : null}
     {citationId && citation.error ? <Alert tone="warn" role="alert"><Text size="sm">The cited observation could not be opened. Check the link or choose an observation below.</Text><Button type="button" size="sm" intent="ghost" loading={citation.isFetching} onClick={() => void citation.refetch()}>Try again</Button></Alert> : null}
+    {citation.data ? <CitationSharePanel workspace={workspace} source={source.source_id} observation={citation.data} shares={citationShares.data ?? []} mayWrite={mayWrite} loading={citationShares.isPending} error={citationShares.error} /> : null}
+    {mayWrite && !source.purged_at ? <Panel title="Source metadata" note="Correct publication metadata and control how identical future captures are handled without changing retained history."><div className={s.stack}>
+      <form className={s.stack} onSubmit={(event) => { event.preventDefault(); publication.mutate(); }}><Field label="Publication time" hint="Leave empty to clear it. This is separate from analyst record time, capture time, and observation time.">{(aria) => <Input {...aria} type="datetime-local" value={publishedAt} onChange={(event) => setPublishedAt(event.target.value)} />}</Field><Failure error={publication.error} />{publication.isSuccess ? <Text size="sm" tone="accent" role="status">Publication time saved.</Text> : null}<Button type="submit" intent="ghost" loading={publication.isPending}>Save publication time</Button></form>
+      <form className={s.stack} onSubmit={(event) => { event.preventDefault(); duplicatePolicyMutation.mutate(); }}><Field label="Duplicate capture policy" hint="Allow retains identical bytes silently; warn retains them with a visible history warning; block rejects identical bytes.">{(aria) => <select {...aria} className={s.select} value={duplicatePolicy} onChange={(event) => setDuplicatePolicy(event.target.value as SourceDuplicatePolicy)}><option value="warn">Warn (recommended)</option><option value="allow">Allow</option><option value="block">Block</option></select>}</Field><Failure error={duplicatePolicyMutation.error} />{duplicatePolicyMutation.isSuccess ? <Text size="sm" tone="accent" role="status">Duplicate capture policy saved.</Text> : null}<Button type="submit" intent="ghost" loading={duplicatePolicyMutation.isPending}>Save duplicate policy</Button></form>
+    </div></Panel> : null}
     {mayWrite ? <Panel title="Privacy and retention" note={source.purged_at ? "This source has been purged; its metadata and audit history remain." : "Retention is enforced through an explicit, dependency-aware review."}><div className={s.stack}>
       <form className={s.stack} onSubmit={(event) => { event.preventDefault(); retention.mutate(); }}><Text size="sm" tone="tertiary">Set a review date for this retained source. Clearing the date keeps it indefinitely until an explicit policy is set.</Text><Field label="Review or purge date" hint="A purge can only proceed after this date and only when no downstream citation or derived artifact depends on the source.">{(aria) => <Input {...aria} type="date" value={retentionDate} onChange={(event) => setRetentionDate(event.target.value)} disabled={Boolean(source.purged_at)} />}</Field><Failure error={retention.error} />{retention.isSuccess ? <Text size="sm" tone="accent" role="status">Retention schedule saved.</Text> : null}<Button type="submit" intent="ghost" loading={retention.isPending} disabled={Boolean(source.purged_at)}>{retentionDate ? "Save retention date" : "Keep indefinitely"}</Button></form>
       <form className={s.stack} onSubmit={(event) => { event.preventDefault(); privacy.mutate(); }}><Field label="Sensitivity" hint="This classification is recorded with the source and can guide workspace policy.">{(aria) => <select {...aria} className={s.select} value={sensitivity} onChange={(event) => setSensitivity(event.target.value as SourceSensitivity)} disabled={Boolean(source.purged_at)}><option value="public">Public</option><option value="internal">Internal</option><option value="restricted">Restricted</option></select>}</Field><label className={s.checkboxLabel}><input type="checkbox" checked={legalHold} onChange={(event) => setLegalHold(event.target.checked)} disabled={Boolean(source.purged_at)} /><span>Place this source on legal hold</span></label>{legalHold ? <Field label="Legal hold reason" hint="A hold requires a durable reason and blocks purge.">{(aria) => <Textarea {...aria} rows={3} value={legalHoldReason} onChange={(event) => setLegalHoldReason(event.target.value)} disabled={Boolean(source.purged_at)} placeholder="Preserve while the related review is active." />}</Field> : null}<Failure error={privacy.error} />{privacy.isSuccess ? <Text size="sm" tone="accent" role="status">Privacy settings saved.</Text> : null}<Button type="submit" intent="ghost" loading={privacy.isPending} disabled={Boolean(source.purged_at)}>{legalHold ? "Save privacy and hold" : "Save privacy settings"}</Button></form>
@@ -127,6 +157,35 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
       {mayWrite && !source.purged_at ? <Panel title={captures.length ? "Add another capture" : "Add captured text"}><SourceForm workspace={workspace} source={source.source_id} /></Panel> : null}
     </div>
   </div>;
+}
+
+function WatchState({ watch }: { watch?: SourceWatch }) {
+  if (!watch) return null;
+  const status = watch.last_status === "changed" ? "Changed" : watch.last_status === "unchanged" ? "No change" : watch.last_status === "failed" ? "Failed" : "Not run";
+  return <div className={s.stack}><div className={s.row}><Badge tone={watch.last_status === "failed" ? "crit" : watch.last_status === "changed" ? "accent" : "neutral"}>{watch.enabled ? status : "Disabled"}</Badge>{watch.next_run_at ? <span className={s.muted}>Next check {dateLabel(watch.next_run_at)}</span> : null}{watch.last_run_at ? <span className={s.muted}>Last check {dateLabel(watch.last_run_at)}</span> : null}</div>{watch.last_error ? <Text size="xs" tone="tertiary" className={s.body}>Last error: {watch.last_error}</Text> : null}</div>;
+}
+
+function CitationSharePanel({ workspace, source, observation, shares, mayWrite, loading, error }: { workspace: string; source: string; observation: ManualObservation; shares: CitationShare[]; mayWrite: boolean; loading: boolean; error: Error | null }) {
+  const [latestLink, setLatestLink] = useState("");
+  const shareKey = keys.sources.observationShares(workspace, source, observation.observation_id);
+  const create = useResearchWrite(() => createCitationShareAction(workspace, source, observation.observation_id), [shareKey], (share) => {
+    if (share.token) setLatestLink(`${window.location.origin}/findings/citations/shared/${encodeURIComponent(share.token)}?workspace=${encodeURIComponent(workspace)}`);
+  });
+  return <Panel title="Share this citation" note="The link reopens this exact statement and quoted passage without exposing retained source bytes or internal identifiers.">
+    <div className={s.stack}>
+      <Text size="sm">{observation.statement}</Text>
+      <blockquote className={s.quote}>{observation.quote}</blockquote>
+      {mayWrite ? <Button type="button" intent="primary" loading={create.isPending} onClick={() => create.mutate()}>Create share link</Button> : <Text size="sm" tone="tertiary">Only research members with write access can create or revoke share links.</Text>}
+      <Failure error={create.error ?? error} />
+      {latestLink ? <div className={s.stack}><Field label="New share link" hint="The raw token is returned only at creation. Save this link now.">{(aria) => <Input {...aria} value={latestLink} readOnly aria-label="New citation share link" />}</Field><Button type="button" intent="ghost" onClick={() => void navigator.clipboard?.writeText(latestLink)}>Copy link</Button></div> : null}
+      {loading ? <Text size="sm" tone="tertiary">Loading existing share links…</Text> : shares.length ? <div className={s.stack}><Text size="xs" tone="tertiary">Existing links</Text>{shares.map((share) => <CitationShareRow key={share.share_id} workspace={workspace} share={share} mayWrite={mayWrite} />)}</div> : <Text size="sm" tone="tertiary">No share links have been created for this citation.</Text>}
+    </div>
+  </Panel>;
+}
+
+function CitationShareRow({ workspace, share, mayWrite }: { workspace: string; share: CitationShare; mayWrite: boolean }) {
+  const revoke = useResearchWrite(() => revokeCitationShareAction(workspace, share.share_id), [keys.sources.observationShares(workspace, share.source_id, share.observation_id)]);
+  return <div className={s.observation}><div className={s.row}><Badge tone={share.revoked_at ? "neutral" : "accent"}>{share.revoked_at ? "Revoked" : "Active"}</Badge><span className={s.muted}>Created {dateLabel(share.created_at)}</span>{share.revoked_at ? <span className={s.muted}>· revoked {dateLabel(share.revoked_at)}</span> : mayWrite ? <Button type="button" size="sm" intent="ghost" loading={revoke.isPending} onClick={() => revoke.mutate()}>Revoke</Button> : null}</div><Failure error={revoke.error} /></div>;
 }
 
 function CaptureComparison({ earlier, later }: { earlier: Capture; later: Capture }) {
@@ -198,6 +257,14 @@ function optionalNonNegativeIndex(value: string | null): number | undefined {
   if (value === null) return undefined;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function dateTimeLocal(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function isTextCapture(capture: Capture): capture is TextCapture {
@@ -286,22 +353,30 @@ function AssistancePanel({ workspace, source, capture, extractionId, prepareObse
   const latestDetail = latest.data?.operation ? { operation: latest.data.operation, proposals: latest.data.proposals } : null;
   const selectedDetail = selectedOperation ? history.data?.items.find((one) => one.operation.operation_id === selectedOperation) : undefined;
   const detail = selectedDetail ?? latestDetail;
-  const generate = useResearchWrite(() => generateAssistanceAction(workspace, source, capture.capture_id, extractionId), [latestKey, historyKey], () => { setSelectedOperation(""); void latest.refetch(); void history.refetch(); });
+  const refresh = () => { setSelectedOperation(""); void latest.refetch(); void history.refetch(); };
+  const generate = useResearchWrite(() => generateAssistanceAction(workspace, source, capture.capture_id, extractionId), [latestKey, historyKey], refresh);
+  const retry = useResearchWrite(() => generateAssistanceAction(workspace, source, capture.capture_id, extractionId, detail?.operation.operation_id), [latestKey, historyKey], refresh);
+  const retryable = detail?.operation.status === "empty" || detail?.operation.status === "partial" || detail?.operation.status === "failed" || detail?.operation.status === "unsupported";
   const replace = (updated: AssistanceProposal) => {
     cache.setQueryData<LatestAssistance>(latestKey, (current) => current?.operation ? { ...current, proposals: current.proposals.map((one) => one.proposal_id === updated.proposal_id ? updated : one) } : current);
     cache.setQueryData<{ items: import("@/lib/services/assistance").AssistanceDetail[] }>(historyKey, (current) => current ? { ...current, items: current.items.map((one) => one.operation.operation_id === updated.operation_id ? { ...one, proposals: one.proposals.map((proposal) => proposal.proposal_id === updated.proposal_id ? updated : proposal) } : one) } : current);
   };
   const derivedLabel = capture.media_type.startsWith("image/") ? "derived OCR text" : "derived PDF text";
+  const formatBytes = (value: number) => value < 1024 ? `${value} B` : value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  const reviewCounts = detail ? { proposed: detail.proposals.filter((one) => one.state === "proposed").length, accepted: detail.proposals.filter((one) => one.state === "accepted").length, rejected: detail.proposals.filter((one) => one.state === "rejected").length } : undefined;
   return <Panel title="Assisted candidate passages" note={extractionId ? `One ${derivedLabel} · review required` : "One retained capture · review required"}>
     <div className={s.stack}>
+      <ReviewBoundary kind="proposal" />
       <Text size="sm" tone="tertiary">Generate exact passage candidates from this {extractionId ? derivedLabel : "capture"}. The local sentence pass does not make claims or record observations for you.</Text>
-      <Button type="button" intent="ghost" loading={generate.isPending} onClick={() => generate.mutate()}>Generate candidates</Button>
-      <Failure error={latest.error ?? generate.error} />
+      <div className={s.row}><Button type="button" intent="ghost" loading={generate.isPending} onClick={() => generate.mutate()}>Generate candidates</Button>{retryable ? <Button type="button" intent="ghost" loading={retry.isPending} onClick={() => retry.mutate()}>Retry saved run</Button> : null}</div>
+      <Failure error={latest.error ?? generate.error ?? retry.error} />
       {latest.isPending ? <Text size="sm" tone="tertiary">Loading saved assistance…</Text> : null}
       {history.error ? <Failure error={history.error} /> : null}
-      {history.data?.items.length ? <label className={s.row}><Text as="span" size="sm">Saved run</Text><select aria-label="Saved assistance run" className={s.select} value={selectedOperation || detail?.operation.operation_id || ""} onChange={(event) => setSelectedOperation(event.target.value)}>{history.data.items.map((one) => <option key={one.operation.operation_id} value={one.operation.operation_id}>{dateLabel(one.operation.created_at)} · {one.proposals.length} candidate{one.proposals.length === 1 ? "" : "s"}{one.operation.operation_id === latestDetail?.operation.operation_id ? " · latest" : ""}</option>)}</select></label> : null}
+      {history.data?.items.length ? <label className={s.row}><Text as="span" size="sm">Saved run</Text><select aria-label="Saved assistance run" className={s.select} value={selectedOperation || detail?.operation.operation_id || ""} onChange={(event) => setSelectedOperation(event.target.value)}>{history.data.items.map((one) => <option key={one.operation.operation_id} value={one.operation.operation_id}>{dateLabel(one.operation.created_at)} · {one.operation.status} · {one.proposals.length} candidate{one.proposals.length === 1 ? "" : "s"}{one.operation.operation_id === latestDetail?.operation.operation_id ? " · latest" : ""}</option>)}</select></label> : null}
       {detail ? <>
-        <div className={s.assistanceMeta}><Badge tone="neutral">{detail.operation.provider} · {detail.operation.method}</Badge><span className={s.muted}>{detail.proposals.length} candidate{detail.proposals.length === 1 ? "" : "s"}</span></div>
+        <div className={s.assistanceMeta}><Badge tone={detail.operation.status === "completed" ? "accent" : detail.operation.status === "failed" || detail.operation.status === "partial" ? "warn" : "neutral"}>{detail.operation.status}</Badge><Badge tone="neutral">{detail.operation.provider} · {detail.operation.method}</Badge><span className={s.muted}>{detail.proposals.length} candidate{detail.proposals.length === 1 ? "" : "s"}</span></div>
+        <Text size="xs" tone="tertiary">Run provenance · template {detail.operation.template_version} · input {formatBytes(detail.operation.input_bytes)} · output {formatBytes(detail.operation.output_bytes)} · {detail.operation.duration_ms} ms{detail.operation.timed_out ? " · timed out" : ""} · reviewed {reviewCounts?.accepted ?? 0} accepted / {reviewCounts?.rejected ?? 0} rejected / {reviewCounts?.proposed ?? 0} pending</Text>
+        {detail.operation.error ? <Text size="sm" tone="tertiary">{detail.operation.error}</Text> : null}
         {detail.proposals.length ? <div className={s.proposalList}>{detail.proposals.map((proposal) => <ProposalCard key={proposal.proposal_id} workspace={workspace} operation={detail.operation.operation_id} proposal={proposal} capture={capture} replace={replace} prepareObservation={prepareObservation} />)}</div> : <Text size="sm" tone="tertiary">No sentence-sized passages were found in this {extractionId ? "derived artifact" : "capture"}.</Text>}
       </> : null}
     </div>
@@ -320,11 +395,11 @@ function ProposalCard({ workspace, operation, proposal, capture, replace, prepar
     <div className={s.assistanceMeta}><Badge tone={proposal.state === "proposed" ? "warn" : proposal.state === "accepted" ? "accent" : "neutral"}>{proposal.state}</Badge><span className={s.muted}>Generated passage · rune {proposal.generated_quote_start}–{proposal.generated_quote_end}</span></div>
     <blockquote className={s.quote}>{proposal.generated_quote}</blockquote>
     {proposal.candidate_name ? <div className={s.details}><Badge tone="warn">Candidate record: {proposal.candidate_kind ?? "untyped"} · {proposal.candidate_name}</Badge>{proposal.candidate_description ? <Text size="xs" tone="tertiary">{proposal.candidate_description}</Text> : null}{proposal.relationship_kind && proposal.related_candidate_name ? <><Badge tone="warn">Suggested relationship: {proposal.relationship_kind} → {proposal.related_candidate_kind ?? "untyped"} · {proposal.related_candidate_name}</Badge>{proposal.relationship_description ? <Text size="xs" tone="tertiary">{proposal.relationship_description}</Text> : null}<Text size="xs" tone="tertiary">This relationship is a model suggestion, not an accepted connection. Create or select both research records and review it manually.</Text></> : null}<Text size="xs" tone="tertiary">This is a model suggestion, not an identity claim. Review it after recording the observation.</Text></div> : null}
-    {proposal.state === "proposed" ? <form className={s.stack} onSubmit={(event) => { event.preventDefault(); review.mutate(); }}>
+    {proposal.state === "proposed" ? <><ReviewBoundary kind="proposal" /><form className={s.stack} onSubmit={(event) => { event.preventDefault(); review.mutate(); }}>
       <Field label="Proposed statement" hint="Edit the wording before accepting it. This remains a reviewable proposal.">{(aria) => <Textarea {...aria} rows={3} value={statement} onChange={(event) => setStatement(event.target.value)} />}</Field>
       <Field label="Exact passage" hint="If edited, it must still match this retained capture exactly.">{(aria) => <Textarea {...aria} rows={3} value={quote} onChange={(event) => setQuote(event.target.value)} />}</Field>
       <Failure error={review.error ?? reject.error} />
       <div className={s.row}><Button type="submit" intent="primary" loading={review.isPending}>Accept proposal</Button><Button type="button" intent="ghost" loading={reject.isPending} onClick={() => reject.mutate()}>Reject</Button></div>
-    </form> : <div className={s.stack}><Text size="sm">{proposal.reviewed_statement || proposal.generated_statement}</Text>{proposal.reviewed_quote ? <blockquote className={s.quote}>{proposal.reviewed_quote}</blockquote> : null}<Text size="xs" tone="tertiary">{proposal.state === "accepted" ? "Accepted as assistance output; review the fields before recording it as evidence." : "Rejected; generated output is retained for provenance."}</Text>{proposal.state === "accepted" ? <Button type="button" intent="ghost" onClick={() => prepareObservation({ statement: proposal.reviewed_statement || proposal.generated_statement, quote: proposal.reviewed_quote || proposal.generated_quote, quoteStart: proposal.reviewed_quote_start ?? proposal.generated_quote_start, extractionId: proposal.extraction_id, ...(proposal.candidate_name && proposal.candidate_kind ? { candidate: { kind: proposal.candidate_kind, name: proposal.candidate_name, ...(proposal.candidate_description ? { description: proposal.candidate_description } : {}) } } : {}), ...(proposal.relationship_kind && proposal.related_candidate_kind && proposal.related_candidate_name ? { relationship: { kind: proposal.relationship_kind as ResearchConnectionKind, related: { kind: proposal.related_candidate_kind, name: proposal.related_candidate_name, ...(proposal.relationship_description ? { description: proposal.relationship_description } : {}) }, ...(proposal.relationship_description ? { description: proposal.relationship_description } : {}) } } : {}) })}>Prepare observation{proposal.relationship_kind ? " and review record pair" : proposal.candidate_name ? " and review candidate" : ""}</Button> : null}</div>}
+    </form></> : <div className={s.stack}>{proposal.state === "accepted" ? <ReviewBoundary kind="accepted" /> : null}<Text size="sm">{proposal.reviewed_statement || proposal.generated_statement}</Text>{proposal.reviewed_quote ? <blockquote className={s.quote}>{proposal.reviewed_quote}</blockquote> : null}<Text size="xs" tone="tertiary">{proposal.state === "accepted" ? "Accepted as assistance output; review the fields before recording it as evidence." : "Rejected; generated output is retained for provenance."}</Text>{proposal.state === "accepted" ? <Button type="button" intent="ghost" onClick={() => prepareObservation({ statement: proposal.reviewed_statement || proposal.generated_statement, quote: proposal.reviewed_quote || proposal.generated_quote, quoteStart: proposal.reviewed_quote_start ?? proposal.generated_quote_start, extractionId: proposal.extraction_id, ...(proposal.candidate_name && proposal.candidate_kind ? { candidate: { kind: proposal.candidate_kind, name: proposal.candidate_name, ...(proposal.candidate_description ? { description: proposal.candidate_description } : {}) } } : {}), ...(proposal.relationship_kind && proposal.related_candidate_kind && proposal.related_candidate_name ? { relationship: { kind: proposal.relationship_kind as ResearchConnectionKind, related: { kind: proposal.related_candidate_kind, name: proposal.related_candidate_name, ...(proposal.relationship_description ? { description: proposal.relationship_description } : {}) }, ...(proposal.relationship_description ? { description: proposal.relationship_description } : {}) } } : {}) })}>Prepare observation{proposal.relationship_kind ? " and review record pair" : proposal.candidate_name ? " and review candidate" : ""}</Button> : null}</div>}
   </article>;
 }

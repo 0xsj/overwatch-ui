@@ -16,6 +16,7 @@ export function SourceForm({ workspace, source }: { workspace: string; source?: 
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [filename, setFilename] = useState("");
+  const [publishedAt, setPublishedAt] = useState("");
   const [content, setContent] = useState("");
   const [contentBase64, setContentBase64] = useState("");
   const [media, setMedia] = useState<MediaType>("text/plain");
@@ -28,12 +29,13 @@ export function SourceForm({ workspace, source }: { workspace: string; source?: 
     }
     const result = await addSourceAction(workspace, {
       title, origin, ...(url ? { url } : {}),
+      ...(publishedAt ? { published_at: new Date(publishedAt).toISOString() } : {}),
       ...(origin === "reference" ? {} : contentBase64 ? { content_base64: contentBase64, media_type: media } : { content, media_type: media }),
       ...(origin === "import" ? { filename } : {}),
     });
     return result.ok ? { ok: true as const, value: { source_id: result.value.source_id, capture_id: result.value.latest_capture?.capture_id } } : result;
   }, [keys.sources.all(workspace)], (result) => {
-    setContent(""); setContentBase64(""); setTitle(""); setUrl(""); setFilename("");
+    setContent(""); setContentBase64(""); setTitle(""); setUrl(""); setFilename(""); setPublishedAt("");
     router.push(sourceHref(workspace, result.source_id, result.capture_id));
   });
 
@@ -69,6 +71,7 @@ export function SourceForm({ workspace, source }: { workspace: string; source?: 
       </select>}</Field>
       <Field label="Source title" required>{(aria) => <Input {...aria} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Transit authority service notice" maxLength={400} />}</Field>
       <Field label={origin === "reference" ? "Source URL" : "Source URL (optional)"} required={origin === "reference"} hint="The URL is saved as a reference. Fetching it is an explicit action from the source reader.">{(aria) => <Input {...aria} type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" />}</Field>
+      <Field label="Publication time (optional)" hint="When the source says it was published. This is separate from when Overwatch captured it or when you recorded an observation.">{(aria) => <Input {...aria} type="datetime-local" value={publishedAt} onChange={(event) => setPublishedAt(event.target.value)} />}</Field>
     </> : <Text size="sm" tone="tertiary">Add a new capture of this source. Earlier versions and their citations stay available.</Text>}
     {origin === "import" && !source ? <Field label="Text, JSON, PDF, or image file" required hint="Text/JSON up to 256 KiB; PDF/images up to 8 MiB.">{({ invalid: _invalid, ...aria }) => <input {...aria} type="file" accept=".txt,.json,.pdf,.png,.jpg,.jpeg,.webp,text/plain,application/json,application/pdf,image/png,image/jpeg,image/webp" className={s.file} onChange={(event) => void readFile(event.target.files?.[0])} />}</Field> : null}
     {source ? <Field label="Add a file capture (optional)" hint="PDF and image captures are retained as binary material; text extraction is not automatic.">{({ invalid: _invalid, ...aria }) => <input {...aria} type="file" accept=".txt,.json,.pdf,.png,.jpg,.jpeg,.webp,text/plain,application/json,application/pdf,image/png,image/jpeg,image/webp" className={s.file} onChange={(event) => void readFile(event.target.files?.[0])} />}</Field> : null}

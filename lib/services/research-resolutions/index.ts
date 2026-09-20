@@ -23,6 +23,12 @@ export type ResearchResolution = {
 
 export type ResearchResolutionPage = { items: ResearchResolution[]; next_cursor: string | null };
 export type ProposeResearchResolution = { canonical_record_id: string; rationale: string };
+export type ResearchResolutionImpact = {
+  connections: { connection_id: string; from_record_id: string; from_record_name: string; to_record_id: string; to_record_name: string; kind: string; state: string }[];
+  events: { event_id: string; title: string; sort_date?: string }[];
+  briefs: { brief_id: string; title: string; updated_at: string }[];
+  snapshots: { snapshot_id: string; brief_id: string; title: string; frozen_at: string }[];
+};
 
 const base = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}`;
 
@@ -37,4 +43,7 @@ export function reviewResearchResolution(http: HttpClient, workspace: string, re
 }
 export function reverseResearchResolution(http: HttpClient, workspace: string, resolution: string) {
   return http.post<ResearchResolution>(`${base(workspace)}/resolutions/${encodeURIComponent(resolution)}/reverse`, { body: {} });
+}
+export function readResearchResolutionImpact(http: HttpClient, workspace: string, resolution: string) {
+  return http.get<ResearchResolutionImpact>(`${base(workspace)}/resolutions/${encodeURIComponent(resolution)}/impact`);
 }

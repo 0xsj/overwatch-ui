@@ -3,6 +3,7 @@ export type { LucideIcon, LucideProps } from "lucide-react";
 export {
   Activity,
   ArrowUpRight,
+  Bell,
   Building2,
   ChartColumn,
   Check,

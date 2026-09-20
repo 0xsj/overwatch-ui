@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { clientFor } from "@/lib/root";
+import { markChangesSeen } from "@/lib/services/changes";
+import { markSourceAlertSeen, refreshSourceGapAlerts } from "@/lib/services/sources";
 import { addTarget, archiveTarget, reopenTarget } from "@/lib/services/targets";
 import type { TargetKind } from "@/lib/services/targets";
 import { toFormState, type FormState } from "../../(auth)/_form-state";
@@ -55,4 +57,24 @@ export async function reopenTargetAction(
   }
   revalidatePath("/home/targets");
   return { status: "ok" };
+}
+
+/** The watermark belongs to the current account and engagement. The backend
+ * supplies server time and revalidates the page's server cache. */
+export async function markChangesSeenAction(workspaceId: string): Promise<{ seen_at: string }> {
+  const result = await markChangesSeen(await clientFor("changes"), workspaceId);
+  revalidatePath("/home/whats-new");
+  return result;
+}
+
+export async function markSourceAlertSeenAction(workspaceId: string, alertId: string): Promise<{ seen_at: string }> {
+  const result = await markSourceAlertSeen(await clientFor("sources"), workspaceId, alertId);
+  revalidatePath("/home/alerts");
+  return result;
+}
+
+export async function refreshSourceGapAlertsAction(workspaceId: string): Promise<{ active_gap_count: number }> {
+  const result = await refreshSourceGapAlerts(await clientFor("sources"), workspaceId);
+  revalidatePath("/home/alerts");
+  return result;
 }

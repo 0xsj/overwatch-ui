@@ -18,11 +18,25 @@ control.
   states, and append-only assessment history.
 - Human-reviewed identity-resolution proposals that preserve the original
   records and citations.
+- Exact repeated-asset comparison across target roots; it surfaces comparison
+  leads without merging targets or making an identity claim.
+- Workspace health reporting with measured probe counts and actionable symptoms
+  for quiet failures such as unavailable tools, unread output, buried events,
+  and unmapped fields.
+- Workspace-scoped causal Logs with cursor pagination, decision-versus-machinery
+  provenance, actor/origin context, and links into correlation chains.
+- A server-derived What's new projection comparing the latest completed runs per
+  target, preserving added/changed/gone distinctions and navigation back to the
+  affected target and run; its per-account seen marker is persisted by the
+  backend.
 - Investigation questions, reported events, working notes, timelines, briefs,
   frozen handoffs, and source-grounded navigation between them.
 - Bounded assistance that suggests passages or candidates; it never silently
   creates evidence, resolves identity, accepts relationships, or publishes a
   conclusion.
+- A workspace-level assistance provider policy that shows whether retained
+  material may leave the service boundary; external providers are blocked by
+  default and only workspace admins can opt in.
 
 The UI can run against the Overwatch backend or a supported in-memory fixture
 adapter. Fixture-backed screens identify themselves with a `mock` badge; this

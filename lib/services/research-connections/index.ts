@@ -3,6 +3,8 @@ import type { ResearchRecordKind } from "@/lib/services/research-records";
 
 export type ResearchConnectionKind = "associated_with" | "may_belong_to" | "mentions" | "concerns_same_event" | "located_at" | "possible_same_subject";
 export type ResearchConnectionState = "proposed" | "accepted" | "rejected" | "deferred";
+export type ResearchConnectionReviewFilter = "" | "open" | "conflicted" | "uncited";
+export type ResearchConnectionReviewFlags = { open: boolean; conflicted: boolean; uncited: boolean };
 
 export type ResearchConnection = {
   connection_id: string;
@@ -18,9 +20,17 @@ export type ResearchConnection = {
   updated_by: string;
   created_at: string;
   updated_at: string;
+  review_flags: ResearchConnectionReviewFlags;
 };
 
 export type ResearchConnectionPage = { items: ResearchConnection[]; next_cursor: string | null };
+export type ResearchConnectionSummary = {
+  connection_count: number;
+  state_counts: Record<ResearchConnectionState, number>;
+  open_count: number;
+  conflicted_count: number;
+  uncited_count: number;
+};
 
 export type ResearchConnectionRevision = {
   revision_id: string;
@@ -58,10 +68,42 @@ export type WriteResearchConnection = {
   opposing_observation_ids: string[];
 };
 
+export type ResearchConnectionReviewFindingKind = "support" | "opposition" | "alternative" | "discriminating_evidence";
+export type ResearchConnectionReviewFinding = {
+  kind: ResearchConnectionReviewFindingKind;
+  summary: string;
+  observation_ids: string[];
+};
+export type ResearchConnectionReview = {
+  connection_review_id: string;
+  workspace_id: string;
+  connection_id: string;
+  from_record_id: string;
+  to_record_id: string;
+  connection_kind: ResearchConnectionKind;
+  connection_state: ResearchConnectionState;
+  connection_rationale: string;
+  supporting_observation_ids: string[];
+  opposing_observation_ids: string[];
+  provider: string;
+  method: string;
+  template_version: string;
+  status: "completed" | "empty";
+  output: string;
+  findings: ResearchConnectionReviewFinding[];
+  created_by: string;
+  created_at: string;
+};
+export type ResearchConnectionReviewPage = { items: ResearchConnectionReview[]; next_cursor: string | null };
+
 const base = (workspace: string) => "/workspaces/" + encodeURIComponent(workspace) + "/connections";
 
-export function listResearchConnections(http: HttpClient, workspace: string, before?: string) {
-  return http.get<ResearchConnectionPage>(base(workspace), { params: { before, limit: 50 } });
+export function listResearchConnections(http: HttpClient, workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "") {
+  return http.get<ResearchConnectionPage>(base(workspace), { params: { before, state: state || undefined, review: review || undefined, limit: 50 } });
+}
+
+export function readResearchConnectionSummary(http: HttpClient, workspace: string) {
+  return http.get<ResearchConnectionSummary>(base(workspace) + "/summary");
 }
 
 export function readResearchConnection(http: HttpClient, workspace: string, connection: string) {
@@ -101,4 +143,20 @@ export function createResearchConnection(http: HttpClient, workspace: string, bo
 
 export function updateResearchConnection(http: HttpClient, workspace: string, connection: string, body: WriteResearchConnection) {
   return http.put<ResearchConnection>(base(workspace) + "/" + encodeURIComponent(connection), { body });
+}
+
+function reviewBase(workspace: string, connection: string) {
+  return base(workspace) + "/" + encodeURIComponent(connection) + "/reviews";
+}
+
+export function listResearchConnectionReviews(http: HttpClient, workspace: string, connection: string, before?: string) {
+  return http.get<ResearchConnectionReviewPage>(reviewBase(workspace, connection), { params: { before, limit: 20 } });
+}
+
+export function readResearchConnectionReview(http: HttpClient, workspace: string, connection: string, review: string) {
+  return http.get<ResearchConnectionReview>(reviewBase(workspace, connection) + "/" + encodeURIComponent(review));
+}
+
+export function createResearchConnectionReview(http: HttpClient, workspace: string, connection: string) {
+  return http.post<ResearchConnectionReview>(reviewBase(workspace, connection), { body: {} });
 }

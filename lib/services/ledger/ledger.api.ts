@@ -1,5 +1,5 @@
 import type { HttpClient } from "@/lib/http";
-import type { AuditPage, ChainStep, PageOptions } from "./ledger.types";
+import type { AuditPage, ChainStep, JournalPage, PageOptions } from "./ledger.types";
 
 /** All REAL, walked on 2026-09-07. */
 
@@ -23,6 +23,19 @@ export function getWorkspaceAudit(
 ): Promise<AuditPage> {
   return http.get<AuditPage>(
     `/workspaces/${encodeURIComponent(workspaceId)}/audit`,
+    paging(options),
+  );
+}
+
+/** Causal work inside one engagement. This is deliberately not an org-wide
+ * feed: the root applies the same workspace read gate as the audit route. */
+export function getWorkspaceLogs(
+  http: HttpClient,
+  workspaceId: string,
+  options?: Pick<PageOptions, "after" | "limit" | "signal">,
+): Promise<JournalPage> {
+  return http.get<JournalPage>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/logs`,
     paging(options),
   );
 }

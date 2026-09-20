@@ -1,6 +1,6 @@
 import type { HttpClient } from "@/lib/http";
 
-export type QuestionState = "open" | "answered" | "dismissed";
+export type QuestionState = "open" | "answered" | "dismissed" | "deferred";
 
 export type InvestigationQuestion = {
   question_id: string;
@@ -31,8 +31,8 @@ export type WriteQuestion = {
 
 const base = (workspace: string) => "/workspaces/" + encodeURIComponent(workspace) + "/questions";
 
-export function listQuestions(http: HttpClient, workspace: string, before?: string) {
-  return http.get<QuestionPage>(base(workspace), { params: { before, limit: 50 } });
+export function listQuestions(http: HttpClient, workspace: string, before?: string, state?: QuestionState | "") {
+  return http.get<QuestionPage>(base(workspace), { params: { before, state: state || undefined, limit: 50 } });
 }
 
 export function readQuestion(http: HttpClient, workspace: string, question: string) {

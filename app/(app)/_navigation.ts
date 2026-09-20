@@ -57,6 +57,7 @@ export const SECTIONS: NavSection[] = [
       { href: "/home/overview", label: "Overview" },
       { href: "/home/targets", label: "Targets" },
       { href: "/home/whats-new", label: "What's new" },
+      { href: "/home/alerts", label: "Source alerts" },
       // An engagement-level screen, moved out of org settings 2026-09-07. An
       // audit entry carries no org id, so an org-wide feed would list rows about
       // engagements the reader may not be on — the wall 0005 exists to keep.
@@ -92,14 +93,14 @@ export const SECTIONS: NavSection[] = [
     label: "Findings",
     sub: "Claims that something is wrong, with a lifecycle.",
     Icon: ChartColumn,
-    /* The REPORT is a client's only door, and the board is not behind it —
-       §Scope's *"generate a report vs receive its artifacts: the client gets
-       one, not both"*. `pagesFor` drops the board rather than this section
-       carrying two client flags. */
+    /* Findings is a client's deliverable door. Research board access is not
+       behind it; recipient handoffs and issued reports are the two explicit
+       safe projections. */
     client: true,
     pages: [
       { href: "/findings/board", label: "Board" },
       { href: "/findings/report", label: "Report" },
+      { href: "/findings/handoffs", label: "Recipient handoffs" },
     ],
   },
   {
@@ -159,7 +160,7 @@ export function navHref(href: string, workspace?: string): string {
  *
  *  A `client` sent to `/home/overview` arrives at a screen that answers 404 for
  *  them — the first thing they see after signing in is a wall. Their door is
- *  the report, and it is the only room they have. */
+ *  the deliverables section. */
 export function homeFor(role: string | undefined): string {
   return role === "client" ? "/findings/report" : HOME;
 }
@@ -173,7 +174,7 @@ export function sectionFor(pathname: string): NavSection {
 
 /** The navigation a role can actually reach.
  *
- *  A `client` sees the report and nothing else. Everything else 404s for them,
+ *  A `client` sees deliverable projections and nothing else. Everything else 404s for them,
  *  and a link that answers 404 is worse than a missing link: to the reader it
  *  is indistinguishable from a broken product, and the 404 is deliberate
  *  non-disclosure rather than a fault.
@@ -183,6 +184,6 @@ export function sectionsFor(role: string | undefined): NavSection[] {
   if (role !== "client") return SECTIONS;
   return SECTIONS.filter((s) => s.client).map((s) => ({
     ...s,
-    pages: s.pages.filter((p) => p.href.startsWith("/findings/report")),
+    pages: s.pages.filter((p) => p.href.startsWith("/findings/report") || p.href.startsWith("/findings/handoffs")),
   }));
 }

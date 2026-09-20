@@ -1,6 +1,9 @@
 export type SourceOrigin = "paste" | "import" | "reference";
 export type MediaType = "text/plain" | "text/html" | "application/json" | "application/pdf" | "image/png" | "image/jpeg" | "image/webp";
 export type SourceSensitivity = "public" | "internal" | "restricted";
+export type SourceDuplicatePolicy = "allow" | "warn" | "block";
+export type SourceIntakeStatus = "pending" | "approved" | "rejected";
+export type SourceWatchStatus = "never" | "changed" | "unchanged" | "failed";
 export type RetentionState = "unscheduled" | "scheduled" | "due" | "blocked" | "held" | "purged";
 export type RetentionQueueState = "" | RetentionState;
 
@@ -39,6 +42,8 @@ export type SourceSummary = {
   origin: SourceOrigin;
   url?: string;
   filename?: string;
+  published_at?: string;
+  duplicate_policy?: SourceDuplicatePolicy;
   created_by: string;
   created_at: string;
   retention_until?: string;
@@ -55,6 +60,74 @@ export type SourceSummary = {
   latest_capture: CaptureSummary | null;
 };
 export type SourceDetail = { source: SourceSummary; captures: CaptureSummary[] };
+export type SourceIntakeCandidate = {
+  intake_id: string;
+  workspace_id: string;
+  title: string;
+  origin: "reference" | "import";
+  url?: string;
+  filename?: string;
+  media_type?: MediaType;
+  note?: string;
+  created_by: string;
+  created_at: string;
+  status: SourceIntakeStatus;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_note?: string;
+  source_id?: string;
+};
+export type SourceIntakePage = Page<SourceIntakeCandidate>;
+export type CreateSourceIntake = {
+  title: string;
+  origin?: "reference" | "import";
+  url?: string;
+  filename?: string;
+  media_type?: MediaType;
+  content?: string;
+  content_base64?: string;
+  note?: string;
+};
+export type ReviewSourceIntake = { decision: "approved" | "rejected"; note: string };
+export type SourceIntakeReviewResult = { candidate: SourceIntakeCandidate; source?: SourceSummary };
+export type SourceWatch = {
+  workspace_id: string;
+  source_id: string;
+  enabled: boolean;
+  interval_seconds: number;
+  next_run_at?: string;
+  last_run_at?: string;
+  last_status: SourceWatchStatus;
+  last_capture_id?: string;
+  last_error?: string;
+  lease_owner?: string;
+  lease_until?: string;
+  updated_by?: string;
+  updated_at?: string;
+};
+export type ConfigureSourceWatch = { enabled: boolean; interval_seconds: number };
+export type SourceWatchRunResult = { watch: SourceWatch; changed: boolean; capture?: CaptureSummary };
+export type SourceAlertKind = "capture_changed" | "watch_failed" | "question_gap" | "record_gap" | "cluster_gap";
+export type SourceAlert = {
+  alert_id: string;
+  workspace_id: string;
+  source_id?: string;
+  capture_id?: string;
+  question_id?: string;
+  record_id?: string;
+  cluster_id?: string;
+  kind: SourceAlertKind;
+  title: string;
+  detail: string;
+  dedupe_key?: string;
+  source_title?: string;
+  created_by: string;
+  created_at: string;
+  seen_at?: string;
+  active?: boolean;
+};
+export type SourceGapAlertsRefresh = { active_gap_count: number };
+export type SourceAlertPage = { items: SourceAlert[]; next_cursor: string | null };
 export type Page<T> = { items: T[]; next_cursor: string | null };
 export type SourceSearchResult = {
   source_id: string;
@@ -75,11 +148,14 @@ export type AddSource = {
   origin: SourceOrigin;
   url?: string;
   filename?: string;
+  published_at?: string;
   media_type?: MediaType;
   content?: string;
   content_base64?: string;
 };
 export type SetSourceRetention = { retention_until: string | null };
+export type SetSourcePublication = { published_at: string | null };
+export type SetSourceDuplicatePolicy = { duplicate_policy: SourceDuplicatePolicy };
 export type SetSourcePrivacy = { sensitivity: SourceSensitivity; legal_hold: boolean; legal_hold_reason: string };
 export type PurgeDependencies = {
   capture_count: number;
@@ -227,5 +303,30 @@ export type AddObservation = {
   statement: string;
   quote: string;
   quote_start?: number;
+  locator?: string;
+};
+export type CitationShare = {
+  share_id: string;
+  workspace_id: string;
+  source_id: string;
+  observation_id: string;
+  created_by: string;
+  created_at: string;
+  revoked_at?: string;
+  revoked_by?: string;
+  token?: string;
+};
+export type CitationContext = {
+  visibility: "recipient";
+  redactions: string[];
+  source_title: string;
+  source_origin: string;
+  source_url?: string;
+  capture_version: number;
+  captured_at: string;
+  media_type: MediaType;
+  derived: boolean;
+  statement: string;
+  quote: string;
   locator?: string;
 };

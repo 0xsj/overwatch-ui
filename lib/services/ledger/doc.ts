@@ -3,6 +3,7 @@
  *
  *     GET /v1/me/activity              my account's entries
  *     GET /v1/workspaces/{id}/audit    one engagement's, needs `read` on it
+ *     GET /v1/workspaces/{id}/logs     one engagement's causal work journal
  *     GET /v1/chains/{correlation}     what else was part of one act
  *
  * # There is no org-wide audit log, and that is a decision rather than a gap

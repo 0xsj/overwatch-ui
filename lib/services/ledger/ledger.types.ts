@@ -50,6 +50,33 @@ export type AuditPage = {
   facets?: { facet: string; total: number }[];
 };
 
+/** A workspace-scoped causal journal page. Unlike AuditEntry, this keeps the
+ * provenance needed to explain work: origin, depth, attempt, decision and the
+ * causation link. */
+export type JournalEntry = {
+  id: string;
+  action: string;
+  subject: string;
+  origin: string;
+  actor: string;
+  on_behalf_of?: string;
+  workspace_id?: string;
+  depth: number;
+  attempt: number;
+  decision: boolean;
+  correlation_id?: string;
+  causation_id?: string;
+  detail: Record<string, unknown>;
+  occurred_at: string;
+  recorded_at: string;
+};
+
+export type JournalPage = {
+  entries: JournalEntry[];
+  /** Keyset cursor, absent when this is the last page. */
+  next?: string;
+};
+
 /** One step of one act. Read as a story, so it arrives OLDEST FIRST. */
 export type ChainStep = {
   action: string;

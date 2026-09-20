@@ -4,7 +4,24 @@ import { clientFor } from "@/lib/root";
 import { decideFinding, reassessFinding } from "@/lib/services/findings";
 import type { FindingState, Severity } from "@/lib/services/findings";
 import { issueReport, toggleSection } from "@/lib/services/reports";
+import { readBriefRecipientHandoffExport, readBriefSharedHandoffExport } from "@/lib/services/brief";
 import { toFormState, type FormState } from "../../(auth)/_form-state";
+
+export async function exportRecipientHandoffAction(workspace: string, snapshot: string) {
+  try {
+    return { ok: true as const, value: await readBriefRecipientHandoffExport(await clientFor("brief"), workspace, snapshot) };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "The handoff export could not be prepared." };
+  }
+}
+
+export async function exportSharedHandoffAction(workspace: string, token: string) {
+  try {
+    return { ok: true as const, value: await readBriefSharedHandoffExport(await clientFor("brief"), workspace, token) };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "The handoff export could not be prepared." };
+  }
+}
 
 /** `reason` is REQUIRED for `dismissed` and optional for `resolved` — a fix
  *  needs no argument, because the thing is gone.

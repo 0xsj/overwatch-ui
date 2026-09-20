@@ -27,7 +27,9 @@ export type Domain =
   | "brief"
   | "research-records"
   | "research-connections"
-  | "research-resolutions";
+  | "research-resolutions"
+  | "health"
+  | "changes";
 
 /** The domains the SERVER actually serves.
  *
@@ -42,7 +44,7 @@ export type Domain =
  *  grant, so it moved — which is what this list is for: one line, one place, and
  *  the startup banner prints it.
  *
- *  `entities` is where `access` was, and is now the only one left: `tool`,
+ *  `entities` is where `access` was. `tool`,
  *  `check`, `run`, `invocation` and `observation` were all served on
  *  2026-09-07, so `tooling`, `checks`, `runs` and `observed` moved here in one
  *  sitting. `targets` joined them the same day — it had been served since
@@ -50,13 +52,13 @@ export type Domain =
  *  than a missing entry here: a screen was passing a WORKSPACE id where a
  *  target id belonged and nothing type-checked the difference.
  *
- *  And `entities` closed the list on the same day, on `0036`. **The list is now
- *  every domain**, which is worth stating rather than leaving as an empty
- *  difference: fixtures are no longer a fallback for anything the server has
- *  not reached, and the only way to see one is to sign in as a persona. */
+ *  And `entities` closed the research list on the same day, on `0036`. Health
+ *  is a read-only workspace endpoint over the same server, so it has its own
+ *  client domain and fixture contract rather than borrowing a neighbouring
+ *  domain just to make the request route. */
 const SERVED: readonly Domain[] = [
   "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
-  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions",
+  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions", "health", "changes",
 ];
 
 const fixtures = (token: string | null) =>
@@ -112,7 +114,7 @@ export function adapterFor(domain: Domain): "fetch" | "memory" {
 
 export const DOMAINS: Domain[] = [
   "identity", "tenancy", "ledger", "access", "tooling", "checks", "runs",
-  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions",
+  "observed", "targets", "entities", "coverage", "findings", "reports", "sources", "notes", "review", "questions", "events", "brief", "research-records", "research-connections", "research-resolutions", "health", "changes",
 ];
 
 export const transport = !baseUrl

@@ -3,19 +3,33 @@ import type { HttpClient } from "@/lib/http";
 export type AssistanceProposalState = "proposed" | "accepted" | "rejected";
 export type AssistanceDecision = "accept" | "reject";
 
+export type AssistanceProviderPolicy = {
+  workspace_id: string;
+  allow_external: boolean;
+  updated_by?: string;
+  updated_at?: string;
+};
+
 export type AssistanceOperation = {
   operation_id: string;
   workspace_id: string;
   source_id: string;
   capture_id: string;
   extraction_id?: string;
-  status: "completed";
+  status: "completed" | "empty" | "partial" | "failed" | "unsupported";
   provider: string;
   method: string;
+  template_version: string;
   created_by: string;
   created_at: string;
   completed_at: string;
   proposal_count: number;
+  input_bytes: number;
+  output_bytes: number;
+  duration_ms: number;
+  timed_out: boolean;
+  error?: string;
+  retry_of?: string;
 };
 
 export type AssistanceProposal = {
@@ -54,9 +68,17 @@ export type ReviewAssistanceProposal = { decision: AssistanceDecision; statement
 
 const captureBase = (workspace: string, source: string, capture: string) => `/workspaces/${encodeURIComponent(workspace)}/sources/${encodeURIComponent(source)}/captures/${encodeURIComponent(capture)}/assistance`;
 const operationBase = (workspace: string, operation: string) => `/workspaces/${encodeURIComponent(workspace)}/assistance/${encodeURIComponent(operation)}`;
+const policyPath = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/assistance/policy`;
 
-export function generateAssistance(http: HttpClient, workspace: string, source: string, capture: string, extraction?: string) {
-  return http.post<AssistanceDetail>(captureBase(workspace, source, capture), { body: extraction ? { extraction_id: extraction } : {} });
+export function readAssistanceProviderPolicy(http: HttpClient, workspace: string) {
+  return http.get<AssistanceProviderPolicy>(policyPath(workspace));
+}
+export function setAssistanceProviderPolicy(http: HttpClient, workspace: string, allowExternal: boolean) {
+  return http.put<AssistanceProviderPolicy>(policyPath(workspace), { body: { allow_external: allowExternal } });
+}
+
+export function generateAssistance(http: HttpClient, workspace: string, source: string, capture: string, extraction?: string, retryOperation?: string) {
+  return http.post<AssistanceDetail>(captureBase(workspace, source, capture), { body: { ...(extraction ? { extraction_id: extraction } : {}), ...(retryOperation ? { retry_operation_id: retryOperation } : {}) } });
 }
 export function readLatestAssistance(http: HttpClient, workspace: string, source: string, capture: string, extraction?: string) {
   return http.get<LatestAssistance>(captureBase(workspace, source, capture), { params: { extraction_id: extraction || undefined } });

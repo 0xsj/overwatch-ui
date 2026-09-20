@@ -22,18 +22,20 @@
    Every function here is a READ. Writes live in each area's `_actions.ts`,
    because a write belongs beside the screen that decides to make it.        */
 
-import { listRetentionCleanup, listRetentionCleanupReviews, listRetentionCleanupStatus, listRetentionReview, listSources, searchSources, readRetentionCleanupReview, readSource, readCapture, listCaptureExtractions, readCaptureExtraction, listSourceObservations, readSourceObservation, sourceRetentionReview } from "@/lib/services/sources";
-import { readAssistanceHistory, readLatestAssistance } from "@/lib/services/assistance";
-import { listWorkingNotes, readWorkingNote } from "@/lib/services/notes";
-import { listEvidence, listEvidenceRelations, listEvidenceSyntheses, readEvidence, readEvidenceByIDs } from "@/lib/services/review";
+import { listRetentionCleanup, listRetentionCleanupReviews, listRetentionCleanupStatus, listRetentionReview, listSourceAlerts, listSourceIntake, listSources, searchSources, readRetentionCleanupReview, readSource, readCapture, listCaptureExtractions, readCaptureExtraction, listSourceObservations, readSourceObservation, listCitationShares, readSharedCitation, readSourceWatch, sourceRetentionReview } from "@/lib/services/sources";
+import { readAssistanceHistory, readAssistanceProviderPolicy, readLatestAssistance } from "@/lib/services/assistance";
+import { readHealth } from "@/lib/services/health";
+import { listWorkingNotes, listWorkingNotesPage, readWorkingNote, type NoteContextKind } from "@/lib/services/notes";
+import { listEvidence, listEvidenceBoard, listEvidenceClusterCoverage, listEvidenceClusters, listEvidenceComparisons, listEvidenceQuestionSuggestions, listEvidenceRelations, listEvidenceSourceLinks, listEvidenceSyntheses, readEvidence, readEvidenceByIDs, type BoardReviewState } from "@/lib/services/review";
 import { listQuestions, readQuestion, readQuestionsByIDs } from "@/lib/services/questions";
-import { listEvents, readEvent } from "@/lib/services/events";
-import { listBriefSnapshots, readBrief, readBriefSnapshot } from "@/lib/services/brief";
-import { listResearchRecords, readResearchRecord, readResearchRecordsByIDs } from "@/lib/services/research-records";
-import { listResearchConnections, listResearchConnectionRevisions, readResearchConnection, readResearchConnectionRevision, readResearchConnectionsByIDs } from "@/lib/services/research-connections";
-import { listResearchResolutions } from "@/lib/services/research-resolutions";
+import { listEventAccounts, listEventClusters, listEventRelationships, listEventRevisions, listEvents, readEvent, readEventRevision } from "@/lib/services/events";
+import { listBriefDrafts, listBriefRecipientHandoffs, listBriefSnapshots, listBriefSnapshotComments, listBriefSnapshotShares, readBrief, readBriefRecipientHandoff, readBriefSharedHandoff, readBriefSnapshot, readBriefSnapshotActivity, readBriefSnapshotReview } from "@/lib/services/brief";
+import { listResearchRecords, readResearchRecord, readResearchRecordsByIDs, readResearchRecordSummary, type ResearchRecordCitationFilter, type ResearchRecordKind, type ResearchRecordResolutionFilter } from "@/lib/services/research-records";
+import { listResearchConnections, listResearchConnectionReviews, listResearchConnectionRevisions, readResearchConnection, readResearchConnectionReview, readResearchConnectionRevision, readResearchConnectionSummary, readResearchConnectionsByIDs, type ResearchConnectionReviewFilter, type ResearchConnectionState } from "@/lib/services/research-connections";
+import { listResearchResolutions, readResearchResolutionImpact } from "@/lib/services/research-resolutions";
+import { listResearchResolutionSets, readResearchResolutionSetImpact } from "@/lib/services/research-resolution-sets";
 import { clientFor } from "@/lib/root";
-import { getChain, getMyActivity, getOrgAudit, getWorkspaceAudit } from "@/lib/services/ledger";
+import { getChain, getMyActivity, getOrgAudit, getWorkspaceAudit, getWorkspaceLogs } from "@/lib/services/ledger";
 import { listSessions } from "@/lib/services/identity";
 import { listMembers, listWorkspaces } from "@/lib/services/tenancy";
 import { listWorkspaceMembers } from "@/lib/services/access";
@@ -48,6 +50,7 @@ import {
   listObservations, listSubjects, readExtraction, readLineage,
 } from "@/lib/services/observed";
 import { readCoverage } from "@/lib/services/coverage";
+import { listChanges } from "@/lib/services/changes";
 import { listFindings } from "@/lib/services/findings";
 import type { FindingState } from "@/lib/services/findings";
 import { listReports, previewReport, readReport } from "@/lib/services/reports";
@@ -137,6 +140,13 @@ export async function coverageQuery(workspace: string, target?: string) {
   return readCoverage(await clientFor("coverage"), workspace, { target });
 }
 
+/* Home → What’s new is a projection, not a browser-side diff. The server
+   compares completed runs and keeps the distinction between a value that
+   disappeared and a field that was never measured. */
+export async function changesQuery(workspace: string) {
+  return listChanges(await clientFor("changes"), workspace);
+}
+
 /* findings and reports */
 export async function findingsQuery(workspace: string, state?: FindingState) {
   return listFindings(await clientFor("findings"), workspace, { state });
@@ -162,6 +172,13 @@ export async function orgAuditQuery(org: string, after?: string, facet?: string)
 export async function workspaceAuditQuery(workspace: string, after?: string, facet?: string) {
   return getWorkspaceAudit(await clientFor("ledger"), workspace, { after, facet, limit: 50 });
 }
+export async function workspaceLogsQuery(workspace: string, after?: string) {
+  return getWorkspaceLogs(await clientFor("ledger"), workspace, { after, limit: 50 });
+}
+
+export async function briefSnapshotActivityQuery(workspace: string, snapshot: string, after?: string, facet?: string) {
+  return readBriefSnapshotActivity(await clientFor("brief"), workspace, snapshot, { after, facet });
+}
 export async function myActivityQuery(after?: string, facet?: string) {
   return getMyActivity(await clientFor("ledger"), { after, facet, limit: 50 });
 }
@@ -179,6 +196,9 @@ export async function chainOfActsQuery(correlation: string) {
 /* Investigation source reads retain workspace and capture identity in every call. */
 export async function sourcesQuery(workspace: string, before?: string, query = "") {
   return listSources(await clientFor("sources"), workspace, before, query);
+}
+export async function sourceIntakeQuery(workspace: string, status = "", before?: string) {
+  return listSourceIntake(await clientFor("sources"), workspace, status, before);
 }
 export async function sourceSearchQuery(workspace: string, query: string, before?: string) {
   return searchSources(await clientFor("sources"), workspace, query, before);
@@ -201,6 +221,12 @@ export async function retentionCleanupStatusQuery(workspace: string, state = "",
 export async function sourceQuery(workspace: string, source: string) {
   return readSource(await clientFor("sources"), workspace, source);
 }
+export async function sourceWatchQuery(workspace: string, source: string) {
+  return readSourceWatch(await clientFor("sources"), workspace, source);
+}
+export async function sourceAlertsQuery(workspace: string, before?: string) {
+  return listSourceAlerts(await clientFor("sources"), workspace, before);
+}
 export async function sourceRetentionReviewQuery(workspace: string, source: string) {
   return sourceRetentionReview(await clientFor("sources"), workspace, source);
 }
@@ -219,11 +245,21 @@ export async function latestAssistanceQuery(workspace: string, source: string, c
 export async function assistanceHistoryQuery(workspace: string, source: string, capture: string, extraction?: string) {
   return readAssistanceHistory(await clientFor("sources"), workspace, source, capture, extraction);
 }
+
+export async function assistanceProviderPolicyQuery(workspace: string) {
+  return readAssistanceProviderPolicy(await clientFor("sources"), workspace);
+}
+export async function healthQuery(workspace: string) {
+  return readHealth(await clientFor("health"), workspace);
+}
 export async function sourceObservationsQuery(workspace: string, source: string, before?: string) {
   return listSourceObservations(await clientFor("sources"), workspace, source, before);
 }
 export async function workingNotesQuery(workspace: string) {
   return listWorkingNotes(await clientFor("notes"), workspace);
+}
+export async function workingNotesPageQuery(workspace: string, before?: string, query = "", contextKind?: NoteContextKind) {
+  return listWorkingNotesPage(await clientFor("notes"), workspace, before, query, contextKind);
 }
 export async function workingNoteQuery(workspace: string, note: string) {
   return readWorkingNote(await clientFor("notes"), workspace, note);
@@ -232,17 +268,35 @@ export async function workingNoteQuery(workspace: string, note: string) {
 export async function evidenceQuery(workspace: string, before?: string) {
   return listEvidence(await clientFor("review"), workspace, before);
 }
+export async function evidenceBoardQuery(workspace: string, before?: string, query = "", source = "", state: BoardReviewState | "" = "", record = "", event = "", dateFrom = "", dateTo = "", unresolved = false) {
+  return listEvidenceBoard(await clientFor("review"), workspace, before, query, source, state, record, event, dateFrom, dateTo, unresolved);
+}
 export async function evidenceByIDQuery(workspace: string, observation: string) {
   return readEvidence(await clientFor("review"), workspace, observation);
 }
 export async function evidenceRelationsQuery(workspace: string, before?: string) {
   return listEvidenceRelations(await clientFor("review"), workspace, before);
 }
+export async function evidenceSourceLinksQuery(workspace: string, before?: string) {
+  return listEvidenceSourceLinks(await clientFor("review"), workspace, before);
+}
+export async function evidenceClustersQuery(workspace: string, before?: string) {
+  return listEvidenceClusters(await clientFor("review"), workspace, before);
+}
+export async function evidenceClusterCoverageQuery(workspace: string, before?: string) {
+  return listEvidenceClusterCoverage(await clientFor("review"), workspace, before);
+}
 export async function evidenceSynthesesQuery(workspace: string, before?: string) {
   return listEvidenceSyntheses(await clientFor("review"), workspace, before);
 }
-export async function questionsQuery(workspace: string, before?: string) {
-  return listQuestions(await clientFor("questions"), workspace, before);
+export async function evidenceComparisonsQuery(workspace: string, before?: string) {
+  return listEvidenceComparisons(await clientFor("review"), workspace, before);
+}
+export async function evidenceQuestionSuggestionsQuery(workspace: string, before?: string) {
+  return listEvidenceQuestionSuggestions(await clientFor("review"), workspace, before);
+}
+export async function questionsQuery(workspace: string, before?: string, state?: import("@/lib/services/questions").QuestionState | "") {
+  return listQuestions(await clientFor("questions"), workspace, before, state);
 }
 export async function questionQuery(workspace: string, question: string) {
   return readQuestion(await clientFor("questions"), workspace, question);
@@ -256,8 +310,30 @@ export async function eventsQuery(workspace: string, before?: string) {
 export async function eventQuery(workspace: string, event: string) {
   return readEvent(await clientFor("events"), workspace, event);
 }
+export async function eventRevisionsQuery(workspace: string, event: string) {
+  return listEventRevisions(await clientFor("events"), workspace, event);
+}
+export async function eventAccountsQuery(workspace: string, event: string) {
+  return listEventAccounts(await clientFor("events"), workspace, event);
+}
+export async function eventClustersQuery(workspace: string, before?: string) {
+  return listEventClusters(await clientFor("events"), workspace, before);
+}
+export async function eventRelationshipsQuery(workspace: string, before?: string) {
+  return listEventRelationships(await clientFor("events"), workspace, before);
+}
+export async function eventRevisionQuery(workspace: string, event: string, revision: string) {
+  return readEventRevision(await clientFor("events"), workspace, event, revision);
+}
+export async function eventsByIDsQuery(workspace: string, eventIDs: string[]) {
+  const http = await clientFor("events");
+  return Promise.all(eventIDs.map((event) => readEvent(http, workspace, event)));
+}
 export async function briefQuery(workspace: string) {
   return readBrief(await clientFor("brief"), workspace);
+}
+export async function briefDraftsQuery(workspace: string, before?: string) {
+  return listBriefDrafts(await clientFor("brief"), workspace, before);
 }
 export async function briefSnapshotsQuery(workspace: string, before?: string) {
   return listBriefSnapshots(await clientFor("brief"), workspace, before);
@@ -265,21 +341,45 @@ export async function briefSnapshotsQuery(workspace: string, before?: string) {
 export async function briefSnapshotQuery(workspace: string, snapshot: string) {
   return readBriefSnapshot(await clientFor("brief"), workspace, snapshot);
 }
+export async function briefSnapshotReviewQuery(workspace: string, snapshot: string) {
+  return readBriefSnapshotReview(await clientFor("brief"), workspace, snapshot);
+}
+export async function briefSnapshotCommentsQuery(workspace: string, snapshot: string) {
+  return listBriefSnapshotComments(await clientFor("brief"), workspace, snapshot);
+}
+export async function briefRecipientHandoffsQuery(workspace: string, before?: string) {
+  return listBriefRecipientHandoffs(await clientFor("brief"), workspace, before);
+}
+export async function briefRecipientHandoffQuery(workspace: string, snapshot: string) {
+  return readBriefRecipientHandoff(await clientFor("brief"), workspace, snapshot);
+}
+export async function briefSharedHandoffQuery(workspace: string, token: string) {
+  return readBriefSharedHandoff(await clientFor("brief"), workspace, token);
+}
+export async function briefSnapshotSharesQuery(workspace: string, snapshot: string) {
+  return listBriefSnapshotShares(await clientFor("brief"), workspace, snapshot);
+}
 export async function briefSnapshotEvidenceQuery(workspace: string, observationIds: string[]) {
   return evidenceByIDsQuery(workspace, observationIds);
 }
 
-export async function researchRecordsQuery(workspace: string, before?: string) {
-  return listResearchRecords(await clientFor("research-records"), workspace, before);
+export async function researchRecordsQuery(workspace: string, before?: string, query = "", kind?: ResearchRecordKind, citation: ResearchRecordCitationFilter = "", resolution: ResearchRecordResolutionFilter = "") {
+  return listResearchRecords(await clientFor("research-records"), workspace, before, query, kind, citation, resolution);
 }
 export async function researchRecordQuery(workspace: string, record: string) {
   return readResearchRecord(await clientFor("research-records"), workspace, record);
 }
+export async function researchRecordSummaryQuery(workspace: string) {
+  return readResearchRecordSummary(await clientFor("research-records"), workspace);
+}
 export async function researchRecordsByIDsQuery(workspace: string, recordIDs: string[]) {
   return readResearchRecordsByIDs(await clientFor("research-records"), workspace, recordIDs);
 }
-export async function researchConnectionsQuery(workspace: string, before?: string) {
-  return listResearchConnections(await clientFor("research-connections"), workspace, before);
+export async function researchConnectionsQuery(workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "") {
+  return listResearchConnections(await clientFor("research-connections"), workspace, before, state, review);
+}
+export async function researchConnectionSummaryQuery(workspace: string) {
+  return readResearchConnectionSummary(await clientFor("research-connections"), workspace);
 }
 export async function researchConnectionQuery(workspace: string, connection: string) {
   return readResearchConnection(await clientFor("research-connections"), workspace, connection);
@@ -293,8 +393,23 @@ export async function researchConnectionRevisionsQuery(workspace: string, connec
 export async function researchConnectionRevisionQuery(workspace: string, connection: string, revision: string) {
   return readResearchConnectionRevision(await clientFor("research-connections"), workspace, connection, revision);
 }
+export async function researchConnectionReviewsQuery(workspace: string, connection: string, before?: string) {
+  return listResearchConnectionReviews(await clientFor("research-connections"), workspace, connection, before);
+}
+export async function researchConnectionReviewQuery(workspace: string, connection: string, review: string) {
+  return readResearchConnectionReview(await clientFor("research-connections"), workspace, connection, review);
+}
 export async function researchResolutionsQuery(workspace: string, before?: string) {
   return listResearchResolutions(await clientFor("research-resolutions"), workspace, before);
+}
+export async function researchResolutionImpactQuery(workspace: string, resolution: string) {
+  return readResearchResolutionImpact(await clientFor("research-resolutions"), workspace, resolution);
+}
+export async function researchResolutionSetsQuery(workspace: string, before?: string) {
+  return listResearchResolutionSets(await clientFor("research-resolutions"), workspace, before);
+}
+export async function researchResolutionSetImpactQuery(workspace: string, resolutionSet: string) {
+  return readResearchResolutionSetImpact(await clientFor("research-resolutions"), workspace, resolutionSet);
 }
 
 export async function evidenceByIDsQuery(workspace: string, observationIds: string[]) {
@@ -303,6 +418,12 @@ export async function evidenceByIDsQuery(workspace: string, observationIds: stri
 
 export async function sourceObservationQuery(workspace: string, source: string, observation: string) {
   return readSourceObservation(await clientFor("sources"), workspace, source, observation);
+}
+export async function sourceObservationSharesQuery(workspace: string, source: string, observation: string) {
+  return listCitationShares(await clientFor("sources"), workspace, source, observation);
+}
+export async function sharedCitationQuery(workspace: string, token: string) {
+  return readSharedCitation(await clientFor("sources"), workspace, token);
 }
 
 export async function investigationContextQuery(workspace: string) {

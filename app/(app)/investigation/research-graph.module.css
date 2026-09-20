@@ -25,10 +25,13 @@
 .edgeAccepted :global(.react-flow__edge-path) { stroke: var(--accent); }
 .edgeRejected :global(.react-flow__edge-path) { stroke: var(--crit); stroke-dasharray: 3 4; }
 .edgeProposed :global(.react-flow__edge-path) { stroke: var(--warn); stroke-dasharray: 6 3; }
+.edgeConflicted :global(.react-flow__edge-path) { stroke: var(--crit); stroke-width: 2.5; }
+.edgeUncited :global(.react-flow__edge-path) { stroke: var(--warn); stroke-dasharray: 2 5; }
 .canvas :global(.react-flow__edge-text) { fill: var(--ink-2); font-size: 10px; }
 .canvas :global(.react-flow__edge-textbg) { fill: var(--surface-ground); }
 
 @layer screen {
+  .map { display: flex; flex-direction: column; gap: var(--space-4); }
   .canvas { block-size: 34rem; border: 1px solid var(--line); border-radius: var(--radius-3); overflow: hidden; }
   .node { position: relative; display: grid; gap: var(--space-2); align-content: center; inline-size: 220px; min-block-size: 102px; padding: var(--space-4) var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-2); background: var(--surface-panel); color: var(--ink); }
   .node strong { overflow-wrap: anywhere; font-size: var(--text-13); line-height: 1.4; }
@@ -37,4 +40,11 @@
   .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .handle { inline-size: 7px; block-size: 7px; border: 1px solid var(--line-strong); background: var(--surface-panel-2); }
   .minimap { background: var(--surface-sunk); }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--ink-3); font-size: var(--text-11-5); }
+  .legendItem { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-2); }
+  .legendItem i { display: inline-block; inline-size: 1.5rem; border-block-start: 2px solid var(--line-heavy); }
+  .legendAccepted { border-color: var(--accent) !important; }
+  .legendProposed { border-color: var(--warn) !important; border-top-style: dashed; }
+  .legendConflicted { border-color: var(--crit) !important; border-block-start-width: 3px !important; }
+  .legendUncited { border-color: var(--warn) !important; border-top-style: dotted; }
 }

@@ -33,6 +33,7 @@ export function AuditTable({
   more,
   empty,
   chainHref,
+  resumeHref,
 }: {
   entries: AuditEntry[];
   next?: string;
@@ -48,6 +49,7 @@ export function AuditTable({
   /** Where a `chain →` link points. The two audit screens live at different
    *  routes and the chain view belongs to one of them. */
   chainHref?: (correlationId: string) => string;
+  resumeHref?: (entry: AuditEntry) => string | undefined;
 }) {
   if (entries.length === 0) {
     return (
@@ -77,6 +79,7 @@ export function AuditTable({
               <TableCell>
                 <div className={s.what}>
                   <span className={s.action}>{e.action}</span>
+                  {resumeHref?.(e) ? <Link href={resumeHref(e)!} className={s.chain}>open →</Link> : null}
                   <span className={s.chips}>
                     <Badge tone="neutral" mono>{domainOf(e.action)}</Badge>
                     {/* The scope only when it says something the domain did not.

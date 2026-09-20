@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { Badge } from "@/components/display";
 import { Button, Input } from "@/components/forms";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
@@ -12,7 +13,10 @@ import type { ResearchRecord } from "@/lib/services/research-records";
 import { filterLoadedRows, unresolvedIDs } from "@/lib/query/filter";
 import type { Shell } from "../_shell";
 import { keys } from "@/lib/query";
+import { reviewBoundaryCopy, type ReviewBoundaryKind } from "@/lib/services/assistance/review-boundary";
 import { sourceHref } from "@/lib/services/sources/navigation";
+import { noteDraftHref } from "@/lib/services/notes/navigation";
+import type { NoteContext } from "@/lib/services/notes";
 export { recordHref } from "@/lib/services/research-records/navigation";
 export { sourceHref } from "@/lib/services/sources/navigation";
 import { useContext } from "../_hooks";
@@ -25,6 +29,17 @@ export const authorLabel = (author: string, shell?: Shell) => {
   return shell?.members.find((member) => member.account_id === author)?.name || author;
 };
 export const dateLabel = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+export { reviewBoundaryCopy, type ReviewBoundaryKind } from "@/lib/services/assistance/review-boundary";
+
+export function ReviewBoundary({ kind, text }: { kind: ReviewBoundaryKind; text?: string }) {
+  const copy = reviewBoundaryCopy[kind];
+  return <div className={s.reviewBoundary} role="note"><div className={s.row}><Badge tone={copy.tone}>{copy.label}</Badge><Text size="xs" tone="tertiary">{text ?? copy.text}</Text></div></div>;
+}
+
+export function WorkingNoteLink({ workspace, context, body, returnTo }: { workspace: string; context: NoteContext; body: string; returnTo: string }) {
+  return <Link className={s.inlineLink} href={noteDraftHref(workspace, { body }, returnTo, context)}>Start a working note</Link>;
+}
 
 export function useResearchWrite<T>(run: () => Promise<{ ok: true; value: T } | { ok: false; message: string }>, invalidate: readonly QueryKey[], done?: (value: T) => void) {
   const cache = useQueryClient();
@@ -64,7 +79,7 @@ export function InvestigationNav({ workspace, name, closed }: { workspace: strin
         <span className={s.contextName}>{shell?.context?.workspace.name ?? name}{closed ? " · Closed · Read only" : ""}</span>
       </div>
       <nav aria-label="Investigation views" className={s.tabs}>
-        {[["overview", "Overview"], ["sources", "Sources"], ["evidence", "Evidence review"], ["questions", "Open questions"], ["timeline", "Timeline"], ["records", "Records"], ["connections", "Connections"], ["brief", "Working brief"], ["notes", "Working notes"]].map(([view, label]) => (
+        {[["overview", "Overview"], ["sources", "Sources"], ["evidence", "Evidence review"], ["questions", "Open questions"], ["timeline", "Timeline"], ["records", "Records"], ["connections", "Connections"], ["brief", "Working brief"], ["notes", "Working notes"], ["activity", "Activity"]].map(([view, label]) => (
           <Link key={view} href={investigationPath(workspace, view)} aria-current={pathname.startsWith(investigationPath(workspace, view)) ? "page" : undefined}>{label}</Link>
         ))}
       </nav>

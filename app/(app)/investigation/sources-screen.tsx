@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Panel, Badge } from "@/components/display";
-import { Button, Input } from "@/components/forms";
+import { Button, Field, Input, Textarea } from "@/components/forms";
 import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
-import type { ArtifactCleanupSweepRun, ArtifactLifecycleState, ArtifactLifecycleStatus, RetentionQueueState, RetentionState } from "@/lib/services/sources";
+import type { ArtifactCleanupSweepRun, ArtifactLifecycleState, ArtifactLifecycleStatus, MediaType, RetentionQueueState, RetentionState, SourceIntakeStatus } from "@/lib/services/sources";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { retentionCleanupHistoryQuery, retentionCleanupQuery, retentionCleanupReviewQuery, retentionCleanupStatusQuery, retentionReviewQuery, sourceSearchQuery, sourcesQuery } from "../_queries";
-import { discardRetentionCleanupReviewAction, saveRetentionCleanupReviewAction, sweepRetentionCleanupAction } from "./_actions";
+import { assistanceProviderPolicyQuery, retentionCleanupHistoryQuery, retentionCleanupQuery, retentionCleanupReviewQuery, retentionCleanupStatusQuery, retentionReviewQuery, sourceIntakeQuery, sourceSearchQuery, sourcesQuery } from "../_queries";
+import { createSourceIntakeAction, discardRetentionCleanupReviewAction, reviewSourceIntakeAction, saveRetentionCleanupReviewAction, setAssistanceProviderPolicyAction, sweepRetentionCleanupAction } from "./_actions";
 import { dateLabel, Failure, investigationPath, MoreButton, sourceHref, useResearchWrite } from "./_shared";
 import { SourceForm } from "./source-form";
 import s from "./investigation.module.css";
@@ -22,6 +22,7 @@ export function SourcesScreen({ workspace }: { workspace: string }) {
   const { shell } = useContext();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const cache = useQueryClient();
   const mayWrite = mayWriteResearch(shell?.context?.workspace);
   const mayAdmin = shell?.context?.workspace.access === "admin";
   const [retentionState, setRetentionState] = useState<RetentionQueueState>("");
@@ -31,17 +32,88 @@ export function SourcesScreen({ workspace }: { workspace: string }) {
   const [lifecycleState, setLifecycleState] = useState<ArtifactLifecycleState | "">("");
   const [lifecycleRef, setLifecycleRef] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
+  const [intakeStatus, setIntakeStatus] = useState<SourceIntakeStatus | "">("pending");
+  const [intakeTitle, setIntakeTitle] = useState("");
+  const [intakeOrigin, setIntakeOrigin] = useState<"reference" | "import">("reference");
+  const [intakeURL, setIntakeURL] = useState("");
+  const [intakeFilename, setIntakeFilename] = useState("");
+  const [intakeContent, setIntakeContent] = useState("");
+  const [intakeContentBase64, setIntakeContentBase64] = useState("");
+  const [intakeMedia, setIntakeMedia] = useState<MediaType>("text/plain");
+  const [intakeNote, setIntakeNote] = useState("");
+  const [intakeFileError, setIntakeFileError] = useState<Error | null>(null);
+  const [intakeReading, setIntakeReading] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
   const normalizedSourceSearch = sourceSearch.trim();
   const normalizedTextSearch = searchParams.get("search")?.trim().slice(0, 200) ?? "";
   const searchReturn = normalizedTextSearch ? `${investigationPath(workspace, "sources")}?search=${encodeURIComponent(normalizedTextSearch)}` : investigationPath(workspace, "sources");
   const sources = useInfiniteQuery({ queryKey: keys.sources.list(workspace, normalizedSourceSearch), queryFn: ({ pageParam }) => sourcesQuery(workspace, pageParam, normalizedSourceSearch), initialPageParam: undefined as string | undefined, getNextPageParam: (page) => page.next_cursor ?? undefined });
+  const intake = useInfiniteQuery({ queryKey: keys.sources.intake(workspace, intakeStatus), queryFn: ({ pageParam }) => sourceIntakeQuery(workspace, intakeStatus, pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: (page) => page.next_cursor ?? undefined });
   const textResults = useInfiniteQuery({ queryKey: keys.sources.search(workspace, normalizedTextSearch), queryFn: ({ pageParam }) => sourceSearchQuery(workspace, normalizedTextSearch, pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: (page) => page.next_cursor ?? undefined, enabled: Boolean(normalizedTextSearch), retry: false });
   const retention = useInfiniteQuery({ queryKey: keys.sources.retentionQueue(workspace, retentionState), queryFn: ({ pageParam }) => retentionReviewQuery(workspace, retentionState, pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: (page) => page.next_cursor ?? undefined });
   const cleanup = useQuery({ queryKey: keys.sources.retentionCleanup(workspace), queryFn: () => retentionCleanupQuery(workspace), enabled: mayAdmin, retry: false });
   const cleanupReview = useQuery({ queryKey: keys.sources.retentionCleanupReview(workspace), queryFn: () => retentionCleanupReviewQuery(workspace), enabled: mayAdmin, retry: false });
   const cleanupReviewHistory = useQuery({ queryKey: keys.sources.retentionCleanupHistory(workspace), queryFn: () => retentionCleanupHistoryQuery(workspace), enabled: mayAdmin, retry: false });
   const cleanupStatus = useInfiniteQuery({ queryKey: keys.sources.retentionCleanupStatus(workspace, lifecycleState, lifecycleRef), queryFn: ({ pageParam }) => retentionCleanupStatusQuery(workspace, lifecycleState, pageParam, lifecycleRef), initialPageParam: undefined as string | undefined, getNextPageParam: (page) => page.next_cursor ?? undefined, enabled: mayAdmin, retry: false });
+  const assistancePolicy = useQuery({ queryKey: keys.assistance.policy(workspace), queryFn: () => assistanceProviderPolicyQuery(workspace), retry: false });
+  const assistancePolicyWrite = useResearchWrite(
+    () => setAssistanceProviderPolicyAction(workspace, !(assistancePolicy.data?.allow_external ?? false)),
+    [keys.assistance.policy(workspace)],
+    () => void assistancePolicy.refetch(),
+  );
+  const createIntake = useResearchWrite(
+    () => createSourceIntakeAction(workspace, {
+      title: intakeTitle,
+      origin: intakeOrigin,
+      note: intakeNote,
+      ...(intakeOrigin === "reference" ? { url: intakeURL } : {
+        filename: intakeFilename,
+        media_type: intakeMedia,
+        ...(intakeContentBase64 ? { content_base64: intakeContentBase64 } : { content: intakeContent }),
+      }),
+    }),
+    [keys.sources.intake(workspace, intakeStatus)],
+    () => { setIntakeTitle(""); setIntakeOrigin("reference"); setIntakeURL(""); setIntakeFilename(""); setIntakeContent(""); setIntakeContentBase64(""); setIntakeMedia("text/plain"); setIntakeNote(""); setIntakeFileError(null); void intake.refetch(); },
+  );
+  const reviewIntake = useMutation({
+    mutationFn: async (input: { intake: string; decision: "approved" | "rejected"; note: string }) => {
+      const result = await reviewSourceIntakeAction(workspace, input.intake, { decision: input.decision, note: input.note });
+      if (!result.ok) throw new Error(result.message);
+      return result.value;
+    },
+    onSuccess: async (result) => {
+      await cache.invalidateQueries({ queryKey: keys.sources.intake(workspace, intakeStatus) });
+      setReviewNote("");
+      if (result.source) router.push(sourceHref(workspace, result.source.source_id));
+    },
+  });
   const sourceRows = sources.data?.pages.flatMap((page) => page.items) ?? [];
+  const intakeRows = intake.data?.pages.flatMap((page) => page.items) ?? [];
+  const intakeReady = intakeOrigin === "reference" ? Boolean(intakeURL.trim()) : Boolean(intakeFilename && (intakeContentBase64 || intakeContent));
+  const readIntakeFile = async (file: File | undefined) => {
+    setIntakeFileError(null);
+    if (!file) return;
+    const binary = /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
+    if (file.size > (binary ? 8388608 : 262144)) { setIntakeFileError(new Error(binary ? "Choose a PDF or image of 8 MiB or smaller." : "Choose a text or JSON file of 256 KiB or smaller.")); return; }
+    if (!/\.(txt|json|pdf|png|jpe?g|webp)$/i.test(file.name)) { setIntakeFileError(new Error("Choose a .txt, .json, .pdf, .png, .jpg, or .webp file.")); return; }
+    setIntakeReading(true);
+    try {
+      const raw = await file.arrayBuffer();
+      const extension = file.name.toLowerCase();
+      if (binary) {
+        const bytes = new Uint8Array(raw);
+        let encoded = "";
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) encoded += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+        setIntakeFilename(file.name); setIntakeContent(""); setIntakeContentBase64(btoa(encoded)); setIntakeMedia(extension.endsWith(".pdf") ? "application/pdf" : extension.endsWith(".png") ? "image/png" : extension.endsWith(".webp") ? "image/webp" : "image/jpeg");
+      } else {
+        const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw);
+        if (/\.json$/i.test(file.name)) JSON.parse(text);
+        setIntakeFilename(file.name); setIntakeContentBase64(""); setIntakeContent(text); setIntakeMedia(/\.json$/i.test(file.name) ? "application/json" : "text/plain");
+      }
+      if (!intakeTitle) setIntakeTitle(file.name);
+    } catch { setIntakeFileError(new Error("The file must contain valid UTF-8 text or valid JSON.")); }
+    finally { setIntakeReading(false); }
+  };
   const textResultRows = textResults.data?.pages.flatMap((page) => page.items) ?? [];
   const selectedCleanupRefs = localCleanupSelection?.workspace === workspace ? localCleanupSelection.refs : cleanupReview.data?.status === "open" ? cleanupReview.data.selected_refs : [];
   const reviewSave = useResearchWrite(() => saveRetentionCleanupReviewAction(workspace, selectedCleanupRefs), [keys.sources.retentionCleanupReview(workspace), keys.sources.retentionCleanupHistory(workspace)]);
@@ -56,6 +128,38 @@ export function SourcesScreen({ workspace }: { workspace: string }) {
       <div className={s.stack}>
         <Input aria-label="Search retained text across this investigation" value={normalizedTextSearch} maxLength={200} onChange={(event) => { const next = new URLSearchParams(searchParams.toString()); const query = event.target.value.slice(0, 200); if (query.trim()) next.set("search", query); else next.delete("search"); router.replace(`${investigationPath(workspace, "sources")}${next.size ? `?${next}` : ""}`); }} placeholder="Search across retained text and derived text" />
         {normalizedTextSearch ? <Query of={textResults} label="retained-text search">{() => textResultRows.length ? <><Text size="xs" tone="tertiary">Showing {textResultRows.length} matching artifact{textResultRows.length === 1 ? "" : "s"}.</Text><div className={s.sourceList}>{textResultRows.map((result) => <Link key={`${result.extraction_id ?? result.capture_id}:${result.match_start}`} href={sourceHref(workspace, result.source_id, result.capture_id, undefined, searchReturn, normalizedTextSearch, 0, result.extraction_id, result.match, result.match_start)} className={s.sourceCard}><span className={s.sourceTitle}>{result.source_title}</span><span className={s.row}><Badge tone="neutral">Capture v{result.capture_version}</Badge>{result.extraction_id ? <Badge tone="accent">{result.extraction_method ?? "Derived text"}</Badge> : <Badge tone="neutral">Retained text</Badge>}<span className={s.muted}>{result.match_start}–{result.match_end}</span></span><blockquote className={s.quote}>{result.excerpt}</blockquote><Text size="xs" tone="tertiary">Matched “{result.match}” · open exact reader position and observation draft</Text></Link>)}</div><MoreButton available={textResults.hasNextPage} pending={textResults.isFetchingNextPage} load={() => void textResults.fetchNextPage()} /></> : <Text size="sm" tone="tertiary">No retained text matches this query.</Text>}</Query> : <Text size="sm" tone="tertiary">Search is workspace-scoped and returns one exact, source-grounded result per matching capture or successful extraction.</Text>}
+      </div>
+    </Panel>
+    <Panel title="Assistance provider policy" note="A workspace-wide privacy boundary for retained research material.">
+      <Query of={assistancePolicy} label="assistance provider policy">{(policy) => <div className={s.stack}>
+        <div className={s.row}><Badge tone={policy.allow_external ? "warn" : "accent"}>{policy.allow_external ? "External provider allowed" : "External provider blocked"}</Badge><Text size="sm">{policy.allow_external ? "Retained material may be sent to an explicitly configured external assistance provider." : "Only local assistance may use retained material until an admin opts in."}</Text></div>
+        {mayAdmin ? <Button type="button" intent="ghost" loading={assistancePolicyWrite.isPending} onClick={() => assistancePolicyWrite.mutate()}>{policy.allow_external ? "Disable external providers" : "Allow external providers"}</Button> : <Text size="xs" tone="tertiary">Only workspace admins can change this setting.</Text>}
+        <Failure error={assistancePolicyWrite.error} />
+      </div>}</Query>
+    </Panel>
+    <Panel title="Source intake review" note="Stage URLs or imported files here before they become retained source records. Pending files stay outside source history until a writer approves them.">
+      <div className={s.stack}>
+        {mayWrite ? <form className={s.stack} onSubmit={(event) => { event.preventDefault(); createIntake.mutate(); }}>
+          <Field label="Candidate title" hint="Give the discovered source a reviewable name before retention.">{(aria) => <Input {...aria} value={intakeTitle} onChange={(event) => setIntakeTitle(event.target.value)} maxLength={400} placeholder="Harbor authority bulletin" />}</Field>
+          <Field label="Candidate type">{({ invalid: _invalid, ...aria }) => <select {...aria} className={s.select} value={intakeOrigin} onChange={(event) => { const next = event.target.value as "reference" | "import"; setIntakeOrigin(next); setIntakeFileError(null); }}><option value="reference">URL reference</option><option value="import">Imported file</option></select>}</Field>
+          {intakeOrigin === "reference" ? <Field label="Candidate URL" hint="Only HTTP and HTTPS URLs without credentials are accepted.">{(aria) => <Input {...aria} type="url" value={intakeURL} onChange={(event) => setIntakeURL(event.target.value)} maxLength={4000} placeholder="https://example.test/bulletin" />}</Field> : <Field label="Candidate file" hint="Text/JSON up to 256 KiB; PDF/images up to 8 MiB. Bytes remain staged until approval.">{({ invalid: _invalid, ...aria }) => <input {...aria} type="file" accept=".txt,.json,.pdf,.png,.jpg,.jpeg,.webp,text/plain,application/json,application/pdf,image/png,image/jpeg,image/webp" className={s.file} onChange={(event) => void readIntakeFile(event.target.files?.[0])} />}</Field>}
+          {intakeFilename ? <Text size="sm" tone="tertiary">Selected import: {intakeFilename} ({intakeMedia})</Text> : null}
+          <Field label="Why should this be reviewed?" hint="This note travels with the candidate and is not source content.">{(aria) => <Textarea {...aria} rows={2} value={intakeNote} onChange={(event) => setIntakeNote(event.target.value)} maxLength={2000} placeholder="Discovered while checking the public transport feed." />}</Field>
+          <Failure error={intakeFileError ?? createIntake.error} />
+          {createIntake.isSuccess ? <Text size="sm" tone="accent" role="status">Candidate staged for review.</Text> : null}
+          <Button type="submit" intent="ghost" loading={createIntake.isPending || intakeReading} disabled={!intakeTitle.trim() || !intakeReady || Boolean(intakeFileError) || intakeReading}>Stage candidate</Button>
+        </form> : <Text size="sm" tone="tertiary">You have read access only. A workspace writer can stage and review source candidates.</Text>}
+        <label className={s.row}><Text as="span" size="sm">Show</Text><select aria-label="Source intake status" className={s.select} value={intakeStatus} onChange={(event) => setIntakeStatus(event.target.value as SourceIntakeStatus | "")}><option value="pending">Pending review</option><option value="">All candidates</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
+        <Query of={intake} label="source intake review">{() => intakeRows.length ? <div className={s.sourceList}>{intakeRows.map((candidate) => <div key={candidate.intake_id} className={s.sourceCard}>
+          <span className={s.row}><span className={s.sourceTitle}>{candidate.title}</span><Badge tone={candidate.status === "approved" ? "accent" : candidate.status === "rejected" ? "neutral" : "warn"}>{candidate.status}</Badge></span>
+          {candidate.origin === "import" ? <Text size="xs" tone="tertiary" className={s.body}>Imported file: {candidate.filename} · {candidate.media_type}</Text> : candidate.url ? <Text size="xs" tone="tertiary" className={s.body}>{candidate.url}</Text> : null}
+          {candidate.note ? <Text size="sm" tone="tertiary" className={s.body}>{candidate.note}</Text> : null}
+          {candidate.status === "pending" && mayWrite ? <div className={s.stack}><Field label="Review note" hint="Required for either decision and retained with the review event.">{(aria) => <Textarea {...aria} rows={2} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} maxLength={2000} placeholder="Why this should or should not enter the investigation." />}</Field><div className={s.row}><Button type="button" intent="primary" loading={reviewIntake.isPending} disabled={!reviewNote.trim()} onClick={() => reviewIntake.mutate({ intake: candidate.intake_id, decision: "approved", note: reviewNote })}>Approve and create source</Button><Button type="button" intent="ghost" loading={reviewIntake.isPending} disabled={!reviewNote.trim()} onClick={() => reviewIntake.mutate({ intake: candidate.intake_id, decision: "rejected", note: reviewNote })}>Reject candidate</Button></div></div> : null}
+          {candidate.source_id ? <Link className={s.inlineLink} href={sourceHref(workspace, candidate.source_id)}>Open created source ↗</Link> : null}
+          {candidate.review_note ? <Text size="xs" tone="tertiary" className={s.body}>Review: {candidate.review_note}</Text> : null}
+        </div>)}</div> : <div className={s.empty}><Text size="sm">No source candidates in this queue.</Text><Text size="sm" tone="tertiary">Candidates remain separate from retained sources until a writer explicitly approves one.</Text></div>}</Query>
+        <Failure error={reviewIntake.error} />
+        <MoreButton available={intake.hasNextPage} pending={intake.isFetchingNextPage} load={() => void intake.fetchNextPage()} />
       </div>
     </Panel>
     <Panel title="Retention review" note="A queue view over the same hold, date, and dependency checks that govern purge.">
@@ -99,7 +203,7 @@ export function SourcesScreen({ workspace }: { workspace: string }) {
           {sourceRows.length ? <Text size="xs" tone="tertiary">{normalizedSourceSearch ? `Showing ${sourceRows.length} matching source${sourceRows.length === 1 ? "" : "s"} from the server.` : `Showing ${sourceRows.length} loaded source${sourceRows.length === 1 ? "" : "s"}.`}</Text> : null}
           {sourceRows.length ? <div className={s.sourceList}>{sourceRows.map((source) => <Link key={source.source_id} href={sourceHref(workspace, source.source_id)} className={s.sourceCard}>
             <span className={s.sourceTitle}>{source.title}</span>
-            <span className={s.row}><Badge tone={source.latest_capture ? "neutral" : "warn"}>{source.latest_capture ? `Capture v${source.latest_capture.version}` : "URL reference only"}</Badge><span className={s.muted}>Added {dateLabel(source.created_at)}</span></span>
+            <span className={s.row}><Badge tone={source.latest_capture ? "neutral" : "warn"}>{source.latest_capture ? `Capture v${source.latest_capture.version}` : "URL reference only"}</Badge><span className={s.muted}>Added {dateLabel(source.created_at)}</span>{source.published_at ? <span className={s.muted}>Published {dateLabel(source.published_at)}</span> : null}</span>
             {source.url ? <Text size="xs" tone="tertiary" className={s.body}>{source.url}</Text> : null}
           </Link>)}</div> : normalizedSourceSearch ? <Text size="sm" tone="tertiary">No sources match this server search.</Text> : <div className={s.empty}><Text size="sm">Start with one source.</Text><Text size="sm" tone="tertiary">Paste a public notice, import an exported post, or save a URL to examine later.</Text></div>}
           <MoreButton available={sources.hasNextPage} pending={sources.isFetchingNextPage} load={() => void sources.fetchNextPage()} />

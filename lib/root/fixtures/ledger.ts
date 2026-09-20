@@ -1,6 +1,6 @@
 import { AppError } from "@/lib/kernel";
 import { bearerOf, type MemoryRoute } from "@/lib/http";
-import type { AuditEntry, AuditPage, ChainStep } from "@/lib/services/ledger";
+import type { AuditEntry, AuditPage, ChainStep, JournalEntry, JournalPage } from "@/lib/services/ledger";
 import { PERSONAS, personaFromToken, type PersonaName } from "./personas";
 
 /** The registration chain, which is what a fresh account's ledger actually
@@ -93,6 +93,29 @@ const CHAIN_STEPS = (name: PersonaName): ChainStep[] => {
   ];
 };
 
+function logsFor(name: PersonaName): JournalEntry[] {
+  const p = PERSONAS[name];
+  const org = p.me.orgs[0];
+  const workspace = org.workspaces[0];
+  return entriesFor(name)
+    .filter((entry) => entry.scope === "workspace" && entry.subject.endsWith(workspace.workspace_id))
+    .map((entry) => ({
+      id: entry.id,
+      action: entry.action,
+      subject: entry.subject,
+      origin: "request",
+      actor: entry.actor,
+      workspace_id: workspace.workspace_id,
+      depth: 2,
+      attempt: 0,
+      decision: false,
+      correlation_id: entry.correlation_id,
+      detail: entry.detail,
+      occurred_at: entry.occurred_at,
+      recorded_at: entry.occurred_at,
+    }));
+}
+
 const unauthenticated = () =>
   new AppError({ kind: "unauthenticated", message: "not signed in", status: 401 });
 
@@ -138,6 +161,18 @@ export const ledgerRoutes: MemoryRoute[] = [
     const name = personaFromToken(bearerOf(req));
     if (!name) throw unauthenticated();
     return page(entriesFor(name), req.params.facet as string | undefined, req.params.after as string | undefined);
+  },
+
+  (req) => {
+    const match = /^\/workspaces\/([^/]+)\/logs$/.exec(req.path);
+    if (!(req.method === "GET" && match)) return undefined;
+    const name = personaFromToken(bearerOf(req));
+    if (!name) throw unauthenticated();
+    const workspace = decodeURIComponent(match[1]);
+    const page: JournalPage = {
+      entries: logsFor(name).filter((entry) => entry.workspace_id === workspace),
+    };
+    return page;
   },
 
   (req) => {

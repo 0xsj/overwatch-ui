@@ -12,15 +12,15 @@ import { keys } from "@/lib/query";
 import { filterLoadedRows } from "@/lib/query/filter";
 import type { Evidence } from "@/lib/services/review";
 import type { ResearchRecord } from "@/lib/services/research-records";
-import type { ResearchConnection, ResearchConnectionKind, ResearchConnectionRevision, ResearchConnectionState, WriteResearchConnection } from "@/lib/services/research-connections";
+import type { ResearchConnection, ResearchConnectionKind, ResearchConnectionReview, ResearchConnectionReviewFilter, ResearchConnectionRevision, ResearchConnectionState, WriteResearchConnection } from "@/lib/services/research-connections";
 import type { ConnectionPrefill } from "@/lib/services/research-connections/navigation";
 import { connectionRevisionChanges, connectionRevisionEvidenceChanges } from "@/lib/services/research-connections/history";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { evidenceByIDsQuery, evidenceQuery, researchConnectionQuery, researchConnectionRevisionsQuery, researchConnectionsQuery, researchRecordsByIDsQuery, researchRecordsQuery } from "../_queries";
-import { createResearchConnectionAction, updateResearchConnectionAction } from "./_actions";
-import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, RecordPicker, sourceHref, useResearchWrite } from "./_shared";
+import { evidenceByIDsQuery, evidenceQuery, researchConnectionQuery, researchConnectionReviewsQuery, researchConnectionRevisionsQuery, researchConnectionsQuery, researchConnectionSummaryQuery, researchRecordsByIDsQuery, researchRecordsQuery } from "../_queries";
+import { createResearchConnectionAction, createResearchConnectionReviewAction, updateResearchConnectionAction } from "./_actions";
+import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, RecordPicker, sourceHref, useResearchWrite, WorkingNoteLink } from "./_shared";
 import { ResearchGraph } from "./research-graph";
 import s from "./investigation.module.css";
 
@@ -38,6 +38,20 @@ const stateLabels: Record<ResearchConnectionState, string> = {
   rejected: "Rejected",
   deferred: "Deferred",
 };
+const connectionReviewFindingLabels: Record<ResearchConnectionReview["findings"][number]["kind"], string> = {
+  support: "Support",
+  opposition: "Opposition",
+  alternative: "Alternative",
+  discriminating_evidence: "Discriminating evidence",
+};
+
+function connectionStateFilter(raw: string | null): ResearchConnectionState | "" {
+  return raw === "proposed" || raw === "accepted" || raw === "rejected" || raw === "deferred" ? raw : "";
+}
+
+function connectionReviewQueueFilter(raw: string | null): ResearchConnectionReviewFilter {
+  return raw === "open" || raw === "conflicted" || raw === "uncited" ? raw : "";
+}
 
 function connectionPrefillFrom(searchParams: ReturnType<typeof useSearchParams>): ConnectionPrefill | undefined {
   const fromRecordId = searchParams.get("from_record") ?? "";
@@ -58,9 +72,16 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
   const returnTo = requestedReturn.startsWith(`/investigation/${encodeURIComponent(workspace)}/`) ? requestedReturn : "";
   const initialPrefill = connectionPrefillFrom(searchParams);
   const [usePrefill, setUsePrefill] = useState(Boolean(initialPrefill));
+  const connectionState = connectionStateFilter(searchParams.get("state"));
+  const connectionReview = connectionReviewQueueFilter(searchParams.get("review"));
+  const connectionSummary = useQuery({
+    queryKey: keys.connections.summary(workspace),
+    queryFn: () => researchConnectionSummaryQuery(workspace),
+    retry: false,
+  });
   const connections = useInfiniteQuery({
-    queryKey: keys.connections.list(workspace),
-    queryFn: ({ pageParam }) => researchConnectionsQuery(workspace, pageParam),
+    queryKey: keys.connections.list(workspace, connectionState, connectionReview),
+    queryFn: ({ pageParam }) => researchConnectionsQuery(workspace, pageParam, connectionState, connectionReview),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
@@ -118,6 +139,22 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
     enabled: Boolean(activeId),
   });
   const revisionRows = revisions.data?.items ?? [];
+  const reviews = useInfiniteQuery({
+    queryKey: keys.connections.reviews(workspace, activeId ?? ""),
+    queryFn: ({ pageParam }) => researchConnectionReviewsQuery(workspace, activeId as string, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    enabled: Boolean(activeId),
+  });
+  const reviewRows = reviews.data?.pages.flatMap((page) => page.items) ?? [];
+  const reviewObservationIds = [...new Set(reviewRows.flatMap((row) => [...row.supporting_observation_ids, ...row.opposing_observation_ids]))];
+  const reviewEvidence = useQuery({
+    queryKey: keys.evidence.connectionEvidence(workspace, reviewObservationIds),
+    queryFn: () => evidenceByIDsQuery(workspace, reviewObservationIds),
+    enabled: reviewObservationIds.length > 0,
+  });
+  const allEvidenceError = evidenceError ?? (reviewEvidence.isError ? reviewEvidence.error : null);
+  const allEvidenceRows = mergeEvidence(evidenceRows, reviewEvidence.data ?? []);
 
   const editorPrefill = usePrefill ? initialPrefill : undefined;
   const editorKey = active?.connection_id ?? `new:${editorPrefill?.fromRecordId ?? ""}:${editorPrefill?.toRecordId ?? ""}:${editorPrefill?.kind ?? ""}`;
@@ -125,8 +162,17 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
     router.push(`${investigationPath(workspace, "records")}?record=${encodeURIComponent(record)}`);
   }, [router, workspace]);
   const openConnection = useCallback((connection: string) => {
-    router.push(`${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection)}`);
-  }, [router, workspace]);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("connection", connection);
+    router.push(`${investigationPath(workspace, "connections")}?${next}`);
+  }, [router, searchParams, workspace]);
+  const setConnectionFilter = (name: "state" | "review", value: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value) next.set(name, value); else next.delete(name);
+    next.delete("before");
+    const path = investigationPath(workspace, "connections");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
   const saved = useCallback((connection: ResearchConnection) => {
     if (!active && returnTo) {
       router.push(returnTo);
@@ -138,24 +184,35 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
     <PageHead title="Connections" actions={<div className={s.row}>{returnTo ? <Link href={returnTo} className={s.back}>Back to handoff</Link> : null}{mayWrite ? <Button type="button" intent="primary" onClick={() => { setActiveId(null); setUsePrefill(false); }}>New connection</Button> : null}</div>}>
       Record how two research records may relate. Review state, rationale, and evidence for and against remain separate from identity resolution and real-world truth.
     </PageHead>
+    <Panel title="Relationship review queue" note="Workspace-wide counts, independent of the current browse filters.">
+      <Query of={connectionSummary} label="relationship review summary">{(summary) => <div className={s.stack}>
+        <div className={s.row}><Badge tone="neutral">{summary.connection_count} connection{summary.connection_count === 1 ? "" : "s"}</Badge><Badge tone={summary.open_count ? "warn" : "neutral"}>{summary.open_count} open hypothesis{summary.open_count === 1 ? "" : "es"}</Badge><Badge tone={summary.conflicted_count ? "crit" : "neutral"}>{summary.conflicted_count} conflicting</Badge><Badge tone={summary.uncited_count ? "warn" : "accent"}>{summary.uncited_count} uncited</Badge></div>
+        <Text size="xs" tone="tertiary">State mix: {summary.state_counts.proposed ?? 0} proposed · {summary.state_counts.accepted ?? 0} accepted · {summary.state_counts.deferred ?? 0} deferred · {summary.state_counts.rejected ?? 0} rejected. These are authored assessments, not automated truth claims.</Text>
+      </div>}</Query>
+    </Panel>
     <Panel title="Research map" note={`${editorRecordRows.length} records · ${graphConnectionRows.length} connections loaded${mapHasMore ? " · more available" : ""}`} actions={mapHasMore ? <Button type="button" size="sm" intent="ghost" loading={mapLoading} onClick={() => { if (records.hasNextPage) void records.fetchNextPage(); if (connections.hasNextPage) void connections.fetchNextPage(); }}>{mapLoading ? "Loading map data…" : "Load more into map"}</Button> : undefined}>
-      <ResearchGraph records={editorRecordRows} connections={graphConnectionRows} onSelectRecord={openRecord} onSelectConnection={openConnection} />
+      <ResearchGraph records={editorRecordRows} connections={graphConnectionRows} complete={!mapHasMore} onSelectRecord={openRecord} onSelectConnection={openConnection} />
     </Panel>
     <div className={s.columns}>
-      <Panel title="Qualified connections" note={connectionRows.length ? connectionRows.length + " loaded" : undefined}>
+      <Panel title="Qualified connections" note={connectionRows.length ? `${connectionRows.length} loaded${connectionState || connectionReview ? " matching" : ""}` : undefined}>
         <Query of={connections} label="qualified connections">{() => <div className={s.stack}>
+          <div className={s.row}>
+            <label className={s.row}><Text as="span" size="sm">State</Text><select aria-label="Filter connections by state" className={s.select} value={connectionState} onChange={(event) => setConnectionFilter("state", event.target.value)}><option value="">All states</option>{(Object.keys(stateLabels) as ResearchConnectionState[]).map((state) => <option key={state} value={state}>{stateLabels[state]}</option>)}</select></label>
+            <label className={s.row}><Text as="span" size="sm">Queue</Text><select aria-label="Filter connections by review queue" className={s.select} value={connectionReview} onChange={(event) => setConnectionFilter("review", event.target.value)}><option value="">All review queues</option><option value="open">Open hypotheses</option><option value="conflicted">Conflicting evidence</option><option value="uncited">Uncited relationships</option></select></label>
+            <Input aria-label="Filter loaded connections" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter loaded connections" />
+          </div>
           {!connectionRows.length ? (
             <div className={s.empty}>
-              <Text size="sm">No connections recorded yet.</Text>
-              <Text size="sm" tone="tertiary">Create a proposed relationship when the material gives you a lead worth reviewing, not a reason to merge records.</Text>
-              {mayWrite ? <Button type="button" intent="primary" onClick={() => { setActiveId(null); setUsePrefill(false); }}>Record a connection</Button> : null}
+              <Text size="sm">{connectionState || connectionReview ? "No connections match these filters." : "No connections recorded yet."}</Text>
+              <Text size="sm" tone="tertiary">{connectionState || connectionReview ? "Try another queue or clear the browse filters." : "Create a proposed relationship when the material gives you a lead worth reviewing, not a reason to merge records."}</Text>
+              {!connectionState && !connectionReview && mayWrite ? <Button type="button" intent="primary" onClick={() => { setActiveId(null); setUsePrefill(false); }}>Record a connection</Button> : null}
             </div>
-          ) : <div className={s.stack}><Input aria-label="Filter qualified connections" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter loaded connections" /><Text size="xs" tone="tertiary">Showing {visibleConnections.length} of {connectionRows.length} loaded connection{connectionRows.length === 1 ? "" : "s"}.</Text>{visibleConnections.length ? <div className={s.eventList}>{visibleConnections.map((connection) => <ConnectionCard key={connection.connection_id} connection={connection} active={connection.connection_id === activeId} records={editorRecordRows} shell={shell} select={() => setActiveId(connection.connection_id)} />)}</div> : <Text size="sm" tone="tertiary">No loaded connections match. Clear the filter or load more.</Text>}</div>}
+          ) : <div className={s.stack}><Text size="xs" tone="tertiary">Showing {visibleConnections.length} of {connectionRows.length} loaded connection{connectionRows.length === 1 ? "" : "s"}.</Text>{visibleConnections.length ? <div className={s.eventList}>{visibleConnections.map((connection) => <ConnectionCard key={connection.connection_id} connection={connection} active={connection.connection_id === activeId} records={editorRecordRows} shell={shell} select={() => setActiveId(connection.connection_id)} />)}</div> : <Text size="sm" tone="tertiary">No loaded connections match the text filter. Clear it or load more.</Text>}</div>}
           <MoreButton available={connections.hasNextPage} pending={connections.isFetchingNextPage} load={() => void connections.fetchNextPage()} />
         </div>}</Query>
       </Panel>
       <Panel title={active ? "Review connection" : targetedConnectionLoading ? "Loading connection" : editorPrefill ? "Review proposed connection" : "Record a connection"}>
-        {targetedConnectionLoading ? <Text size="sm" tone="tertiary">Opening the selected connection…</Text> : targetedConnection.error && !active ? <Failure error={targetedConnection.error} /> : targetedRecordContextLoading ? <Text size="sm" tone="tertiary">Loading endpoint records…</Text> : targetedRecords.error ? <Failure error={targetedRecords.error} /> : <ConnectionEditor key={editorKey} workspace={workspace} connection={active} initialPrefill={editorPrefill} records={editorRecordRows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} evidence={evidenceRows} evidenceError={evidenceError} evidenceHasNext={evidence.hasNextPage} evidenceFetchingNext={evidence.isFetchingNextPage} fetchMoreEvidence={() => void evidence.fetchNextPage()} revisions={revisionRows} revisionsError={revisions.isError ? revisions.error : null} mayWrite={mayWrite} shell={shell} saved={saved} />}
+        {targetedConnectionLoading ? <Text size="sm" tone="tertiary">Opening the selected connection…</Text> : targetedConnection.error && !active ? <Failure error={targetedConnection.error} /> : targetedRecordContextLoading ? <Text size="sm" tone="tertiary">Loading endpoint records…</Text> : targetedRecords.error ? <Failure error={targetedRecords.error} /> : <ConnectionEditor key={editorKey} workspace={workspace} connection={active} initialPrefill={editorPrefill} records={editorRecordRows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} evidence={allEvidenceRows} evidenceError={allEvidenceError} evidenceHasNext={evidence.hasNextPage} evidenceFetchingNext={evidence.isFetchingNextPage} fetchMoreEvidence={() => void evidence.fetchNextPage()} revisions={revisionRows} revisionsError={revisions.isError ? revisions.error : null} reviews={reviewRows} reviewsError={reviews.isError ? reviews.error : null} reviewsHasNext={Boolean(reviews.hasNextPage)} reviewsFetchingNext={reviews.isFetchingNextPage} fetchMoreReviews={() => void reviews.fetchNextPage()} mayWrite={mayWrite} shell={shell} saved={saved} />}
       </Panel>
     </div>
   </>;
@@ -193,7 +250,7 @@ function ConnectionCard({ connection, active, records, shell, select }: { connec
   </article>;
 }
 
-function ConnectionEditor({ workspace, connection, initialPrefill, records, recordsHasNext, recordsFetchingNext, fetchMoreRecords, evidence, evidenceError, evidenceHasNext, evidenceFetchingNext, fetchMoreEvidence, revisions, revisionsError, mayWrite, shell, saved }: { workspace: string; connection?: ResearchConnection; initialPrefill?: ConnectionPrefill; records: ResearchRecord[]; recordsHasNext: boolean; recordsFetchingNext: boolean; fetchMoreRecords: () => void; evidence: Evidence[]; evidenceError: Error | null; evidenceHasNext: boolean; evidenceFetchingNext: boolean; fetchMoreEvidence: () => void; revisions: ResearchConnectionRevision[]; revisionsError: Error | null; mayWrite: boolean; shell?: ReturnType<typeof useContext>["shell"]; saved: (connection: ResearchConnection) => void }) {
+function ConnectionEditor({ workspace, connection, initialPrefill, records, recordsHasNext, recordsFetchingNext, fetchMoreRecords, evidence, evidenceError, evidenceHasNext, evidenceFetchingNext, fetchMoreEvidence, revisions, revisionsError, reviews, reviewsError, reviewsHasNext, reviewsFetchingNext, fetchMoreReviews, mayWrite, shell, saved }: { workspace: string; connection?: ResearchConnection; initialPrefill?: ConnectionPrefill; records: ResearchRecord[]; recordsHasNext: boolean; recordsFetchingNext: boolean; fetchMoreRecords: () => void; evidence: Evidence[]; evidenceError: Error | null; evidenceHasNext: boolean; evidenceFetchingNext: boolean; fetchMoreEvidence: () => void; revisions: ResearchConnectionRevision[]; revisionsError: Error | null; reviews: ResearchConnectionReview[]; reviewsError: Error | null; reviewsHasNext: boolean; reviewsFetchingNext: boolean; fetchMoreReviews: () => void; mayWrite: boolean; shell?: ReturnType<typeof useContext>["shell"]; saved: (connection: ResearchConnection) => void }) {
   const [fromRecordId, setFromRecordId] = useState(connection?.from_record_id ?? initialPrefill?.fromRecordId ?? "");
   const [toRecordId, setToRecordId] = useState(connection?.to_record_id ?? initialPrefill?.toRecordId ?? "");
   const [kind, setKind] = useState<ResearchConnectionKind>(connection?.kind ?? initialPrefill?.kind ?? "associated_with");
@@ -203,8 +260,10 @@ function ConnectionEditor({ workspace, connection, initialPrefill, records, reco
   const [opposingObservationIds, setOpposingObservationIds] = useState<string[]>(connection?.opposing_observation_ids ?? []);
   const body: WriteResearchConnection = { from_record_id: fromRecordId, to_record_id: toRecordId, kind, state, rationale, supporting_observation_ids: supportingObservationIds, opposing_observation_ids: opposingObservationIds };
   const save = useResearchWrite(() => connection ? updateResearchConnectionAction(workspace, connection.connection_id, body) : createResearchConnectionAction(workspace, body), [keys.connections.all(workspace)], saved);
+  const fromName = records.find((record) => record.record_id === (connection?.from_record_id ?? fromRecordId))?.name ?? (connection?.from_record_id ?? fromRecordId);
+  const toName = records.find((record) => record.record_id === (connection?.to_record_id ?? toRecordId))?.name ?? (connection?.to_record_id ?? toRecordId);
 
-  if (!mayWrite) return connection ? <div className={s.stack}><ConnectionDetail connection={connection} records={records} evidence={evidence} workspace={workspace} shell={shell} error={evidenceError} /><RevisionHistory rows={revisions} evidence={evidence} workspace={workspace} error={revisionsError} shell={shell} /></div> : <Text size="sm" tone="tertiary">This investigation is read-only. Existing connections remain visible, but new assessments require write access.</Text>;
+  if (!mayWrite) return connection ? <div className={s.stack}><ConnectionDetail connection={connection} records={records} evidence={evidence} workspace={workspace} shell={shell} error={evidenceError} /><RevisionHistory rows={revisions} evidence={evidence} workspace={workspace} error={revisionsError} shell={shell} /><ConnectionReviewPanel workspace={workspace} connection={connection} reviews={reviews} reviewsError={reviewsError} reviewsHasNext={reviewsHasNext} reviewsFetchingNext={reviewsFetchingNext} fetchMoreReviews={fetchMoreReviews} mayWrite={false} evidence={evidence} evidenceError={evidenceError} /></div> : <Text size="sm" tone="tertiary">This investigation is read-only. Existing connections remain visible, but new assessments require write access.</Text>;
 
   return <div className={s.stack}><form className={s.eventEditor} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
     <RecordPicker label="From record" value={fromRecordId} records={records} onChange={setFromRecordId} hasNext={recordsHasNext} fetchingNext={recordsFetchingNext} fetchMore={fetchMoreRecords} disabled={Boolean(connection)} />
@@ -216,8 +275,8 @@ function ConnectionEditor({ workspace, connection, initialPrefill, records, reco
     <CitationPicker workspace={workspace} label="Opposing observations" selected={opposingObservationIds} evidence={evidence} setSelected={setOpposingObservationIds} error={evidenceError} max={12} other={supportingObservationIds} hasNext={evidenceHasNext} fetchingNext={evidenceFetchingNext} fetchMore={fetchMoreEvidence} returnTo={investigationPath(workspace, "connections")} />
     <Failure error={save.error} />
     {save.isSuccess ? <Text size="sm" tone="accent" role="status">Connection saved.</Text> : null}
-    <div className={s.row}><Button type="submit" intent="primary" loading={save.isPending}>{connection ? "Update connection" : "Save connection"}</Button>{connection ? <Text size="xs" tone="tertiary">Last updated by {authorLabel(connection.updated_by, shell)}</Text> : null}</div>
-  </form>{connection ? <RevisionHistory rows={revisions} evidence={evidence} workspace={workspace} error={revisionsError} shell={shell} /> : null}</div>;
+    <div className={s.row}><Button type="submit" intent="primary" loading={save.isPending}>{connection ? "Update connection" : "Save connection"}</Button>{connection ? <><Text size="xs" tone="tertiary">Last updated by {authorLabel(connection.updated_by, shell)}</Text><WorkingNoteLink workspace={workspace} context={{ kind: "connection", id: connection.connection_id }} returnTo={`${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection.connection_id)}`} body={`Follow up on research connection: ${fromName} → ${toName}\n\n${connection.rationale}\n\nNext steps: `} /></> : null}</div>
+  </form>{connection ? <RevisionHistory rows={revisions} evidence={evidence} workspace={workspace} error={revisionsError} shell={shell} /> : null}{connection ? <ConnectionReviewPanel workspace={workspace} connection={connection} reviews={reviews} reviewsError={reviewsError} reviewsHasNext={reviewsHasNext} reviewsFetchingNext={reviewsFetchingNext} fetchMoreReviews={fetchMoreReviews} mayWrite={mayWrite} evidence={evidence} evidenceError={evidenceError} /> : null}</div>;
 }
 
 function ConnectionDetail({ connection, records, evidence, workspace, shell, error }: { connection: ResearchConnection; records: ResearchRecord[]; evidence: Evidence[]; workspace: string; shell?: ReturnType<typeof useContext>["shell"]; error: Error | null }) {
@@ -251,6 +310,23 @@ function RevisionEvidenceDiff({ previous, current, evidence, workspace, evidence
   const added = changes.supportingAdded.length || changes.opposingAdded.length;
   if (!removed && !added) return null;
   return <div className={s.details}><Text size="xs" tone="tertiary">Evidence movement since revision {previous.revision}</Text><div className={s.snapshotCompareColumns}><div><Text size="xs" tone="tertiary">Removed</Text><CitationLinks title="Supporting" ids={changes.supportingRemoved} evidence={evidence} workspace={workspace} error={evidenceError} /><CitationLinks title="Opposing" ids={changes.opposingRemoved} evidence={evidence} workspace={workspace} error={evidenceError} /></div><div><Text size="xs" tone="tertiary">Added</Text><CitationLinks title="Supporting" ids={changes.supportingAdded} evidence={evidence} workspace={workspace} error={evidenceError} /><CitationLinks title="Opposing" ids={changes.opposingAdded} evidence={evidence} workspace={workspace} error={evidenceError} /></div></div></div>;
+}
+
+function ConnectionReviewPanel({ workspace, connection, reviews, reviewsError, reviewsHasNext, reviewsFetchingNext, fetchMoreReviews, mayWrite, evidence, evidenceError }: { workspace: string; connection: ResearchConnection; reviews: ResearchConnectionReview[]; reviewsError: Error | null; reviewsHasNext: boolean; reviewsFetchingNext: boolean; fetchMoreReviews: () => void; mayWrite: boolean; evidence: Evidence[]; evidenceError: Error | null }) {
+  const [selectedID, setSelectedID] = useState("");
+  const selected = reviews.find((review) => review.connection_review_id === selectedID) ?? reviews[0];
+  const run = useResearchWrite(() => createResearchConnectionReviewAction(workspace, connection.connection_id), [keys.connections.reviews(workspace, connection.connection_id)], (review) => setSelectedID(review.connection_review_id));
+  const canRun = connection.supporting_observation_ids.length > 0 || connection.opposing_observation_ids.length > 0;
+  const returnTo = `${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection.connection_id)}`;
+  return <section className={s.briefSection}>
+    <div className={s.row}><Text size="xs" tone="tertiary">Assisted connection review</Text>{reviews.length ? <Badge tone="neutral">{reviews.length} saved</Badge> : null}</div>
+    <Text size="sm" tone="tertiary">A bounded proposal over the authored relationship and its attached citations. It does not change the connection or assert identity, causality, or truth.</Text>
+    <Failure error={reviewsError ?? run.error} />
+    {reviews.length ? <label className={s.row}><Text as="span" size="sm">Saved review</Text><select aria-label="Saved assisted connection review" className={s.select} value={selected?.connection_review_id ?? ""} onChange={(event) => setSelectedID(event.target.value)}>{reviews.map((review) => <option key={review.connection_review_id} value={review.connection_review_id}>{dateLabel(review.created_at)} · {review.findings.length} finding{review.findings.length === 1 ? "" : "s"}</option>)}</select></label> : null}
+    {mayWrite ? <form onSubmit={(event) => { event.preventDefault(); run.mutate(); }}><Button type="submit" intent="primary" loading={run.isPending} disabled={!canRun}>{selected ? "Run another assisted review" : "Run assisted connection review"}</Button>{!canRun ? <Text size="xs" tone="tertiary">Attach at least one supporting or opposing observation first.</Text> : null}</form> : <Text size="xs" tone="tertiary">This investigation is read-only. Saved proposals remain visible, but new runs require write access.</Text>}
+    {selected ? <div className={s.stack}><div className={s.eventMeta}><Text size="xs" tone="tertiary">{selected.provider} · {selected.method} · {dateLabel(selected.created_at)}</Text><Text size="xs" tone="tertiary">{selected.supporting_observation_ids.length} supporting · {selected.opposing_observation_ids.length} opposing citations</Text></div><Text size="sm" className={s.body}>{selected.output}</Text><div className={s.details}><Text size="sm">Structured findings</Text><div className={s.stack}>{selected.findings.map((finding, index) => <article key={`${finding.kind}:${index}`} className={s.observation}><div className={s.row}><Badge tone={finding.kind === "opposition" ? "crit" : finding.kind === "discriminating_evidence" ? "warn" : "neutral"}>{connectionReviewFindingLabels[finding.kind]}</Badge></div><Text size="sm">{finding.summary}</Text><CitationLinks title="Exact citations" ids={finding.observation_ids} evidence={evidence} workspace={workspace} error={evidenceError} returnTo={returnTo} /></article>)}</div></div></div> : <Text size="sm" tone="tertiary">No assisted review has been run for this connection.</Text>}
+    <MoreButton available={reviewsHasNext} pending={reviewsFetchingNext} load={fetchMoreReviews} />
+  </section>;
 }
 
 function CitationLinks({ title, ids, evidence, workspace, error, returnTo }: { title: string; ids: string[]; evidence: Evidence[]; workspace: string; error: Error | null; returnTo?: string }) {

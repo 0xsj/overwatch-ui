@@ -11,7 +11,7 @@ import type { ResearchRecordKind } from "@/lib/services/research-records";
 import type { ResearchConnectionKind } from "@/lib/services/research-connections";
 import { quoteAt, quoteOccurrences } from "@/lib/services/sources/citation";
 import { addObservationAction } from "./_actions";
-import { Failure, recordHref, sourceHref, useResearchWrite } from "./_shared";
+import { Failure, recordHref, ReviewBoundary, sourceHref, useResearchWrite } from "./_shared";
 import s from "./investigation.module.css";
 
 export type ObservationPrefill = {
@@ -67,6 +67,7 @@ export function ObservationForm({ workspace, source, capture, extractionId, read
     setSearchHandoffActive(false); setQuote(selectedQuote); setOccurrence(Math.max(1, positions.indexOf(point) + 1)); setSelectionError(null);
   };
   return <form className={s.stack} onSubmit={(event) => { event.preventDefault(); if (start !== undefined) save.mutate(); }}>
+   <ReviewBoundary kind="authored" text={prefill ? "This form is the analyst-authored step after reviewing assistance. Nothing is persisted until you record the cited observation." : undefined} />
    <Text size="sm" tone="tertiary">Record what this source says. Your interpretation and unanswered questions belong in working notes.</Text>
     {searchHandoffActive ? <Alert tone={handoffLocationMismatch ? "warn" : "info"}><Text size="sm">{handoffLocationMismatch ? "The search handoff no longer matches this exact passage location in the opened artifact. Choose the passage again or edit the quote before recording it." : `Search handoff loaded at code-point ${prefill?.quoteStart ?? 0}. Review the statement before recording it.`}</Text></Alert> : null}
     <Button type="button" intent="ghost" onMouseDown={(event) => event.preventDefault()} onClick={selected}>Use selected passage</Button>

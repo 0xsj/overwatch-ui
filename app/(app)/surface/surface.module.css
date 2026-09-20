@@ -69,6 +69,10 @@
 
   @media (max-width: 46rem) {
     .step { grid-template-columns: 1fr; gap: var(--space-1); }
+    /* Dense operational tables keep their column rhythm on a phone. The
+       surrounding `.scroll` region is the intentional narrow-screen escape
+       hatch; squashing five provenance columns into unreadable slivers is not. */
+    .scroll .table { min-inline-size: 42rem; }
   }
 
   .rows { display: grid; gap: var(--space-2); }

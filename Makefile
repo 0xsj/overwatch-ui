@@ -1,4 +1,5 @@
-# Reads the ambient environment the root Makefile exports. Never ../.env —
+# Reads the ambient environment the root Makefile exports. Never a parent-tree
+# environment file —
 # decisions/0001-three-repositories-one-root-env.
 PORT ?= $(PORT_WEB)
 PORT := $(or $(PORT),7010)

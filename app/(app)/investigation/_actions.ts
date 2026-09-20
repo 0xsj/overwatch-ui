@@ -4,16 +4,17 @@ import { revalidatePath } from "next/cache";
 import { clientFor } from "@/lib/root";
 import { isAppError } from "@/lib/kernel";
 import { getMe, openWorkspace } from "@/lib/services/tenancy";
-import { addCapture, addSource, addSourceObservation, discardRetentionCleanupReview, extractCapture, fetchSource, purgeSource, saveRetentionCleanupReview, setSourcePrivacy, setSourceRetention, sweepRetentionCleanup, type AddObservation, type AddSource, type MediaType, type SetSourcePrivacy, type SetSourceRetention } from "@/lib/services/sources";
-import { editWorkingNote, writeWorkingNote } from "@/lib/services/notes";
-import { createEvidenceSynthesis, readEvidence, setEvidenceRelation, type SetEvidenceRelation } from "@/lib/services/review";
+import { addCapture, addSource, addSourceObservation, configureSourceWatch, createCitationShare, createSourceIntake, discardRetentionCleanupReview, extractCapture, fetchSource, purgeSource, reviewSourceIntake, revokeCitationShare, runSourceWatch, saveRetentionCleanupReview, setSourceDuplicatePolicy, setSourcePrivacy, setSourcePublication, setSourceRetention, sweepRetentionCleanup, type AddObservation, type AddSource, type ConfigureSourceWatch, type CreateSourceIntake, type MediaType, type ReviewSourceIntake, type SetSourceDuplicatePolicy, type SetSourcePrivacy, type SetSourcePublication, type SetSourceRetention } from "@/lib/services/sources";
+import { editWorkingNote, writeWorkingNote, type NoteContext } from "@/lib/services/notes";
+import { createEvidenceCluster, createEvidenceComparison, createEvidenceQuestionSuggestions, createEvidenceSynthesis, readEvidence, setEvidenceRelation, setEvidenceSourceLink, updateEvidenceCluster, type EvidenceQuestionSuggestionGap, type SetEvidenceRelation, type SetEvidenceSourceLink, type WriteEvidenceCluster } from "@/lib/services/review";
 import { createQuestion, updateQuestion, type WriteQuestion } from "@/lib/services/questions";
-import { generateAssistance, reviewAssistanceProposal, type ReviewAssistanceProposal } from "@/lib/services/assistance";
-import { createEvent, updateEvent, type WriteEvent } from "@/lib/services/events";
-import { createBriefSnapshot, saveBrief, type WriteBrief } from "@/lib/services/brief";
+import { generateAssistance, reviewAssistanceProposal, setAssistanceProviderPolicy, type ReviewAssistanceProposal } from "@/lib/services/assistance";
+import { createEvent, createEventAccount, createEventCluster, createEventRelationship, reconcileEventAccounts, reviewEventCluster, reviewEventRelationship, updateEvent, type WriteEvent, type WriteEventAccount, type WriteEventCluster, type WriteEventRelationship } from "@/lib/services/events";
+import { addBriefSnapshotComment, assignBriefSnapshotReviewer, createBriefDraft, createBriefSnapshot, createBriefSnapshotShare, revokeBriefSnapshotShare, saveBrief, submitBriefSnapshotReview, type AddSnapshotComment, type SnapshotReviewAssignment, type SnapshotReviewDecision, type WriteBrief } from "@/lib/services/brief";
 import { createResearchRecord, updateResearchRecord, type WriteResearchRecord } from "@/lib/services/research-records";
-import { createResearchConnection, updateResearchConnection, type WriteResearchConnection } from "@/lib/services/research-connections";
+import { createResearchConnection, createResearchConnectionReview, updateResearchConnection, type WriteResearchConnection } from "@/lib/services/research-connections";
 import { createResearchResolution, reviewResearchResolution, reverseResearchResolution, type ProposeResearchResolution, type ResearchResolutionDecision } from "@/lib/services/research-resolutions";
+import { createResearchResolutionSet, reviewResearchResolutionSet, reverseResearchResolutionSet, type ProposeResearchResolutionSet, type ResearchResolutionSetDecision } from "@/lib/services/research-resolution-sets";
 import { selectOrg, selectWorkspace } from "../_selection";
 
 async function attempt<T>(run: () => Promise<T>) {
@@ -58,6 +59,12 @@ export async function rememberInvestigationAction(workspace: string) {
 export async function addSourceAction(workspace: string, body: AddSource) {
   return attempt(() => addSourceFrom(workspace, body));
 }
+export async function createSourceIntakeAction(workspace: string, body: CreateSourceIntake) {
+  return attempt(async () => createSourceIntake(await clientFor("sources"), workspace, body));
+}
+export async function reviewSourceIntakeAction(workspace: string, intake: string, body: ReviewSourceIntake) {
+  return attempt(async () => reviewSourceIntake(await clientFor("sources"), workspace, intake, body));
+}
 async function addSourceFrom(workspace: string, body: AddSource) {
   return addSource(await clientFor("sources"), workspace, body);
 }
@@ -67,8 +74,20 @@ export async function addCaptureAction(workspace: string, source: string, conten
 export async function fetchSourceAction(workspace: string, source: string) {
   return attempt(async () => fetchSource(await clientFor("sources"), workspace, source));
 }
+export async function configureSourceWatchAction(workspace: string, source: string, body: ConfigureSourceWatch) {
+  return attempt(async () => configureSourceWatch(await clientFor("sources"), workspace, source, body));
+}
+export async function runSourceWatchAction(workspace: string, source: string) {
+  return attempt(async () => runSourceWatch(await clientFor("sources"), workspace, source));
+}
 export async function setSourceRetentionAction(workspace: string, source: string, body: SetSourceRetention) {
   return attempt(async () => setSourceRetention(await clientFor("sources"), workspace, source, body));
+}
+export async function setSourcePublicationAction(workspace: string, source: string, body: SetSourcePublication) {
+  return attempt(async () => setSourcePublication(await clientFor("sources"), workspace, source, body));
+}
+export async function setSourceDuplicatePolicyAction(workspace: string, source: string, body: SetSourceDuplicatePolicy) {
+  return attempt(async () => setSourceDuplicatePolicy(await clientFor("sources"), workspace, source, body));
 }
 export async function setSourcePrivacyAction(workspace: string, source: string, body: SetSourcePrivacy) {
   return attempt(async () => setSourcePrivacy(await clientFor("sources"), workspace, source, body));
@@ -91,18 +110,40 @@ export async function extractCaptureAction(workspace: string, source: string, ca
 export async function addObservationAction(workspace: string, source: string, body: AddObservation) {
   return attempt(async () => addSourceObservation(await clientFor("sources"), workspace, source, body));
 }
-export async function saveNoteAction(workspace: string, body: string, note?: string) {
+export async function createCitationShareAction(workspace: string, source: string, observation: string) {
+  return attempt(async () => createCitationShare(await clientFor("sources"), workspace, source, observation));
+}
+export async function revokeCitationShareAction(workspace: string, share: string) {
+  return attempt(async () => revokeCitationShare(await clientFor("sources"), workspace, share));
+}
+export async function saveNoteAction(workspace: string, body: string, note?: string, context?: NoteContext) {
   return attempt(async () => {
     const http = await clientFor("notes");
-    return note ? editWorkingNote(http, workspace, note, body) : writeWorkingNote(http, workspace, body);
+    return note ? editWorkingNote(http, workspace, note, body) : writeWorkingNote(http, workspace, body, context);
   });
 }
 
 export async function setEvidenceRelationAction(workspace: string, body: SetEvidenceRelation) {
   return attempt(async () => setEvidenceRelation(await clientFor("review"), workspace, body));
 }
+export async function setEvidenceSourceLinkAction(workspace: string, body: SetEvidenceSourceLink) {
+  return attempt(async () => setEvidenceSourceLink(await clientFor("review"), workspace, body));
+}
 export async function createEvidenceSynthesisAction(workspace: string, observationIds: string[]) {
   return attempt(async () => createEvidenceSynthesis(await clientFor("review"), workspace, observationIds));
+}
+export async function createEvidenceComparisonAction(workspace: string, observationIds: string[]) {
+  return attempt(async () => createEvidenceComparison(await clientFor("review"), workspace, observationIds));
+}
+
+export async function createEvidenceQuestionSuggestionsAction(workspace: string, gaps: EvidenceQuestionSuggestionGap[]) {
+  return attempt(async () => createEvidenceQuestionSuggestions(await clientFor("review"), workspace, gaps));
+}
+export async function createEvidenceClusterAction(workspace: string, body: WriteEvidenceCluster) {
+  return attempt(async () => createEvidenceCluster(await clientFor("review"), workspace, body));
+}
+export async function updateEvidenceClusterAction(workspace: string, cluster: string, body: WriteEvidenceCluster) {
+  return attempt(async () => updateEvidenceCluster(await clientFor("review"), workspace, cluster, body));
 }
 export async function hydrateEvidenceAction(workspace: string, observationIds: string[]) {
   return attempt(async () => {
@@ -116,11 +157,14 @@ export async function createQuestionAction(workspace: string, body: WriteQuestio
 export async function updateQuestionAction(workspace: string, question: string, body: WriteQuestion) {
   return attempt(async () => updateQuestion(await clientFor("questions"), workspace, question, body));
 }
-export async function generateAssistanceAction(workspace: string, source: string, capture: string, extraction?: string) {
-  return attempt(async () => generateAssistance(await clientFor("sources"), workspace, source, capture, extraction));
+export async function generateAssistanceAction(workspace: string, source: string, capture: string, extraction?: string, retryOperation?: string) {
+  return attempt(async () => generateAssistance(await clientFor("sources"), workspace, source, capture, extraction, retryOperation));
 }
 export async function reviewAssistanceProposalAction(workspace: string, operation: string, proposal: string, body: ReviewAssistanceProposal) {
   return attempt(async () => reviewAssistanceProposal(await clientFor("sources"), workspace, operation, proposal, body));
+}
+export async function setAssistanceProviderPolicyAction(workspace: string, allowExternal: boolean) {
+  return attempt(async () => setAssistanceProviderPolicy(await clientFor("sources"), workspace, allowExternal));
 }
 export async function createEventAction(workspace: string, body: WriteEvent) {
   return attempt(async () => createEvent(await clientFor("events"), workspace, body));
@@ -128,11 +172,49 @@ export async function createEventAction(workspace: string, body: WriteEvent) {
 export async function updateEventAction(workspace: string, event: string, body: WriteEvent) {
   return attempt(async () => updateEvent(await clientFor("events"), workspace, event, body));
 }
+export async function createEventAccountAction(workspace: string, event: string, body: WriteEventAccount) {
+  return attempt(async () => createEventAccount(await clientFor("events"), workspace, event, body));
+}
+export async function reconcileEventAccountsAction(workspace: string, event: string, body: { decision: "unresolved" | "retain_event" | "prefer_account"; selected_account_id?: string; rationale: string }) {
+  return attempt(async () => reconcileEventAccounts(await clientFor("events"), workspace, event, body));
+}
+export async function createEventClusterAction(workspace: string, body: WriteEventCluster) {
+  return attempt(async () => createEventCluster(await clientFor("events"), workspace, body));
+}
+export async function reviewEventClusterAction(workspace: string, cluster: string, body: { state: "proposed" | "accepted" | "rejected"; note: string }) {
+  return attempt(async () => reviewEventCluster(await clientFor("events"), workspace, cluster, body));
+}
+
+export async function createEventRelationshipAction(workspace: string, body: WriteEventRelationship) {
+  return attempt(async () => createEventRelationship(await clientFor("events"), workspace, body));
+}
+
+export async function reviewEventRelationshipAction(workspace: string, relationship: string, body: { state: "proposed" | "accepted" | "rejected"; note: string }) {
+  return attempt(async () => reviewEventRelationship(await clientFor("events"), workspace, relationship, body));
+}
 export async function saveBriefAction(workspace: string, body: WriteBrief) {
   return attempt(async () => saveBrief(await clientFor("brief"), workspace, body));
 }
+export async function createBriefDraftAction(workspace: string, observationIds: string[]) {
+  return attempt(async () => createBriefDraft(await clientFor("brief"), workspace, observationIds));
+}
 export async function freezeBriefAction(workspace: string) {
   return attempt(async () => createBriefSnapshot(await clientFor("brief"), workspace));
+}
+export async function assignBriefSnapshotReviewerAction(workspace: string, snapshot: string, body: SnapshotReviewAssignment) {
+  return attempt(async () => assignBriefSnapshotReviewer(await clientFor("brief"), workspace, snapshot, body));
+}
+export async function submitBriefSnapshotReviewAction(workspace: string, snapshot: string, body: SnapshotReviewDecision) {
+  return attempt(async () => submitBriefSnapshotReview(await clientFor("brief"), workspace, snapshot, body));
+}
+export async function addBriefSnapshotCommentAction(workspace: string, snapshot: string, body: AddSnapshotComment) {
+  return attempt(async () => addBriefSnapshotComment(await clientFor("brief"), workspace, snapshot, body));
+}
+export async function createBriefSnapshotShareAction(workspace: string, snapshot: string) {
+  return attempt(async () => createBriefSnapshotShare(await clientFor("brief"), workspace, snapshot));
+}
+export async function revokeBriefSnapshotShareAction(workspace: string, share: string) {
+  return attempt(async () => revokeBriefSnapshotShare(await clientFor("brief"), workspace, share));
 }
 
 export async function createResearchRecordAction(workspace: string, body: WriteResearchRecord) {
@@ -147,6 +229,9 @@ export async function createResearchConnectionAction(workspace: string, body: Wr
 export async function updateResearchConnectionAction(workspace: string, connection: string, body: WriteResearchConnection) {
   return attempt(async () => updateResearchConnection(await clientFor("research-connections"), workspace, connection, body));
 }
+export async function createResearchConnectionReviewAction(workspace: string, connection: string) {
+  return attempt(async () => createResearchConnectionReview(await clientFor("research-connections"), workspace, connection));
+}
 export async function createResearchResolutionAction(workspace: string, alias: string, body: ProposeResearchResolution) {
   return attempt(async () => createResearchResolution(await clientFor("research-resolutions"), workspace, alias, body));
 }
@@ -155,4 +240,13 @@ export async function reviewResearchResolutionAction(workspace: string, resoluti
 }
 export async function reverseResearchResolutionAction(workspace: string, resolution: string) {
   return attempt(async () => reverseResearchResolution(await clientFor("research-resolutions"), workspace, resolution));
+}
+export async function createResearchResolutionSetAction(workspace: string, body: ProposeResearchResolutionSet) {
+  return attempt(async () => createResearchResolutionSet(await clientFor("research-resolutions"), workspace, body));
+}
+export async function reviewResearchResolutionSetAction(workspace: string, resolutionSet: string, decision: ResearchResolutionSetDecision) {
+  return attempt(async () => reviewResearchResolutionSet(await clientFor("research-resolutions"), workspace, resolutionSet, decision));
+}
+export async function reverseResearchResolutionSetAction(workspace: string, resolutionSet: string) {
+  return attempt(async () => reverseResearchResolutionSet(await clientFor("research-resolutions"), workspace, resolutionSet));
 }
