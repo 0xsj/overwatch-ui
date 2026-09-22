@@ -3,6 +3,8 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    min-inline-size: 0;
+    max-inline-size: min(30rem, 40vw);
     block-size: var(--control-sm);
     padding-inline: var(--space-3);
     border: 1px solid transparent;
@@ -22,10 +24,19 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    min-inline-size: 0;
+    max-inline-size: min(30rem, 40vw);
     color: var(--ink-2);
     font-size: var(--text-12-5);
   }
   .chevron { color: var(--ink-4); margin-inline-start: var(--space-1); }
+
+  .currentName {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .tick { display: inline-flex; inline-size: 13px; color: var(--accent); }
   .name { flex: 1; }

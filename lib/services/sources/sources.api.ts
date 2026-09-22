@@ -1,9 +1,10 @@
 import type { HttpClient } from "@/lib/http";
-import type { AddObservation, AddSource, ArtifactCleanupInventory, ArtifactCleanupResult, ArtifactCleanupReview, ArtifactCleanupReviewPage, ArtifactLifecyclePage, Capture, CaptureSummary, CitationContext, CitationShare, ConfigureSourceWatch, CreateSourceIntake, ManualObservation, MediaType, Page, PurgeSource, RetentionQueuePage, RetentionQueueState, ReviewSourceIntake, SetSourceDuplicatePolicy, SetSourcePrivacy, SetSourcePublication, SetSourceRetention, SourceAlertPage, SourceDetail, SourceExtraction, SourceExtractionPage, SourceGapAlertsRefresh, SourceIntakeCandidate, SourceIntakePage, SourceIntakeReviewResult, SourceRetentionReview, SourceSearchPage, SourceSummary, SourceWatch, SourceWatchRunResult } from "./sources.types";
+import type { AddObservation, AddSource, ArtifactCleanupInventory, ArtifactCleanupResult, ArtifactCleanupReview, ArtifactCleanupReviewPage, ArtifactLifecyclePage, Capture, CaptureSummary, CitationContext, CitationShare, ConfigureSourceWatch, CreateSourceIntake, ManualObservation, MediaType, Page, PurgeSource, RetentionQueuePage, RetentionQueueState, ReviewSourceIntake, SetSourceDuplicatePolicy, SetSourcePrivacy, SetSourcePublication, SetSourceRetention, SourceAlertDelivery, SourceAlertDeliveryInput, SourceAlertPage, SourceDetail, SourceExtraction, SourceExtractionPage, SourceGapAlertsRefresh, SourceIntakeCandidate, SourceIntakePage, SourceIntakeReviewResult, SourceRetentionReview, SourceSearchPage, SourceSummary, SourceWatch, SourceWatchRunResult } from "./sources.types";
 
 const base = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/sources`;
 const sourcePath = (workspace: string, source: string) => `${base(workspace)}/${encodeURIComponent(source)}`;
 const alertsPath = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/source-alerts`;
+const alertDeliveryPath = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/source-alert-delivery`;
 const intakeBase = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/source-intake`;
 const intakePath = (workspace: string, intake: string) => `${intakeBase(workspace)}/${encodeURIComponent(intake)}`;
 const retentionReviewPath = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/retention-review`;
@@ -96,6 +97,12 @@ export function runSourceWatch(http: HttpClient, workspace: string, source: stri
 }
 export function listSourceAlerts(http: HttpClient, workspace: string, before?: string) {
   return http.get<SourceAlertPage>(alertsPath(workspace), { params: { before, limit: 50 } });
+}
+export function readSourceAlertDelivery(http: HttpClient, workspace: string) {
+  return http.get<SourceAlertDelivery>(alertDeliveryPath(workspace));
+}
+export function saveSourceAlertDelivery(http: HttpClient, workspace: string, body: SourceAlertDeliveryInput) {
+  return http.put<SourceAlertDelivery>(alertDeliveryPath(workspace), { body });
 }
 export function refreshSourceGapAlerts(http: HttpClient, workspace: string) {
   return http.post<SourceGapAlertsRefresh>(`${alertsPath(workspace)}/refresh-gaps`, { body: {} });

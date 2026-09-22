@@ -1,10 +1,10 @@
 import { AppError } from "@/lib/kernel";
 import { bearerOf, type MemoryRequest, type MemoryRoute } from "@/lib/http";
-import type { AddObservation, AddSource, ArtifactCleanupCandidate, ArtifactCleanupReview, ArtifactCleanupReviewSummary, ArtifactCleanupSweepRun, ArtifactLifecycleStatus, Capture, CitationContext, CitationShare, ConfigureSourceWatch, CreateSourceIntake, ManualObservation, MediaType, RetentionQueueState, ReviewSourceIntake, SetSourceDuplicatePolicy, SetSourcePrivacy, SetSourcePublication, SetSourceRetention, SourceAlert, SourceExtraction, SourceIntakeCandidate, SourceRetentionReview, SourceSearchResult, SourceSummary, SourceWatch, SourceWatchRunResult, TextCapture } from "@/lib/services/sources";
+import type { AddObservation, AddSource, ArtifactCleanupCandidate, ArtifactCleanupReview, ArtifactCleanupReviewSummary, ArtifactCleanupSweepRun, ArtifactLifecycleStatus, Capture, CitationContext, CitationShare, ConfigureSourceWatch, CreateSourceIntake, ManualObservation, MediaType, RetentionQueueState, ReviewSourceIntake, SetSourceDuplicatePolicy, SetSourcePrivacy, SetSourcePublication, SetSourceRetention, SourceAlert, SourceAlertDelivery, SourceAlertDeliveryInput, SourceExtraction, SourceIntakeCandidate, SourceRetentionReview, SourceSearchResult, SourceSummary, SourceWatch, SourceWatchRunResult, TextCapture } from "@/lib/services/sources";
 import type { NoteContext, WorkingNote, WorkingNotePage } from "@/lib/services/notes";
 import type { BoardReviewState, Evidence, EvidenceBoardItem, EvidenceCluster, EvidenceClusterCoverage, EvidenceComparison, EvidenceComparisonFinding, EvidenceQuestionSuggestionGap, EvidenceQuestionSuggestions, EvidenceRelation, EvidenceSourceLink, EvidenceSynthesis, QuestionSuggestionGapKind, RelationKind, SetEvidenceRelation, SetEvidenceSourceLink, WriteEvidenceCluster } from "@/lib/services/review";
 import type { InvestigationQuestion, QuestionState, WriteQuestion } from "@/lib/services/questions";
-import type { AssistanceDetail, AssistanceProposal, AssistanceProviderPolicy } from "@/lib/services/assistance";
+import type { AssistanceDetail, AssistanceProposal, AssistanceProviderPolicy, AssistanceProviderRun } from "@/lib/services/assistance";
 import type { EventAccount, EventAccountPage, EventCluster, EventClusterPage, EventParticipantLink, EventParticipantRole, EventRecordSnapshot, EventRelationship, EventRelationshipPage, EventReconciliation, TimelineEvent, TimelineEventRevision, EventTimePrecision, WriteEvent } from "@/lib/services/events";
 import { renderBriefRecipientHandoffMarkdown } from "@/lib/services/brief/export";
 import type { BriefDraft, BriefDraftChange, BriefHandoffExport, BriefHandoffShare, BriefRecipientHandoff, BriefSnapshot, BriefSnapshotComment, BriefSnapshotReview, BriefSnapshotReviewDecision, WorkingBrief, WriteBrief } from "@/lib/services/brief";
@@ -26,6 +26,7 @@ type Store = {
   watches: Map<string, SourceWatch>;
   alerts: Map<string, SourceAlert>;
   alertSeen: Map<string, string>;
+  alertDelivery: Map<string, SourceAlertDelivery>;
   intakeCandidates: Map<string, SourceIntakeCandidate[]>;
   intakeContent: Map<string, { media_type: MediaType; content?: string; content_base64?: string }>;
   captures: Map<string, Capture[]>;
@@ -69,11 +70,12 @@ type Store = {
 };
 const fixtureGlobal = globalThis as typeof globalThis & { __owFixtureResearch?: Store };
 const store: Store = fixtureGlobal.__owFixtureResearch ??= {
-  sources: new Map(), watches: new Map(), alerts: new Map(), alertSeen: new Map(), intakeCandidates: new Map(), intakeContent: new Map(), captures: new Map(), extractions: new Map(), observations: new Map(), citationShares: new Map(), notes: new Map(), relations: new Map(), sourceLinks: new Map(), clusters: new Map(), syntheses: new Map(), comparisons: new Map(), questionSuggestions: new Map(), questions: new Map(), assistance: new Map(), assistancePolicies: new Map(), events: new Map(), eventRevisions: new Map(), eventAccounts: new Map(), eventReconciliations: new Map(), eventClusters: new Map(), eventRelationships: new Map(), briefs: new Map(), briefDrafts: new Map(), snapshots: new Map(), handoffShares: new Map(), handoffActivity: new Map(), snapshotReviews: new Map(), snapshotComments: new Map(), records: new Map(), connections: new Map(), connectionReviews: new Map(), revisions: new Map(), resolutions: new Map(), resolutionSets: new Map(), cleanedRefs: new Set(), cleanupRuns: new Map(), cleanupReviews: new Map(), cleanupReviewHistory: new Map(), sequence: 0,
+  sources: new Map(), watches: new Map(), alerts: new Map(), alertSeen: new Map(), alertDelivery: new Map(), intakeCandidates: new Map(), intakeContent: new Map(), captures: new Map(), extractions: new Map(), observations: new Map(), citationShares: new Map(), notes: new Map(), relations: new Map(), sourceLinks: new Map(), clusters: new Map(), syntheses: new Map(), comparisons: new Map(), questionSuggestions: new Map(), questions: new Map(), assistance: new Map(), assistancePolicies: new Map(), events: new Map(), eventRevisions: new Map(), eventAccounts: new Map(), eventReconciliations: new Map(), eventClusters: new Map(), eventRelationships: new Map(), briefs: new Map(), briefDrafts: new Map(), snapshots: new Map(), handoffShares: new Map(), handoffActivity: new Map(), snapshotReviews: new Map(), snapshotComments: new Map(), records: new Map(), connections: new Map(), connectionReviews: new Map(), revisions: new Map(), resolutions: new Map(), resolutionSets: new Map(), cleanedRefs: new Set(), cleanupRuns: new Map(), cleanupReviews: new Map(), cleanupReviewHistory: new Map(), sequence: 0,
 };
 store.watches ??= new Map();
 store.alerts ??= new Map();
 store.alertSeen ??= new Map();
+store.alertDelivery ??= new Map();
 store.intakeCandidates ??= new Map();
 store.intakeContent ??= new Map();
 store.extractions ??= new Map();
@@ -602,7 +604,7 @@ function createFixtureSynthesis(workspace: string, observationIds: unknown, auth
   const output = synthesisText(rows);
   if (bytes(output) > 24000) throw invalid("The synthesis output is too large.");
   return {
-    synthesis_id: nextId(), workspace_id: workspace, observation_ids: ids.slice(), provider: "local", method: "selected-observations-v1",
+    synthesis_id: nextId(), workspace_id: workspace, observation_ids: ids.slice(), provider: "local", method: "selected-observations-v1", status: "completed" as const,
     output, candidates: researchRecordCandidates(rows).map((candidate) => ({ ...candidate, kind: "account" as const })), created_by: author, created_at: new Date().toISOString(),
   };
 }
@@ -1292,6 +1294,97 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     return undefined;
   }
 
+  const neighborhoodMatch = /^\/workspaces\/([^/]+)\/records\/([^/]+)\/neighborhood$/.exec(req.path);
+  if (neighborhoodMatch) {
+    const [, workspace, recordId] = neighborhoodMatch;
+    caller(req, workspace);
+    if (req.method !== "GET") return undefined;
+    const records = store.records.get(workspace) ?? [];
+    const record = records.find((one) => one.record_id === recordId);
+    if (!record) throw missing();
+    const depth = String(req.params.depth ?? "") ? Number(req.params.depth) : 1;
+    const limit = String(req.params.limit ?? "") ? Number(req.params.limit) : 50;
+    if (!Number.isInteger(depth) || depth < 1 || depth > 2) throw invalid("Neighborhood depth must be 1 or 2.");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw invalid("Neighborhood limit must be between 1 and 50.");
+    const allConnections = store.connections.get(workspace) ?? [];
+    const allEvents = store.events.get(workspace) ?? [];
+    const maxRecords = limit + 1;
+    const recordIDs = [recordId];
+    const seenRecords = new Set([recordId]);
+    let truncated = false;
+    const addRecord = (id: string) => {
+      if (!id || seenRecords.has(id)) return true;
+      if (recordIDs.length >= maxRecords) {
+        truncated = true;
+        return false;
+      }
+      seenRecords.add(id);
+      recordIDs.push(id);
+      return true;
+    };
+    const connections: ResearchConnection[] = [];
+    const seenConnections = new Set<string>();
+    const events: TimelineEvent[] = [];
+    const seenEvents = new Set<string>();
+    let frontier = [recordId];
+    for (let level = 1; level <= depth && frontier.length; level += 1) {
+      const next: string[] = [];
+      const seenNext = new Set<string>();
+      const queueNext = (id: string) => {
+        if (!id || id === recordId || seenNext.has(id)) return;
+        seenNext.add(id);
+        next.push(id);
+      };
+      for (const current of frontier) {
+        for (const connection of allConnections.filter((one) => one.from_record_id === current || one.to_record_id === current)) {
+          const fromVisible = addRecord(connection.from_record_id);
+          const toVisible = addRecord(connection.to_record_id);
+          if (!fromVisible || !toVisible) continue;
+          if (!seenConnections.has(connection.connection_id)) {
+            seenConnections.add(connection.connection_id);
+            connections.push(connection);
+          }
+          if (level < depth) {
+            queueNext(connection.from_record_id);
+            queueNext(connection.to_record_id);
+          }
+        }
+        for (const event of allEvents.filter((one) => one.participant_record_ids.includes(current) || one.location_record_id === current)) {
+          const linked = [...event.participant_record_ids, ...(event.location_record_id ? [event.location_record_id] : [])];
+          if (!linked.every(addRecord)) continue;
+          if (!seenEvents.has(event.event_id)) {
+            seenEvents.add(event.event_id);
+            events.push(event);
+          }
+          if (level < depth) linked.forEach(queueNext);
+        }
+      }
+      frontier = next;
+    }
+    const relatedRecords = recordIDs.map((id) => records.find((one) => one.record_id === id)).filter((one): one is ResearchRecord => one !== undefined && one.record_id !== recordId);
+    const observationIDs: string[] = [];
+    const seenObservations = new Set<string>();
+    const addObservation = (id: string) => {
+      if (!id || seenObservations.has(id)) return;
+      if (observationIDs.length >= 100) {
+        truncated = true;
+        return;
+      }
+      seenObservations.add(id);
+      observationIDs.push(id);
+    };
+    for (const id of recordIDs) {
+      for (const observation of records.find((one) => one.record_id === id)?.observation_ids ?? []) addObservation(observation);
+    }
+    for (const connection of connections) [...connection.supporting_observation_ids, ...connection.opposing_observation_ids].forEach(addObservation);
+    for (const event of events) event.observation_ids.forEach(addObservation);
+    const citations = observationsIn(workspace).filter((one) => observationIDs.includes(one.observation_id)).map(evidenceForObservation);
+    return {
+      meta: { depth, max_depth: 2, record_limit: limit, truncated, record_count: relatedRecords.length + 1, connection_count: connections.length, event_count: events.length, citation_count: citations.length },
+      record, records: relatedRecords, connections: connections.map(withConnectionReviewFlags), events, citations,
+    };
+  }
+
   const recordMatch = /^\/workspaces\/([^/]+)\/records(?:\/([^/]+))?$/.exec(req.path);
   if (recordMatch) {
     const [, workspace, recordId] = recordMatch;
@@ -1827,6 +1920,39 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     const policy: AssistanceProviderPolicy = { workspace_id: workspace, allow_external: body.allow_external, updated_by: author, updated_at: new Date().toISOString() };
     store.assistancePolicies.set(workspace, policy);
     return policy;
+  }
+
+  const assistanceRunsMatch = /^\/workspaces\/([^/]+)\/assistance\/runs$/.exec(req.path);
+  if (assistanceRunsMatch) {
+    const [, workspace] = assistanceRunsMatch;
+    caller(req, workspace);
+    if (req.method !== "GET") return undefined;
+    const items: AssistanceProviderRun[] = [...store.assistance.values()]
+      .filter((one) => one.operation.workspace_id === workspace)
+      .map((one) => {
+        const operation = one.operation;
+        return {
+          provider_run_id: operation.operation_id,
+          workspace_id: operation.workspace_id,
+          kind: "extraction" as const,
+          result_id: operation.operation_id,
+          provider: operation.provider,
+          method: operation.method,
+          template_version: operation.template_version,
+          status: operation.status,
+          input_bytes: operation.input_bytes,
+          output_bytes: operation.output_bytes,
+          duration_ms: operation.duration_ms,
+          timed_out: operation.timed_out,
+          error: operation.error,
+          created_by: operation.created_by,
+          created_at: operation.created_at,
+          completed_at: operation.completed_at,
+        };
+      })
+      .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.provider_run_id.localeCompare(left.provider_run_id))
+      .slice(0, 100);
+    return { items };
   }
 
   const assistanceHistoryMatch = /^\/workspaces\/([^/]+)\/sources\/([^/]+)\/captures\/([^/]+)\/assistance\/history$/.exec(req.path);
@@ -2471,6 +2597,31 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     const seenAt = new Date().toISOString();
     store.alertSeen.set(`${author}:${alertId}`, seenAt);
     return { seen_at: seenAt };
+  }
+
+  const sourceAlertDeliveryMatch = /^\/workspaces\/([^/]+)\/source-alert-delivery$/.exec(req.path);
+  if (sourceAlertDeliveryMatch) {
+    const [, workspace] = sourceAlertDeliveryMatch;
+    const author = caller(req, workspace);
+    const key = `${workspace}:${author}`;
+    const current = store.alertDelivery.get(key) ?? {
+      workspace_id: workspace,
+      account_id: author,
+      email_enabled: false,
+      kinds: [],
+      updated_at: new Date().toISOString(),
+    } satisfies SourceAlertDelivery;
+    if (req.method === "GET") return current;
+    if (req.method !== "PUT") return undefined;
+    const body = (req.body ?? {}) as Partial<SourceAlertDeliveryInput>;
+    const next: SourceAlertDelivery = {
+      ...current,
+      email_enabled: body.email_enabled === true,
+      kinds: Array.isArray(body.kinds) ? body.kinds : current.kinds,
+      updated_at: new Date().toISOString(),
+    };
+    store.alertDelivery.set(key, next);
+    return next;
   }
 
   const dueWatchRunMatch = /^\/workspaces\/([^/]+)\/source-watches\/run-due$/.exec(req.path);

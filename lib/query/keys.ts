@@ -24,6 +24,7 @@ export const keys = {
     one: (workspace: string, source: string) => ["sources", workspace, "one", source] as const,
     watch: (workspace: string, source: string) => ["sources", workspace, "watch", source] as const,
     alerts: (workspace: string) => ["sources", workspace, "alerts"] as const,
+    alertDelivery: (workspace: string) => ["sources", workspace, "alert-delivery"] as const,
     retentionReview: (workspace: string, source: string) => ["sources", workspace, "retention-review", source] as const,
     capture: (workspace: string, source: string, capture: string) => ["sources", workspace, "capture", source, capture] as const,
     captureCompare: (workspace: string, source: string, earlier: string, later: string) => ["sources", workspace, "capture-compare", source, earlier, later] as const,
@@ -69,6 +70,7 @@ export const keys = {
   assistance: {
     all: (workspace: string) => ["assistance", workspace] as const,
     policy: (workspace: string) => ["assistance", workspace, "policy"] as const,
+    runs: (workspace: string) => ["assistance", workspace, "runs"] as const,
     one: (workspace: string, operation: string) => ["assistance", workspace, "one", operation] as const,
     capture: (workspace: string, source: string, capture: string, extraction = "") => ["assistance", workspace, "capture", source, capture, extraction] as const,
     history: (workspace: string, source: string, capture: string, extraction = "") => ["assistance", workspace, "history", source, capture, extraction] as const,
@@ -108,6 +110,7 @@ export const keys = {
     list: (workspace: string, query = "", kind = "", citation = "", resolution = "") => query.trim() || kind || citation || resolution ? ["research-records", workspace, "list", query.trim(), kind, citation, resolution] as const : ["research-records", workspace, "list"] as const,
     summary: (workspace: string) => ["research-records", workspace, "summary"] as const,
     one: (workspace: string, record: string) => ["research-records", workspace, "one", record] as const,
+    neighborhood: (workspace: string, record: string, depth = 1) => ["research-records", workspace, "neighborhood", record, depth] as const,
     byIDs: (workspace: string, recordIDs: string[]) => ["research-records", workspace, "by-ids", ...recordIDs.slice().sort()] as const,
   },
   connections: {

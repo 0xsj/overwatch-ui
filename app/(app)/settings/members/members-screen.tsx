@@ -92,7 +92,7 @@ export function MembersScreen() {
             : `${shell.members.length} people.`
         }
       >
-        <Table>
+        <Table className={s.membersTable} aria-label="Organisation members">
           <TableHead>
             <TableRow>
               <TableHeaderCell>Person</TableHeaderCell>
@@ -103,13 +103,13 @@ export function MembersScreen() {
           <TableBody>
             {shell.members.map((m) => (
               <TableRow key={m.account_id}>
-                <TableCell>
+                <TableCell data-label="Person">
                   <div className={s.who}>
                     <span className={s.name}>{m.name}</span>
                     <span className={s.email}>{m.email}</span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Role">
                   {manages ? (
                     <MemberRow
                       orgId={org}
@@ -124,7 +124,7 @@ export function MembersScreen() {
                     <Badge tone={ROLE_TONE[m.role]} mono>{m.role}</Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Joined">
                   <span className={s.muted}>{m.joined_at.slice(0, 10)}</span>
                 </TableCell>
               </TableRow>

@@ -65,4 +65,112 @@
   /* The role control fills its table cell otherwise, and a five-value select as
      wide as a name column reads as the most important thing in the row. */
   .who button[role="combobox"] { min-inline-size: 9rem; }
+
+  @media (max-width: 46rem) {
+    /* The members table has only three fields, so a phone should not make a
+       person horizontally hunt for their role and join date. Keep the table
+       structure for assistive technology and larger screens, but present each
+       row as a labelled stack when the settings column is narrow. */
+    .membersTable { min-inline-size: 0; }
+    .membersTable thead {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .membersTable,
+    .membersTable tbody,
+    .membersTable tr,
+    .membersTable td {
+      display: block;
+    }
+    .membersTable .row {
+      padding: var(--space-3) 0;
+      border-block-end: 1px solid var(--line);
+    }
+    .membersTable .row:last-child { border-block-end: none; }
+    .membersTable td {
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1fr);
+      gap: var(--space-3);
+      align-items: start;
+      padding: var(--space-2) var(--space-3);
+      border-block-end: none;
+    }
+    .membersTable td::before {
+      content: attr(data-label);
+      color: var(--ink-4);
+      font-size: var(--text-10);
+      font-weight: var(--weight-strong);
+      letter-spacing: var(--tracking-label);
+      text-transform: uppercase;
+    }
+    .membersTable .who,
+    .membersTable .email { min-inline-size: 0; }
+    .membersTable .email { overflow-wrap: anywhere; }
+    .membersTable .who .rowControls { min-inline-size: 0; flex-wrap: nowrap; }
+    .membersTable .who button[role="combobox"] {
+      min-inline-size: 0;
+      flex: 1 1 auto;
+    }
+    .membersTable .who .rowControls > button:not([role="combobox"]) { flex: none; }
+
+    .accessTable { min-inline-size: 0; }
+    .accessTable thead {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .accessTable,
+    .accessTable tbody,
+    .accessTable tr,
+    .accessTable td {
+      display: block;
+    }
+    .accessTable .row {
+      padding: var(--space-3) 0;
+      border-block-end: 1px solid var(--line);
+    }
+    .accessTable .row:last-child { border-block-end: none; }
+    .accessTable td {
+      display: grid;
+      grid-template-columns: 7.5rem minmax(0, 1fr);
+      gap: var(--space-3);
+      align-items: start;
+      padding: var(--space-2) var(--space-3);
+      border-block-end: none;
+    }
+    .accessTable td::before {
+      content: attr(data-label);
+      color: var(--ink-4);
+      font-size: var(--text-10);
+      font-weight: var(--weight-strong);
+      letter-spacing: var(--tracking-label);
+      text-transform: uppercase;
+    }
+    .accessTable .who,
+    .accessTable .email { min-inline-size: 0; }
+    .accessTable .email { overflow-wrap: anywhere; }
+    .accessTable td[data-label="Engagement access"] > div {
+      min-inline-size: 0;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+    }
+    .accessTable td[data-label="Engagement access"] button[role="combobox"] {
+      min-inline-size: 0;
+      flex: 1 1 auto;
+    }
+    .accessTable td[data-label="Engagement access"] > div > button:not([role="combobox"]) {
+      flex: none;
+    }
+  }
 }

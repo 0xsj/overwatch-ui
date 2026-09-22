@@ -116,10 +116,12 @@ export type EvidenceSynthesis = {
   observation_ids: string[];
   provider: string;
   method: string;
+  status: "completed" | "failed" | "unsupported" | "timed_out";
   output: string;
   candidates: SynthesisCandidate[];
   created_by: string;
   created_at: string;
+  error?: string;
 };
 
 export type EvidenceComparisonFindingKind = "agreement" | "contradiction" | "possible_repetition" | "unique_detail" | "coverage_gap";
@@ -135,11 +137,12 @@ export type EvidenceComparison = {
   provider: string;
   method: string;
   template_version: string;
-  status: "completed" | "empty";
+  status: "completed" | "empty" | "failed" | "unsupported" | "timed_out";
   output: string;
   findings: EvidenceComparisonFinding[];
   created_by: string;
   created_at: string;
+  error?: string;
 };
 
 export type Page<T> = { items: T[]; next_cursor: string | null };
@@ -254,11 +257,12 @@ export type EvidenceQuestionSuggestions = {
   provider: string;
   method: string;
   template_version: string;
-  status: "completed" | "empty";
+  status: "completed" | "empty" | "failed" | "unsupported" | "timed_out";
   output: string;
   suggestions: EvidenceQuestionSuggestion[];
   created_by: string;
   created_at: string;
+  error?: string;
 };
 export function listEvidenceQuestionSuggestions(http: HttpClient, workspace: string, before?: string) {
   return http.get<Page<EvidenceQuestionSuggestions>>(`${base(workspace)}/question-suggestions`, { params: { before, limit: 20 } });

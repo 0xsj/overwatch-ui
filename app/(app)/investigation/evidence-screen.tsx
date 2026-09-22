@@ -660,6 +660,7 @@ function QuestionSuggestionPanel({ workspace, gaps, saved, historyError, evidenc
   const keyFor = (gap: EvidenceQuestionSuggestionGap) => `${gap.kind}:${gap.label}:${gap.observation_ids.join(",")}`;
   const selectedGaps = gaps.filter((gap) => selectedKeys.includes(keyFor(gap)));
   const current = view === autoQuestionSuggestions ? undefined : saved.find((one) => one.question_suggestions_id === view);
+  const currentFailed = Boolean(current && current.status !== "completed" && current.status !== "empty");
   const run = useResearchWrite(
     () => createEvidenceQuestionSuggestionsAction(workspace, selectedGaps),
     [keys.evidence.questionSuggestions(workspace)],
@@ -682,11 +683,15 @@ function QuestionSuggestionPanel({ workspace, gaps, saved, historyError, evidenc
         {gap.detail ? <Text size="xs" tone="tertiary">{gap.detail}</Text> : null}
       </button>;
     })}</div> : <div className={s.empty}><Text size="sm">No unresolved gaps are available in the loaded review context.</Text><Text size="xs" tone="tertiary">Load more records, questions, clusters, or review decisions to widen the gap set.</Text></div>}
-    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved proposal</Text><select aria-label="Saved next-question proposal" className={s.select} value={view} onChange={(event) => setView(event.target.value)}><option value={autoQuestionSuggestions}>{selectedGaps.length ? "Current selection · preview" : "Select a saved proposal"}</option>{saved.map((one) => <option key={one.question_suggestions_id} value={one.question_suggestions_id}>{dateLabel(one.created_at)} · {one.suggestions.length} suggestion{one.suggestions.length === 1 ? "" : "s"}</option>)}</select></label> : null}
+    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved proposal</Text><select aria-label="Saved next-question proposal" className={s.select} value={view} onChange={(event) => setView(event.target.value)}><option value={autoQuestionSuggestions}>{selectedGaps.length ? "Current selection · preview" : "Select a saved proposal"}</option>{saved.map((one) => <option key={one.question_suggestions_id} value={one.question_suggestions_id}>{dateLabel(one.created_at)} · {one.suggestions.length} suggestion{one.suggestions.length === 1 ? "" : "s"} · {questionSuggestionStatusLabel(one.status)}</option>)}</select></label> : null}
     <MoreButton available={moreAvailable} pending={morePending} load={loadMore} />
-    {current ? <QuestionSuggestionResult workspace={workspace} proposal={current} evidenceByID={evidenceByID} /> : null}
+    {current && currentFailed ? <div className={s.details}><div className={s.row}><Badge tone={current.status === "unsupported" ? "warn" : "crit"}>{questionSuggestionStatusLabel(current.status)}</Badge></div><Text size="sm">This question-suggestion provider attempt was retained for the audit history but did not produce prompts.</Text><Text size="xs" tone="tertiary">{current.error || "The provider did not return a usable result."} Run another proposal to retry with the current provider.</Text></div> : current ? <QuestionSuggestionResult workspace={workspace} proposal={current} evidenceByID={evidenceByID} /> : null}
     {mayWrite ? <form onSubmit={(event) => { event.preventDefault(); run.mutate(); }}><Failure error={run.error} /><Button type="submit" intent="primary" loading={run.isPending} disabled={!selectedGaps.length}>{current ? "Run another proposal" : "Suggest next questions"}</Button></form> : <Text size="xs" tone="tertiary">This investigation is read-only. Existing proposals remain visible, but new suggestions require write access.</Text>}
   </div>;
+}
+
+function questionSuggestionStatusLabel(status: EvidenceQuestionSuggestions["status"]) {
+  return status === "timed_out" ? "timed out" : status;
 }
 
 function QuestionSuggestionResult({ workspace, proposal, evidenceByID }: { workspace: string; proposal: EvidenceQuestionSuggestions; evidenceByID: Map<string, Evidence> }) {
@@ -719,6 +724,7 @@ function AssistedComparisonPanel({ workspace, rows, mayWrite, saved, historyErro
   const exactSaved = rows.length ? saved.find((one) => sameIDs(one.observation_ids, currentIDs)) : undefined;
   const automatic = exactSaved ?? (!rows.length ? saved[0] : undefined);
   const selected = selectedComparisonID === autoComparison ? automatic : saved.find((one) => one.comparison_id === selectedComparisonID);
+  const selectedFailed = Boolean(selected && selected.status !== "completed" && selected.status !== "empty");
   const citationIDs = selected?.observation_ids ?? currentIDs;
   const visibleCitations = citationIDs.map((id) => rows.find((row) => row.observation_id === id)).filter((row): row is Evidence => Boolean(row));
   const missingCitationIDs = citationIDs.filter((id) => !visibleCitations.some((row) => row.observation_id === id));
@@ -735,17 +741,18 @@ function AssistedComparisonPanel({ workspace, rows, mayWrite, saved, historyErro
   if (!rows.length && !selected) return <div className={s.empty}><Failure error={historyError} /><Text size="sm">Choose two to six observations for assisted comparison.</Text><Text size="sm" tone="tertiary">The assistant will propose structured review points from the selected citations and saved human pair decisions. It will not write a relation or conclusion.</Text></div>;
   return <div className={s.stack}>
     <Failure error={historyError} />
-    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved comparison</Text><select aria-label="Saved assisted comparison" className={s.select} value={selectedComparisonID} onChange={(event) => setComparisonView({ key: selectionKey, id: event.target.value })}><option value={autoComparison}>{exactSaved ? "Current selection · saved" : rows.length ? "Current selection · not run" : "Latest saved run"}</option>{saved.map((one) => <option key={one.comparison_id} value={one.comparison_id}>{dateLabel(one.created_at)} · {one.observation_ids.length} observation{one.observation_ids.length === 1 ? "" : "s"}{one.comparison_id === exactSaved?.comparison_id ? " · current" : ""}</option>)}</select></label> : null}
+    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved comparison</Text><select aria-label="Saved assisted comparison" className={s.select} value={selectedComparisonID} onChange={(event) => setComparisonView({ key: selectionKey, id: event.target.value })}><option value={autoComparison}>{exactSaved ? "Current selection · saved" : rows.length ? "Current selection · not run" : "Latest saved run"}</option>{saved.map((one) => <option key={one.comparison_id} value={one.comparison_id}>{dateLabel(one.created_at)} · {one.observation_ids.length} observation{one.observation_ids.length === 1 ? "" : "s"} · {comparisonStatusLabel(one.status)}{one.comparison_id === exactSaved?.comparison_id ? " · current" : ""}</option>)}</select></label> : null}
     <MoreButton available={moreAvailable} pending={morePending} load={loadMore} />
     <ReviewBoundary kind="proposal" text={selected ? "This saved comparison is a review lead tied to the selected citations; it does not accept, reject, or rewrite evidence." : "The comparison will be a review lead tied to the selected citations; it will not accept, reject, or rewrite evidence."} />
     <Text size="sm" tone="tertiary">{selected ? `Saved ${selected.provider} proposal (${selected.method}, ${selected.template_version}) from ${dateLabel(selected.created_at)}. Findings remain reviewable suggestions.` : `Ready to compare ${rows.length} selected observations. The output will preserve each finding's exact citations.`}</Text>
-    {selected ? <>
-      <pre className={s.quote}>{selected.output}</pre>
-      <ComparisonFindings workspace={workspace} findings={selected.findings} rows={citations} error={citationQuery.error} />
-    </> : null}
+    {selected && selectedFailed ? <div className={s.details}><div className={s.row}><Badge tone={selected.status === "unsupported" ? "warn" : "crit"}>{comparisonStatusLabel(selected.status)}</Badge></div><Text size="sm">This comparison provider attempt was retained for the audit history but did not produce findings.</Text><Text size="xs" tone="tertiary">{selected.error || "The provider did not return a usable result."} Run another comparison to retry with the current provider.</Text></div> : selected ? <><pre className={s.quote}>{selected.output}</pre><ComparisonFindings workspace={workspace} findings={selected.findings} rows={citations} error={citationQuery.error} /></> : null}
     {mayWrite && currentIDs.length >= 2 ? <form onSubmit={(event) => { event.preventDefault(); save.mutate(); }}><Failure error={save.error} /><Button type="submit" intent="primary" loading={save.isPending}>{selected ? "Run another comparison" : "Run assisted comparison"}</Button></form> : null}
     {!mayWrite ? <Text size="xs" tone="tertiary">This investigation is read-only. Saved comparison proposals remain visible, but new runs require write access.</Text> : null}
   </div>;
+}
+
+function comparisonStatusLabel(status: EvidenceComparison["status"]) {
+  return status === "timed_out" ? "timed out" : status;
 }
 
 function ComparisonFindings({ workspace, findings, rows, error }: { workspace: string; findings: EvidenceComparisonFinding[]; rows: Evidence[]; error: Error | null }) {
@@ -764,6 +771,8 @@ function SynthesisPanel({ workspace, rows, mayWrite, saved, historyError, moreAv
   const automatic = exactSaved ?? (!rows.length ? saved[0] : undefined);
   const selected = selectedSynthesis === autoSynthesis ? automatic : saved.find((one) => one.synthesis_id === selectedSynthesis);
   const selectedMatches = Boolean(selected && sameIDs(selected.observation_ids, currentIDs));
+  const selectedFailed = Boolean(selected && selected.status !== "completed");
+  const selectedStatus = selected ? synthesisStatusLabel(selected.status) : "";
   const candidates = selected?.candidates ?? researchRecordCandidates(rows);
   const citationIDs = selected?.observation_ids ?? currentIDs;
   const visibleCitations = citationIDs.map((id) => rows.find((row) => row.observation_id === id)).filter((row): row is Evidence => Boolean(row));
@@ -781,18 +790,21 @@ function SynthesisPanel({ workspace, rows, mayWrite, saved, historyError, moreAv
   if (!rows.length && !selected) return <div className={s.empty}><Failure error={historyError} /><Text size="sm">Choose observations to synthesize.</Text><Text size="sm" tone="tertiary">This review-only pass keeps the selected statements and exact identifiers visible; it does not create records or conclusions.</Text></div>;
   return <div className={s.stack}>
     <Failure error={historyError} />
-    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved run</Text><select aria-label="Saved synthesis run" className={s.select} value={selectedSynthesis} onChange={(event) => setSynthesisView({ key: selectionKey, id: event.target.value })}><option value={autoSynthesis}>{exactSaved ? "Current selection · saved" : rows.length ? "Current selection · preview" : "Latest saved run"}</option>{saved.map((one) => <option key={one.synthesis_id} value={one.synthesis_id}>{dateLabel(one.created_at)} · {one.observation_ids.length} observation{one.observation_ids.length === 1 ? "" : "s"}{one.synthesis_id === exactSaved?.synthesis_id ? " · current" : ""}</option>)}</select></label> : null}
+    {saved.length ? <label className={s.row}><Text as="span" size="sm">Saved run</Text><select aria-label="Saved synthesis run" className={s.select} value={selectedSynthesis} onChange={(event) => setSynthesisView({ key: selectionKey, id: event.target.value })}><option value={autoSynthesis}>{exactSaved ? "Current selection · saved" : rows.length ? "Current selection · preview" : "Latest saved run"}</option>{saved.map((one) => <option key={one.synthesis_id} value={one.synthesis_id}>{dateLabel(one.created_at)} · {one.observation_ids.length} observation{one.observation_ids.length === 1 ? "" : "s"} · {synthesisStatusLabel(one.status)}{one.synthesis_id === exactSaved?.synthesis_id ? " · current" : ""}</option>)}</select></label> : null}
     <MoreButton available={moreAvailable} pending={morePending} load={loadMore} />
     <ReviewBoundary kind="proposal" text={selected ? "This saved synthesis is a review lead tied to the exact supporting observations; it does not create a record or conclusion." : "This synthesis is a working aid over the selected observations; it does not create a record or conclusion."} />
     <Text size="sm" tone="tertiary">{selected ? `Saved ${selected.provider} review pass (${selected.method}) from ${dateLabel(selected.created_at)}${selectedMatches ? "." : ` over ${selected.observation_ids.length} other selected observation${selected.observation_ids.length === 1 ? "" : "s"}.`}` : `Local review pass over ${rows.length} selected observation${rows.length === 1 ? "" : "s"}. The text below is a working aid, not an asserted conclusion.`}</Text>
     {!selectedMatches && selected && rows.length ? <Text size="xs" tone="tertiary">This is a historical run. Choose its observations above to align the current selection, or save a new synthesis for the observations currently selected.</Text> : null}
-    <pre className={s.quote}>{selected?.output ?? synthesisText(rows)}</pre>
+    {selected && selectedFailed ? <div className={s.details}><div className={s.row}><Badge tone={selected.status === "unsupported" ? "warn" : "crit"}>{selectedStatus}</Badge></div><Text size="sm">This provider attempt was retained for the audit history but did not produce a synthesis.</Text><Text size="xs" tone="tertiary">{selected.error || "The provider did not return a usable result."} Run Save synthesis again to retry with the current provider.</Text></div> : <pre className={s.quote}>{selected?.output ?? synthesisText(rows)}</pre>}
     <SynthesisCitations workspace={workspace} ids={citationIDs} rows={citations} error={citationQuery.error} />
-    <Text size="sm">Candidate records</Text>
-    {candidates.length ? <div className={s.stack}>{candidates.map((candidate) => <CandidateCard key={`${candidate.kind}:${candidate.name}`} workspace={workspace} candidate={candidate} evidence={citations} mayWrite={mayWrite} />)}</div> : <Text size="sm" tone="tertiary">No exact account-shaped identifiers were found. Create a record manually when the material supports one.</Text>}
+    {!selectedFailed ? <><Text size="sm">Candidate records</Text>{candidates.length ? <div className={s.stack}>{candidates.map((candidate) => <CandidateCard key={`${candidate.kind}:${candidate.name}`} workspace={workspace} candidate={candidate} evidence={citations} mayWrite={mayWrite} />)}</div> : <Text size="sm" tone="tertiary">No exact account-shaped identifiers were found. Create a record manually when the material supports one.</Text>}</> : null}
     {mayWrite && rows.length ? <form onSubmit={(event) => { event.preventDefault(); save.mutate(); }}><Failure error={save.error} /><Button type="submit" intent="primary" loading={save.isPending}>{selected ? "Save another synthesis" : "Save synthesis"}</Button></form> : null}
     {!mayWrite ? <Text size="xs" tone="tertiary">This investigation is read-only. Saved synthesis runs remain visible, but new runs require write access.</Text> : null}
   </div>;
+}
+
+function synthesisStatusLabel(status: EvidenceSynthesis["status"]) {
+  return status === "timed_out" ? "timed out" : status;
 }
 
 function SynthesisCitations({ workspace, ids, rows, error }: { workspace: string; ids: string[]; rows: Evidence[]; error: Error | null }) {

@@ -29,4 +29,13 @@
     gap: var(--space-3);
     flex: none;
   }
+
+  @media (max-width: 46rem) {
+    /* Keep long page descriptions readable. An action beside a heading is a
+       useful desktop composition, but on a phone it can reduce a real title
+       and its explanation to a narrow strip; the action belongs below the
+       header copy at that width. */
+    .head { flex-direction: column; gap: var(--space-4); }
+    .actions { inline-size: 100%; flex-wrap: wrap; }
+  }
 }

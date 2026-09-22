@@ -88,11 +88,12 @@ export type ResearchConnectionReview = {
   provider: string;
   method: string;
   template_version: string;
-  status: "completed" | "empty";
+  status: "completed" | "empty" | "failed" | "unsupported" | "timed_out";
   output: string;
   findings: ResearchConnectionReviewFinding[];
   created_by: string;
   created_at: string;
+  error?: string;
 };
 export type ResearchConnectionReviewPage = { items: ResearchConnectionReview[]; next_cursor: string | null };
 

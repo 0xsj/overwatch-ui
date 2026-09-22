@@ -64,7 +64,7 @@ export function SourceForm({ workspace, source }: { workspace: string; source?: 
     finally { setReading(false); }
   };
 
-  return <form className={s.stack} onSubmit={(event) => { event.preventDefault(); if (!reading) save.mutate(); }}>
+  return <form className={s.stack} aria-label={source ? "Add a capture to this source" : "Add a source"} onSubmit={(event) => { event.preventDefault(); if (!reading) save.mutate(); }}>
     {!source ? <>
       <Field label="Add material as">{({ invalid: _invalid, ...aria }) => <select {...aria} className={s.select} value={origin} onChange={(event) => { setOrigin(event.target.value as SourceOrigin); setFileError(null); setFilename(""); setContent(""); setContentBase64(""); }}>
         <option value="paste">Pasted text</option><option value="import">Text, JSON, PDF, or image file</option><option value="reference">URL reference</option>

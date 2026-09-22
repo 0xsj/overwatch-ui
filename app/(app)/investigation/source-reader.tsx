@@ -31,7 +31,7 @@ export function SourceReader({ workspace, source }: { workspace: string; source:
   const requestedReturn = useSearchParams().get("return") ?? "";
   const returnTo = requestedReturn.startsWith(`/investigation/${encodeURIComponent(workspace)}/`) ? requestedReturn : "";
   const detail = useQuery({ queryKey: keys.sources.one(workspace, source), queryFn: () => sourceQuery(workspace, source) });
-  return <><Link href={returnTo || investigationPath(workspace, "sources")} className={s.back}>{returnTo ? "Back to handoff" : "Back to sources"}</Link><Query of={detail} label="source">{(data) => <SourceRecord workspace={workspace} detail={data} returnTo={returnTo} />}</Query></>;
+  return <><Link href={returnTo || investigationPath(workspace, "sources")} className={s.back}>{returnTo ? "Back to handoff" : "Back to sources"}</Link>{detail.data === null ? <Alert tone="info" role="status"><Text size="sm"><strong>That source is not available.</strong></Text><Text size="xs" tone="tertiary">The link may be stale, or this workspace may no longer grant access to that source.</Text></Alert> : <Query of={detail} label="source">{(data) => data ? <SourceRecord workspace={workspace} detail={data} returnTo={returnTo} /> : null}</Query>}</>;
 }
 
 function SourceRecord({ workspace, detail, returnTo }: { workspace: string; detail: SourceDetail; returnTo: string }) {

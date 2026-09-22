@@ -47,11 +47,12 @@ export type BriefDraft = {
   provider: string;
   method: string;
   template_version: string;
-  status: "completed" | "empty";
+  status: "completed" | "empty" | "failed" | "unsupported" | "timed_out";
   output: string;
   changes: BriefDraftChange[];
   created_by: string;
   created_at: string;
+  error?: string;
 };
 export type BriefDraftPage = { items: BriefDraft[]; next_cursor: string | null };
 

@@ -5,7 +5,7 @@ PORT ?= $(PORT_WEB)
 PORT := $(or $(PORT),7010)
 
 .DEFAULT_GOAL := help
-.PHONY: help dev build test check
+.PHONY: help dev build test route-audit check
 
 help:  ## Show targets
 	@grep -hE '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | column -t -s"$$(printf '\t')"
@@ -19,6 +19,10 @@ build: ## a production build
 test:  ## the focused research and navigation regression suite
 	@npm run test:research
 
-check: ## types and lint
+route-audit: ## verify route inventory, exports, and metadata coverage
+	@npm run audit:routes
+
+check: ## types, route structure, and lint
 	@npx tsc --noEmit
+	@npm run audit:routes
 	@npx eslint .

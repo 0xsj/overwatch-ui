@@ -25,7 +25,7 @@ export function WorkspaceSwitcher({ org, current }: { org: MeOrg; current: MeWor
     <DropdownMenu>
       <DropdownMenuTrigger className={s.trigger}>
         <WorkspaceIcon size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-        {current.name}
+        <span className={s.currentName}>{current.name}</span>
         <ChevronsUpDown size={13} strokeWidth={1.7} className={s.chevron} aria-hidden="true" />
       </DropdownMenuTrigger>
 

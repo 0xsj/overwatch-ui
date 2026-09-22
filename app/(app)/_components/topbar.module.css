@@ -2,6 +2,8 @@
   .top {
     block-size: 46px;
     flex: none;
+    min-inline-size: 0;
+    overflow: hidden;
     border-block-end: 1px solid var(--line);
     display: flex;
     align-items: center;
@@ -42,8 +44,16 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
+    flex: 1;
     min-inline-size: 0;
+    overflow: hidden;
     margin-inline-start: var(--space-2);
+  }
+
+  .crumbs :global(ol) {
+    flex-wrap: nowrap;
+    min-inline-size: 0;
+    overflow: hidden;
   }
 
   .crumb {

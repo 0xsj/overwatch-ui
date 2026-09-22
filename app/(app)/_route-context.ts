@@ -10,7 +10,7 @@ export function researchWorkspaceFromPath(pathname: string): string | null {
 }
 
 /** A research deep link must never borrow another investigation's name or data. */
-export function shellForPath(shell: Shell, pathname: string, record?: InvestigationContext): Shell {
+export function shellForPath(shell: Shell, pathname: string, record?: InvestigationContext | null): Shell {
   const match = /^\/investigation\/([^/]+)\/(overview|sources|evidence|questions|timeline|brief|notes|records|connections)(?:\/|$)/.exec(pathname);
   if (!match) return shell;
   let workspaceId: string;

@@ -37,6 +37,8 @@ export type AppErrorInit = {
   requestId?: string;
   /** Absent when nothing HTTP happened — a transport failure, or an abort. */
   status?: number;
+  /** Server guidance for the next retry, in milliseconds. */
+  retryAfterMs?: number;
 };
 
 export class AppError extends Error {
@@ -62,6 +64,7 @@ export class AppError extends Error {
   readonly fields?: Record<string, string>;
   readonly requestId?: string;
   readonly status?: number;
+  readonly retryAfterMs?: number;
 
   constructor(init: AppErrorInit) {
     super(init.message);
@@ -71,6 +74,7 @@ export class AppError extends Error {
     this.fields = init.fields;
     this.requestId = init.requestId;
     this.status = init.status;
+    this.retryAfterMs = init.retryAfterMs;
   }
 
   get retryable(): boolean {

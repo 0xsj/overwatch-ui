@@ -8,6 +8,7 @@ import { Badge } from "@/components/display";
 import { Button, Input } from "@/components/forms";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
+import { isAppError } from "@/lib/kernel";
 import type { Evidence } from "@/lib/services/review";
 import type { ResearchRecord } from "@/lib/services/research-records";
 import { filterLoadedRows, unresolvedIDs } from "@/lib/query/filter";
@@ -56,7 +57,15 @@ export function useResearchWrite<T>(run: () => Promise<{ ok: true; value: T } | 
   });
 }
 export function Failure({ error }: { error: Error | null }) {
-  return error ? <Alert tone="warn" role="alert"><Text size="sm">{error.message}</Text></Alert> : null;
+  if (!error) return null;
+  const appError = isAppError(error) ? error : undefined;
+  return (
+    <Alert tone="warn" role="alert">
+      <Text size="sm">{error.message}</Text>
+      {appError?.retryable ? <Text size="xs" tone="tertiary">This may be temporary. Try the action again.</Text> : null}
+      {appError?.requestId ? <Text size="xs" tone="tertiary">Reference <code>{appError.requestId}</code></Text> : null}
+    </Alert>
+  );
 }
 
 export function InvestigationNav({ workspace, name, closed }: { workspace: string; name: string; closed: boolean }) {

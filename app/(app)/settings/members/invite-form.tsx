@@ -47,7 +47,7 @@ export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: M
   const external = role === "guest" || role === "client";
 
   return (
-    <form action={action} noValidate className={s.form}>
+    <form action={action} noValidate className={s.form} aria-label="Invite someone to the organisation">
       <FormError state={state} />
 
       {state.status === "ok" ? (
@@ -68,7 +68,7 @@ export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: M
       >
         {() => (
           <Select name="role" value={role} onValueChange={(v) => setRole(v as OrgRole)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Role in the organisation"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Inside the firm</SelectLabel>
@@ -105,7 +105,7 @@ export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: M
         {() => (
           <div className={s.pair}>
             <Select name="workspace_id" value={workspace} onValueChange={setWorkspace}>
-              <SelectTrigger><SelectValue placeholder="No engagement" /></SelectTrigger>
+              <SelectTrigger aria-label="Start them on"><SelectValue placeholder="No engagement" /></SelectTrigger>
               <SelectContent>
                 {workspaces.map((w) => (
                   <SelectItem key={w.workspace_id} value={w.workspace_id}>{w.name}</SelectItem>
@@ -114,7 +114,7 @@ export function InviteForm({ orgId, workspaces }: { orgId: string; workspaces: M
             </Select>
 
             <Select name="level" defaultValue="read" disabled={!workspace}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Access level"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {levelsFor(role).map((l) => (
                   <SelectItem key={l} value={l} title={GRANT_MEANING[l]}>{l}</SelectItem>

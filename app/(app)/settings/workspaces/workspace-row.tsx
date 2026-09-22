@@ -52,6 +52,7 @@ export function WorkspaceRow({ workspace }: { workspace: OrgWorkspace }) {
         {renaming ? (
           <form
             className={s.rowControls}
+            aria-label={`Rename ${workspace.name}`}
             action={(data) => run(() => renameWorkspaceAction(workspace.workspace_id, initialFormState, data))}
           >
             <Input name="name" value={name} onChange={(e) => setName(e.target.value)} />

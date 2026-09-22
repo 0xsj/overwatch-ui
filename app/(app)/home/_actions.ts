@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { clientFor } from "@/lib/root";
 import { markChangesSeen } from "@/lib/services/changes";
-import { markSourceAlertSeen, refreshSourceGapAlerts } from "@/lib/services/sources";
+import { markSourceAlertSeen, refreshSourceGapAlerts, saveSourceAlertDelivery, type SourceAlertKind } from "@/lib/services/sources";
 import { addTarget, archiveTarget, reopenTarget } from "@/lib/services/targets";
 import type { TargetKind } from "@/lib/services/targets";
 import { toFormState, type FormState } from "../../(auth)/_form-state";
@@ -75,6 +75,12 @@ export async function markSourceAlertSeenAction(workspaceId: string, alertId: st
 
 export async function refreshSourceGapAlertsAction(workspaceId: string): Promise<{ active_gap_count: number }> {
   const result = await refreshSourceGapAlerts(await clientFor("sources"), workspaceId);
+  revalidatePath("/home/alerts");
+  return result;
+}
+
+export async function saveSourceAlertDeliveryAction(workspaceId: string, input: { email_enabled: boolean; kinds: SourceAlertKind[] }) {
+  const result = await saveSourceAlertDelivery(await clientFor("sources"), workspaceId, input);
   revalidatePath("/home/alerts");
   return result;
 }

@@ -112,6 +112,7 @@ export const SECTIONS: NavSection[] = [
       { href: "/observability/logs", label: "Logs" },
       { href: "/observability/runs", label: "Runs" },
       { href: "/observability/health", label: "Health" },
+      { href: "/observability/assistance", label: "Assistance" },
       { href: "/observability/extraction-quality", label: "Extraction quality" },
     ],
   },
@@ -154,15 +155,6 @@ export const HOME = "/investigation";
 export function navHref(href: string, workspace?: string): string {
   const match = /^\/investigation\/(overview|sources|evidence|questions|timeline|notes)$/.exec(href);
   return match ? (workspace ? `/investigation/${encodeURIComponent(workspace)}/${match[1]}` : HOME) : href;
-}
-
-/** Where a role LANDS, which is not always the first section.
- *
- *  A `client` sent to `/home/overview` arrives at a screen that answers 404 for
- *  them — the first thing they see after signing in is a wall. Their door is
- *  the deliverables section. */
-export function homeFor(role: string | undefined): string {
-  return role === "client" ? "/findings/report" : HOME;
 }
 
 /** The first path segment IS the section id, which is why the routes are nested

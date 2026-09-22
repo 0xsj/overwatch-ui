@@ -133,7 +133,7 @@ function NoteContextLink({ workspace, note }: { workspace: string; note: Working
 function NoteForm({ workspace, note, initialBody, initialContext, done, saved }: { workspace: string; note?: WorkingNote; initialBody?: string; initialContext?: NoteContext; done?: () => void; saved?: (note: WorkingNote) => void }) {
   const [body, setBody] = useState(note?.body ?? initialBody ?? "");
   const save = useResearchWrite(() => saveNoteAction(workspace, body, note?.note_id, note ? undefined : initialContext), [keys.notes.all(workspace)], (value) => { if (!note) setBody(""); saved?.(value); done?.(); });
-  return <form className={s.stack} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+  return <form className={s.stack} aria-label={note ? "Edit working note" : "Write a working note"} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
     <Field label={note ? "Edit working note" : "Working note"} required>{(aria) => <Textarea {...aria} rows={8} value={body} onChange={(event) => setBody(event.target.value)} placeholder="What are we trying to understand? What would help distinguish the possible explanations?" />}</Field>
     <Failure error={save.error} />
     {save.isSuccess && !note ? <Text size="sm" tone="accent" role="status">Note saved.</Text> : null}

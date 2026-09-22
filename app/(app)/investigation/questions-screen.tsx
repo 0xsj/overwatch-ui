@@ -215,7 +215,7 @@ function QuestionEditor({ workspace, question, initialDraft, evidence, evidenceE
     return question ? <QuestionDetail question={question} evidence={evidence} workspace={workspace} shell={shell} evidenceError={evidenceError} mayWrite={mayWrite} /> : <Text size="sm" tone="tertiary">This investigation is read-only. Existing questions remain visible, but new questions require write access.</Text>;
   }
 
-  return <form className={s.questionEditor} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+  return <form className={s.questionEditor} aria-label={question ? "Edit investigation question" : "Record an investigation question"} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
     <Field label="Question" hint="Write the uncertainty as something a source or researcher could answer." required>{(aria) => <Textarea {...aria} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="What do we still need to establish?" />}</Field>
     <Field label="Why it matters">{(aria) => <Textarea {...aria} rows={4} value={context} onChange={(event) => setContext(event.target.value)} placeholder="What would this distinguish or change?" />}</Field>
     <Field label="State" required>{(aria) => <select {...aria} className={s.select} value={state} onChange={(event) => setState(event.target.value as QuestionState)}>

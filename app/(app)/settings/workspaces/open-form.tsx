@@ -16,7 +16,7 @@ export function OpenWorkspaceForm({ orgId }: { orgId: string }) {
   );
 
   return (
-    <form action={action} noValidate className={s.form}>
+    <form action={action} noValidate className={s.form} aria-label="Open a new engagement">
       <FormError state={state} />
 
       {state.status === "ok" ? (

@@ -8,6 +8,7 @@ import { keys } from "@/lib/query";
 import { Button } from "@/components/forms";
 import { Alert } from "@/components/feedback";
 import { Text } from "@/components/typography";
+import { isAppError } from "@/lib/kernel";
 import { investigationContextQuery, shellQuery } from "./_queries";
 import type { Shell } from "./_shell";
 
@@ -75,6 +76,7 @@ export function Query<T>({
     );
   }
   if (of.isError) {
+    const appError = isAppError(of.error) ? of.error : undefined;
     return (
       <Alert tone="warn">
         <Text size="sm">
@@ -83,6 +85,8 @@ export function Query<T>({
         <Text size="xs" tone="tertiary">
           {of.error instanceof Error ? of.error.message : String(of.error)}
         </Text>
+        {appError?.retryable ? <Text size="xs" tone="tertiary">This may be temporary. Try again when the service is reachable.</Text> : null}
+        {appError?.requestId ? <Text size="xs" tone="tertiary">Reference <code>{appError.requestId}</code></Text> : null}
         <Button type="button" size="sm" intent="ghost" onClick={() => void of.refetch()}>Try again</Button>
       </Alert>
     );

@@ -1,4 +1,7 @@
 import type { HttpClient } from "@/lib/http";
+import type { TimelineEvent } from "@/lib/services/events";
+import type { Evidence } from "@/lib/services/review";
+import type { ResearchConnection } from "@/lib/services/research-connections";
 
 export type ResearchRecordKind = "person" | "account" | "organisation" | "place";
 export type PlacePrecision = "exact" | "approximate" | "region";
@@ -21,6 +24,26 @@ export type ResearchRecord = {
 };
 
 export type ResearchRecordPage = { items: ResearchRecord[]; next_cursor: string | null };
+
+export type ResearchRecordNeighborhoodMeta = {
+  depth: number;
+  max_depth: number;
+  record_limit: number;
+  truncated: boolean;
+  record_count: number;
+  connection_count: number;
+  event_count: number;
+  citation_count: number;
+};
+
+export type ResearchRecordNeighborhood = {
+  meta: ResearchRecordNeighborhoodMeta;
+  record: ResearchRecord;
+  records: ResearchRecord[];
+  connections: ResearchConnection[];
+  events: TimelineEvent[];
+  citations: Evidence[];
+};
 
 export type ResearchRecordSummary = {
   record_count: number;
@@ -52,6 +75,10 @@ export function readResearchRecordSummary(http: HttpClient, workspace: string) {
 
 export function readResearchRecord(http: HttpClient, workspace: string, record: string) {
   return http.get<ResearchRecord>(`${base(workspace)}/${encodeURIComponent(record)}`);
+}
+
+export function readResearchRecordNeighborhood(http: HttpClient, workspace: string, record: string, depth: 1 | 2 = 1) {
+  return http.get<ResearchRecordNeighborhood>(`${base(workspace)}/${encodeURIComponent(record)}/neighborhood`, { params: { depth, limit: 50 } });
 }
 /** Hydrate only the records a relationship surface actually needs. Missing
  * records remain absent so callers can keep the stable identifier visible;

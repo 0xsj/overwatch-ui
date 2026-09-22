@@ -89,7 +89,7 @@ export function AccessScreen() {
             That is not the same as nobody being on it.
           </Text>
         ) : (
-          <Table>
+          <Table className={s.accessTable} aria-label="Engagement access">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Person</TableHeaderCell>
@@ -100,17 +100,18 @@ export function AccessScreen() {
             <TableBody>
               {rows.value.map((m) => (
                 <TableRow key={m.account_id}>
-                  <TableCell>
+                  <TableCell data-label="Person">
                     <div className={s.who}>
                       <span className={s.name}>{m.name}</span>
                       <span className={s.email}>{m.email}</span>
                     </div>
                   </TableCell>
-                  <TableCell><span className={s.muted}>{m.role}</span></TableCell>
-                  <TableCell>
+                  <TableCell data-label="Organisation role"><span className={s.muted}>{m.role}</span></TableCell>
+                  <TableCell data-label="Engagement access">
                     <LevelCell
                       workspaceId={workspace}
                       accountId={m.account_id}
+                      name={m.name}
                       role={m.role}
                       access={m.access}
                       editable={mayGrant}

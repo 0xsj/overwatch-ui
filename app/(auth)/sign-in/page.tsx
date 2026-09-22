@@ -35,9 +35,13 @@ export default async function SignInPage({
           No workspace yet? <Link href="/sign-up" className={s.link}>Create one</Link>
         </Text>
       }
-    >
+      >
       <SignInForm reset={reset === "done"} />
-      <PersonaPicker choices={choices} />
+      {/* Fixture personas are a deliberate no-backend development path. Once
+          the real API is configured, leaving them on this page makes a live
+          build look like a demo and makes it too easy to enter the wrong data
+          plane. */}
+      {servedByFixtures("identity") ? <PersonaPicker choices={choices} /> : null}
     </AuthShell>
   );
 }

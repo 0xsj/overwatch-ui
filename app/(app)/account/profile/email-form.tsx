@@ -21,7 +21,7 @@ export function EmailForm({ current }: { current: string }) {
   const waiting = state.status === "ok" ? state.pendingEmail : undefined;
 
   return (
-    <form action={action} noValidate className={s.form}>
+    <form action={action} noValidate className={s.form} aria-label="Change your email address">
       <FormError state={state} />
 
       {waiting ? (

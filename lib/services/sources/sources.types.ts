@@ -108,6 +108,14 @@ export type SourceWatch = {
 export type ConfigureSourceWatch = { enabled: boolean; interval_seconds: number };
 export type SourceWatchRunResult = { watch: SourceWatch; changed: boolean; capture?: CaptureSummary };
 export type SourceAlertKind = "capture_changed" | "watch_failed" | "question_gap" | "record_gap" | "cluster_gap";
+export type SourceAlertDelivery = {
+  workspace_id: string;
+  account_id: string;
+  email_enabled: boolean;
+  kinds: SourceAlertKind[];
+  updated_at: string;
+};
+export type SourceAlertDeliveryInput = { email_enabled: boolean; kinds: SourceAlertKind[] };
 export type SourceAlert = {
   alert_id: string;
   workspace_id: string;

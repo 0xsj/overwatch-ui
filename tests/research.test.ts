@@ -21,7 +21,7 @@ import type { ResearchRecord } from "../lib/services/research-records/index.ts";
 import { listQuestions, readQuestionsByIDs } from "../lib/services/questions/index.ts";
 import type { ResearchConnectionRevision } from "../lib/services/research-connections/index.ts";
 import { createResearchConnectionReview, listResearchConnectionReviews, listResearchConnections, readResearchConnectionReview, readResearchConnectionSummary, readResearchConnectionsByIDs } from "../lib/services/research-connections/index.ts";
-import { listResearchRecords, readResearchRecordSummary, readResearchRecordsByIDs } from "../lib/services/research-records/index.ts";
+import { listResearchRecords, readResearchRecordNeighborhood, readResearchRecordSummary, readResearchRecordsByIDs } from "../lib/services/research-records/index.ts";
 import { readResearchResolutionImpact } from "../lib/services/research-resolutions/index.ts";
 import { createResearchResolutionSet, listResearchResolutionSets, readResearchResolutionSetImpact, reviewResearchResolutionSet, reverseResearchResolutionSet } from "../lib/services/research-resolution-sets/index.ts";
 import { connectionRevisionChanges, connectionRevisionEvidenceChanges, connectionRevisionObservationIds } from "../lib/services/research-connections/history.ts";
@@ -45,6 +45,36 @@ import { researchRecordCandidates, synthesisText } from "../lib/services/researc
 import { generateAssistance, readAssistanceHistory, readAssistanceProviderPolicy, readLatestAssistance, setAssistanceProviderPolicy } from "../lib/services/assistance/index.ts";
 import { createEvidenceCluster, createEvidenceComparison, createEvidenceQuestionSuggestions, createEvidenceSynthesis, listEvidenceBoard, listEvidenceClusterCoverage, listEvidenceClusters, listEvidenceComparisons, listEvidenceQuestionSuggestions, listEvidenceSourceLinks, listEvidenceSyntheses, readEvidenceQuestionSuggestions, setEvidenceSourceLink, updateEvidenceCluster } from "../lib/services/review/index.ts";
 import type { HttpClient } from "../lib/http/port.ts";
+import { errorFromResponse, errorFromTransport } from "../lib/http/envelope.ts";
+import { retryDelay, shouldRetry } from "../lib/query/client.ts";
+
+test("transport timeouts remain retryable and distinct from cancellation", () => {
+  const timedOut = errorFromTransport(new DOMException("The operation timed out.", "TimeoutError"));
+  assert.equal(timedOut.kind, "timeout");
+  assert.equal(timedOut.retryable, true);
+  assert.equal(timedOut.message, "The request timed out. Try again.");
+
+  const cancelled = errorFromTransport(new DOMException("The operation was aborted.", "AbortError"));
+  assert.equal(cancelled.kind, "canceled");
+  assert.equal(cancelled.retryable, false);
+});
+
+test("rate limits honor retry guidance without retrying refusals", async () => {
+  assert.equal(shouldRetry(0, { status: 429, kind: "rate_limited" }), true);
+  assert.equal(shouldRetry(0, { status: 403, kind: "forbidden" }), false);
+  assert.equal(retryDelay(0, { retryAfterMs: 2500 }), 2500);
+  assert.equal(retryDelay(1, { retryAfterMs: 120_000 }), 60_000);
+  assert.equal(retryDelay(0, { kind: "unavailable" }), 1000);
+  assert.equal(retryDelay(1, { kind: "unavailable" }), 2000);
+
+  const guided = await errorFromResponse(new Response("", { status: 429, headers: { "retry-after": "3", "x-request-id": "req-rate-limit" } }));
+  assert.equal(guided.kind, "rate_limited");
+  assert.equal(guided.retryAfterMs, 3000);
+  assert.equal(guided.requestId, "req-rate-limit");
+
+  const capped = await errorFromResponse(new Response("", { status: 503, headers: { "retry-after": "999999" } }));
+  assert.equal(capped.retryAfterMs, 60_000);
+});
 
 test("citations use code points across emoji, accents and repeated passages", () => {
   const content = "🚉 İzmir — service paused.\n🚉 İzmir — service paused.";
@@ -587,6 +617,16 @@ test("loaded-row filtering is case-insensitive and preserves input order", () =>
   assert.deepEqual(unresolvedIDs(["three", "missing", "one"], rows.slice(0, 2), (row) => row.id), ["three", "missing"]);
 });
 
+test("large loaded evidence sets stay bounded and preserve selection order", () => {
+  const rows = Array.from({ length: 10_000 }, (_, index) => ({ id: `observation-${index}`, text: index === 9_999 ? "The final corroborating detail" : `Observation ${index}` }));
+  const selected = ["observation-9999", "observation-4500", "missing-observation"];
+  const found = filterLoadedRows(rows, "CORROBORATING", (row) => [row.id, row.text]);
+  assert.deepEqual(found, [rows[9_999]]);
+  assert.deepEqual(unresolvedIDs(selected, rows.slice(0, 5000), (row) => row.id), ["observation-9999", "missing-observation"]);
+  assert.equal(rows[0].id, "observation-0");
+  assert.equal(rows.length, 10_000);
+});
+
 test("evidence syntheses preserve the selected observation order and page cursor", async () => {
   let seenPostPath = "";
   let seenBody: unknown;
@@ -889,6 +929,18 @@ test("research record summaries use a workspace-scoped read", async () => {
   } as unknown as HttpClient;
   await readResearchRecordSummary(http, "case/a");
   assert.equal(seenPath, "/workspaces/case%2Fa/records/summary");
+});
+
+test("research record neighborhoods preserve the bounded authored context route", async () => {
+  let seenPath = "";
+  const http = {
+    get: async (path: string) => {
+      seenPath = path;
+      return { record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
+    },
+  } as unknown as HttpClient;
+  await readResearchRecordNeighborhood(http, "case/a", "record/1");
+  assert.equal(seenPath, "/workspaces/case%2Fa/records/record%2F1/neighborhood");
 });
 
 test("research connection review queues preserve server filters", async () => {

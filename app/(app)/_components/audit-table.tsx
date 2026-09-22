@@ -61,7 +61,7 @@ export function AuditTable({
 
   return (
     <>
-      <Table>
+      <Table className={s.auditTable} aria-label="Audit entries">
         <TableHead>
           <TableRow>
             <TableHeaderCell>When</TableHeaderCell>
@@ -73,10 +73,10 @@ export function AuditTable({
         <TableBody>
           {entries.map((e) => (
             <TableRow key={e.id}>
-              <TableCell>
+              <TableCell data-label="When">
                 <span className={s.mono}>{e.occurred_at.slice(0, 19).replace("T", " ")}</span>
               </TableCell>
-              <TableCell>
+              <TableCell data-label="What">
                 <div className={s.what}>
                   <span className={s.action}>{e.action}</span>
                   {resumeHref?.(e) ? <Link href={resumeHref(e)!} className={s.chain}>open →</Link> : null}
@@ -92,8 +92,8 @@ export function AuditTable({
                   </span>
                 </div>
               </TableCell>
-              <TableCell><Actor actor={e.actor} /></TableCell>
-              <TableCell>
+              <TableCell data-label="Who"><Actor actor={e.actor} /></TableCell>
+              <TableCell data-label="Chain">
                 <Link href={(chainHref ?? ((id: string) => `/home/audit-log/${id}`))(e.correlation_id)} className={s.chain}>
                   chain →
                 </Link>

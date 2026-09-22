@@ -9,7 +9,7 @@ import { Button, Field, Input, Textarea } from "@/components/forms";
 import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
 import type { Evidence } from "@/lib/services/review";
-import type { PlacePrecision, ResearchRecord, ResearchRecordCitationFilter, ResearchRecordKind, ResearchRecordResolutionFilter, WriteResearchRecord } from "@/lib/services/research-records";
+import type { PlacePrecision, ResearchRecord, ResearchRecordCitationFilter, ResearchRecordKind, ResearchRecordNeighborhood, ResearchRecordResolutionFilter, WriteResearchRecord } from "@/lib/services/research-records";
 import type { RecordCandidatePrefill, RelationshipPrefill } from "@/lib/services/research-records/navigation";
 import type { ResearchConnectionKind } from "@/lib/services/research-connections";
 import { connectionHref } from "@/lib/services/research-connections/navigation";
@@ -19,7 +19,7 @@ import { eventHref } from "@/lib/services/events/navigation";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { evidenceByIDsQuery, evidenceQuery, researchRecordQuery, researchRecordsByIDsQuery, researchRecordsQuery, researchRecordSummaryQuery, researchResolutionImpactQuery, researchResolutionSetImpactQuery, researchResolutionSetsQuery, researchResolutionsQuery } from "../_queries";
+import { evidenceByIDsQuery, evidenceQuery, researchRecordNeighborhoodQuery, researchRecordQuery, researchRecordsByIDsQuery, researchRecordsQuery, researchRecordSummaryQuery, researchResolutionImpactQuery, researchResolutionSetImpactQuery, researchResolutionSetsQuery, researchResolutionsQuery } from "../_queries";
 import { createResearchRecordAction, createResearchResolutionAction, createResearchResolutionSetAction, reverseResearchResolutionAction, reverseResearchResolutionSetAction, reviewResearchResolutionAction, reviewResearchResolutionSetAction, updateResearchRecordAction } from "./_actions";
 import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, RecordPicker, recordHref, sourceHref, useResearchWrite, WorkingNoteLink } from "./_shared";
 import s from "./investigation.module.css";
@@ -41,6 +41,10 @@ function citationFilter(raw: string | null): ResearchRecordCitationFilter {
 
 function resolutionFilter(raw: string | null): ResearchRecordResolutionFilter {
   return raw === "open" || raw === "accepted" || raw === "none" ? raw : "";
+}
+
+function neighborhoodDepth(raw: string | null): 1 | 2 {
+  return raw === "2" ? 2 : 1;
 }
 
 const connectionKindLabels: Record<ResearchConnectionKind, string> = {
@@ -91,6 +95,7 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
   const mayWrite = mayWriteResearch(shell?.context?.workspace);
   const requestedReturn = searchParams.get("return") ?? "";
   const returnTo = requestedReturn.startsWith(`/investigation/${encodeURIComponent(workspace)}/`) ? requestedReturn : "";
+  const depth = neighborhoodDepth(searchParams.get("depth"));
   const initialPromotion = promotionFrom(searchParams);
   const initialObservationIds = searchParams.getAll("observation");
   const recordQuery = searchParams.get("q")?.trim().slice(0, 200) ?? "";
@@ -141,6 +146,12 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
   });
   const active = rows.find((record) => record.record_id === activeId) ?? targetedRecord.data;
   const targetedRecordLoading = Boolean(activeId && !active && targetedRecord.isPending);
+  const neighborhood = useQuery({
+    queryKey: keys.records.neighborhood(workspace, activeId ?? "", depth),
+    queryFn: () => researchRecordNeighborhoodQuery(workspace, activeId!, depth),
+    enabled: Boolean(activeId),
+    retry: false,
+  });
   const targetedObservationIds = [...new Set([...initialObservationIds, ...(active?.observation_ids ?? [])])];
   const candidateEvidence = useQuery({
     queryKey: keys.evidence.recordEvidence(workspace, targetedObservationIds),
@@ -154,6 +165,12 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
     const cleaned = name === "q" ? value.slice(0, 200) : value;
     if (cleaned.trim()) next.set(name, cleaned); else next.delete(name);
     next.delete("before");
+    const path = investigationPath(workspace, "records");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
+  const setNeighborhoodDepth = (value: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === "2") next.set("depth", "2"); else next.delete("depth");
     const path = investigationPath(workspace, "records");
     router.replace(`${path}${next.size ? `?${next}` : ""}`);
   };
@@ -210,9 +227,42 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
         {targetedRecordLoading ? <Text size="sm" tone="tertiary">Opening the selected record…</Text> : targetedRecord.error && !active ? <Failure error={targetedRecord.error} /> : <RecordEditor key={active?.record_id ?? `new:${draft.observationIds.join(",")}:${draft.candidateKind ?? ""}:${draft.candidateName}:${promotion?.fromRecordId ?? ""}`} workspace={workspace} record={active} initialObservationIds={draft.observationIds} initialCandidate={draft.candidateKind && draft.candidateName ? { kind: draft.candidateKind, name: draft.candidateName, ...(draft.candidateDescription ? { description: draft.candidateDescription } : {}) } : undefined} promotion={promotion} evidence={evidenceRows} evidenceError={evidenceError} evidenceHasNext={evidence.hasNextPage} evidenceFetchingNext={evidence.isFetchingNextPage} fetchMoreEvidence={() => void evidence.fetchNextPage()} mayWrite={mayWrite} shell={shell} saved={saved} />}
       </Panel>
     </div>
+    {activeId ? <Panel title="Record neighborhood" note="A bounded view of the selected record, its authored relationships, linked timeline events, and cited provenance." actions={<label className={s.row}><Text as="span" size="sm">Depth</Text><select aria-label="Neighborhood depth" className={s.select} value={depth} onChange={(event) => setNeighborhoodDepth(event.target.value)}><option value="1">Direct links</option><option value="2">Two hops</option></select></label>}>
+      <Query of={neighborhood} label="record neighborhood">{(data) => <RecordNeighborhood workspace={workspace} neighborhood={data} />}</Query>
+    </Panel> : null}
     <IdentityResolutionPanel workspace={workspace} records={rows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} resolutions={resolutionRows} resolutionsError={resolutions.isError ? resolutions.error : null} mayWrite={mayWrite} shell={shell} more={resolutions.hasNextPage} morePending={resolutions.isFetchingNextPage} loadMore={() => void resolutions.fetchNextPage()} />
     <IdentityResolutionSetPanel workspace={workspace} records={rows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} resolutions={resolutionRows} resolutionSets={resolutionSetRows} resolutionSetsError={resolutionSets.isError ? resolutionSets.error : null} mayWrite={mayWrite} shell={shell} more={resolutionSets.hasNextPage} morePending={resolutionSets.isFetchingNextPage} loadMore={() => void resolutionSets.fetchNextPage()} />
   </>;
+}
+
+function RecordNeighborhood({ workspace, neighborhood }: { workspace: string; neighborhood: ResearchRecordNeighborhood }) {
+  const recordPath = (record: string) => `${investigationPath(workspace, "records")}?record=${encodeURIComponent(record)}`;
+  const connectionPath = (connection: string) => `${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection)}`;
+  return <div className={s.stack}>
+    <div className={s.row}>
+      <Badge tone={neighborhood.meta.truncated ? "warn" : "neutral"}>{neighborhood.meta.depth}-hop view{neighborhood.meta.truncated ? " · truncated" : ""}</Badge>
+      <Badge tone="accent">{neighborhood.records.length} related record{neighborhood.records.length === 1 ? "" : "s"}</Badge>
+      <Badge tone={neighborhood.connections.length ? "warn" : "neutral"}>{neighborhood.connections.length} connection{neighborhood.connections.length === 1 ? "" : "s"}</Badge>
+      <Badge tone="neutral">{neighborhood.events.length} timeline event{neighborhood.events.length === 1 ? "" : "s"}</Badge>
+      <Badge tone={neighborhood.citations.length ? "accent" : "warn"}>{neighborhood.citations.length} citation{neighborhood.citations.length === 1 ? "" : "s"}</Badge>
+    </div>
+    <div className={s.columns}>
+      <div className={s.stack}>
+        <Text size="sm">Related records</Text>
+        {neighborhood.records.length ? neighborhood.records.map((record) => <div className={s.eventMeta} key={record.record_id}><Link className={s.inlineLink} href={recordPath(record.record_id)}>{record.name}</Link><Text size="xs" tone="tertiary">{record.kind}{record.description ? ` · ${record.description}` : ""}</Text></div>) : <Text size="sm" tone="tertiary">No authored records are connected yet.</Text>}
+      </div>
+      <div className={s.stack}>
+        <Text size="sm">Relationships and events</Text>
+        {neighborhood.connections.map((connection) => <div className={s.eventMeta} key={connection.connection_id}><Link className={s.inlineLink} href={connectionPath(connection.connection_id)}>{connection.kind.replaceAll("_", " ")}</Link><Text size="xs" tone="tertiary">{connection.state} · {connection.rationale}</Text></div>)}
+        {neighborhood.events.map((event) => <div className={s.eventMeta} key={event.event_id}><Link className={s.inlineLink} href={eventHref(workspace, event.event_id)}>{event.title}</Link><Text size="xs" tone="tertiary">{event.sort_date ?? event.reported_time ?? "Undated"}{event.location ? ` · ${event.location}` : ""}</Text></div>)}
+        {!neighborhood.connections.length && !neighborhood.events.length ? <Text size="sm" tone="tertiary">No relationships or timeline events are linked yet.</Text> : null}
+      </div>
+    </div>
+    <div className={s.stack}>
+      <Text size="sm">Citations and provenance</Text>
+      {neighborhood.citations.length ? neighborhood.citations.map((citation) => <div className={s.eventMeta} key={citation.observation_id}><Link className={s.inlineLink} href={sourceHref(workspace, citation.source_id, citation.capture_id, citation.observation_id)}>{citation.source_title}</Link><Text size="xs" tone="tertiary">{citation.locator ? `${citation.locator} · ` : ""}{citation.statement || citation.quote}</Text></div>) : <Text size="sm" tone="tertiary">No visible citations are attached to this neighborhood.</Text>}
+    </div>
+  </div>;
 }
 
 function mergeEvidence(primary: Evidence[], additional: Evidence[]) {
@@ -265,7 +315,7 @@ function IdentityResolutionPanel({ workspace, records, recordsHasNext, recordsFe
   return <Panel title="Identity resolution" note="Human-confirmed alias links only; records and connection endpoint IDs remain preserved.">
     <div className={s.stack}>
       <Text size="sm" tone="tertiary">Use this when the evidence supports treating one authored record as an alias of another. A proposal changes nothing until it is explicitly accepted.</Text>
-      {mayWrite && aliases.length > 1 ? <form className={s.eventEditor} onSubmit={(event) => { event.preventDefault(); propose.mutate(); }}>
+      {mayWrite && aliases.length > 1 ? <form className={s.eventEditor} aria-label="Propose a record resolution" onSubmit={(event) => { event.preventDefault(); propose.mutate(); }}>
         <RecordPicker label="Record to resolve" value={aliasRecordId} records={aliases} onChange={setAliasRecordId} hasNext={recordsHasNext} fetchingNext={recordsFetchingNext} fetchMore={fetchMoreRecords} />
         <RecordPicker label="Canonical record to keep" value={canonicalRecordId} records={canonicalRecords} onChange={setCanonicalRecordId} hasNext={recordsHasNext} fetchingNext={recordsFetchingNext} fetchMore={fetchMoreRecords} />
         {draftAlias && draftCanonical ? <ResolutionPreview workspace={workspace} alias={draftAlias} canonical={draftCanonical} evidence={previewEvidence.data ?? []} evidenceError={previewEvidence.isError ? previewEvidence.error : null} /> : null}
@@ -329,7 +379,7 @@ function IdentityResolutionSetPanel({ workspace, records, recordsHasNext, record
   return <Panel title="Multi-record identity resolution" note="Bounded, human-confirmed alias sets; one canonical record is kept and every alias remains preserved.">
     <div className={s.stack}>
       <Text size="sm" tone="tertiary">Use this when several authored records appear to describe the same subject. The set is reviewed as one decision, while field differences and citation conflicts stay visible for the analyst.</Text>
-      {mayWrite && available.length > 1 ? <form className={s.eventEditor} onSubmit={(event) => { event.preventDefault(); propose.mutate(); }}>
+      {mayWrite && available.length > 1 ? <form className={s.eventEditor} aria-label="Propose a multi-record resolution" onSubmit={(event) => { event.preventDefault(); propose.mutate(); }}>
         <RecordPicker label="Canonical record to keep" value={canonicalRecordId} records={canonicalRecords} onChange={(value) => { setCanonicalRecordId(value); setAliasRecordIds((current) => current.filter((id) => id !== value)); }} hasNext={recordsHasNext} fetchingNext={recordsFetchingNext} fetchMore={fetchMoreRecords} />
         <div className={s.stack}><Text size="sm">Alias records <span className={s.muted}>(choose one to three)</span></Text>{available.filter((record) => record.record_id !== canonicalRecordId).map((record) => <label className={s.row} key={record.record_id}><input type="checkbox" checked={aliasRecordIds.includes(record.record_id)} onChange={() => toggleAlias(record.record_id)} /> <span>{record.name} <span className={s.muted}>· {kindLabels[record.kind]} · {record.observation_ids.length} citations</span></span></label>)}<MoreButton available={recordsHasNext && !propose.isPending} pending={recordsFetchingNext} load={fetchMoreRecords} /></div>
         {previewCanonical && previewAliases.length ? <ResolutionSetPreview workspace={workspace} aliases={previewAliases} canonical={previewCanonical} resolution={undefined} evidence={previewEvidence.data ?? []} evidenceError={previewEvidence.isError ? previewEvidence.error : null} /> : null}
@@ -443,7 +493,7 @@ function RecordEditor({ workspace, record, initialObservationIds, initialCandida
 
   if (!mayWrite) return record ? <RecordDetail record={record} evidence={evidence} workspace={workspace} shell={shell} error={evidenceError} /> : <Text size="sm" tone="tertiary">This investigation is read-only. Existing records remain visible, but new records require write access.</Text>;
 
-  return <form className={s.eventEditor} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+  return <form className={s.eventEditor} aria-label={record ? "Edit research record" : "Create research record"} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
     {promotion ? <Text size="sm" tone="accent">{promotion.fromRecordId ? "The first record is saved. Review the second record before a proposed connection is opened." : `This is a reviewable ${connectionKindLabels[promotion.relationship.kind].toLowerCase()} hypothesis. Verify both records before creating any connection.`}{initialObservationIds.length ? <> Using {initialObservationIds.length} supporting observation{initialObservationIds.length === 1 ? "" : "s"}.</> : null}</Text> : initialObservationIds.length || initialCandidate ? <Text size="sm" tone="accent">Started from a review candidate{initialObservationIds.length ? <> using {initialObservationIds.length} supporting observation{initialObservationIds.length === 1 ? "" : "s"}</> : null}. Verify the suggested fields and citation before saving.</Text> : null}
     <Field label="Record type" required>{(aria) => <select {...aria} className={s.select} value={kind} onChange={(event) => setKind(event.target.value as ResearchRecordKind)}>{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</Field>
     <Field label="Name" hint="Use the wording currently supported by the investigation; do not imply a resolved identity." required>{(aria) => <Input {...aria} value={name} onChange={(event) => setName(event.target.value)} placeholder="A working name or handle" />}</Field>

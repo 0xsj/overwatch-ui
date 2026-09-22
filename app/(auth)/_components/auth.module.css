@@ -3,6 +3,7 @@
     position: relative;
     min-block-size: 100dvh;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 1fr auto;
     justify-items: center;
     padding: var(--space-10) var(--space-7) var(--space-7);
@@ -27,6 +28,7 @@
   .column {
     inline-size: 100%;
     max-inline-size: 400px;
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
@@ -109,6 +111,8 @@
 
   .foot {
     grid-row: 2;
+    inline-size: 100%;
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -119,4 +123,11 @@
   }
 
   .mock { margin-inline-end: var(--space-4); vertical-align: 1px; }
+
+  @media (max-width: 32rem) {
+    .shell { padding-inline: var(--space-4); }
+    .column { inline-size: calc(100vw - var(--space-4) - var(--space-4)); max-inline-size: none; }
+    .card { min-inline-size: 0; padding: var(--space-7); }
+    .foot { inline-size: calc(100vw - var(--space-4) - var(--space-4)); max-inline-size: none; }
+  }
 }

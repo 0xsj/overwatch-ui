@@ -216,6 +216,7 @@ function BriefEditor({ workspace, brief, drafts, draftsError, draftsHasNext, dra
 function BriefDraftPanel({ workspace, drafts, draftsError, draftsHasNext, draftsFetchingNext, fetchMoreDrafts, selectedObservationIDs, evidence, evidenceError, applyChanges }: { workspace: string; drafts: BriefDraft[]; draftsError: Error | null; draftsHasNext: boolean; draftsFetchingNext: boolean; fetchMoreDrafts: () => void; selectedObservationIDs: string[]; evidence: Evidence[]; evidenceError: Error | null; applyChanges: (changes: BriefDraftChange[]) => void }) {
   const [selectedDraftID, setSelectedDraftID] = useState("");
   const activeDraft = drafts.find((draft) => draft.brief_draft_id === selectedDraftID) ?? drafts[0];
+  const activeDraftFailed = Boolean(activeDraft && activeDraft.status !== "completed" && activeDraft.status !== "empty");
   const create = useResearchWrite(() => createBriefDraftAction(workspace, selectedObservationIDs), [keys.brief.drafts(workspace)], (draft) => setSelectedDraftID(draft.brief_draft_id));
   return <section className={s.details} aria-label="Assisted brief draft">
     <div className={s.assistanceMeta}><Text size="sm">Draft assistance</Text><Text size="xs" tone="tertiary">Proposes a reviewable diff from the selected citations. It never overwrites the authored brief.</Text></div>
@@ -224,16 +225,18 @@ function BriefDraftPanel({ workspace, drafts, draftsError, draftsHasNext, drafts
     <Failure error={create.error} />
     <Failure error={draftsError} />
     {drafts.length ? <div className={s.stack}>
-      <label className={s.stack}><Text size="xs" tone="tertiary" as="span">Saved proposals</Text><select className={s.select} value={activeDraft?.brief_draft_id ?? ""} onChange={(event) => setSelectedDraftID(event.target.value)}>{drafts.map((draft) => <option key={draft.brief_draft_id} value={draft.brief_draft_id}>{dateLabel(draft.created_at)} · {draft.changes.length} proposed changes</option>)}</select></label>
+      <label className={s.stack}><Text size="xs" tone="tertiary" as="span">Saved proposals</Text><select className={s.select} value={activeDraft?.brief_draft_id ?? ""} onChange={(event) => setSelectedDraftID(event.target.value)}>{drafts.map((draft) => <option key={draft.brief_draft_id} value={draft.brief_draft_id}>{dateLabel(draft.created_at)} · {draft.status === "completed" ? `${draft.changes.length} proposed changes` : briefDraftStatusLabel(draft.status)}</option>)}</select></label>
       <MoreButton available={draftsHasNext} pending={draftsFetchingNext} load={fetchMoreDrafts} />
       {activeDraft ? <article className={s.proposalCard}>
         <div className={s.eventMeta}><Text size="xs" tone="tertiary">{activeDraft.provider} · {activeDraft.method} · {activeDraft.status}</Text><Text size="xs" tone="tertiary">{activeDraft.input.observation_ids.length} exact citation{activeDraft.input.observation_ids.length === 1 ? "" : "s"}</Text></div>
-        <Text size="xs" tone="tertiary">{activeDraft.output}</Text>
-        {activeDraft.changes.map((change) => <div key={change.section} className={s.stack}><ValueChange label={change.section.replaceAll("_", " ")} before={change.before} after={change.after} /><Text size="xs" tone="tertiary">Why: {change.rationale}</Text><CitationDeltaLinks label="Supporting citations" ids={change.observation_ids} evidence={evidence} evidenceError={evidenceError} workspace={workspace} /></div>)}
-        {activeDraft.changes.length ? <Button type="button" size="sm" intent="primary" onClick={() => applyChanges(activeDraft.changes)}>Load changes into editor</Button> : null}
+        {activeDraftFailed ? <div className={s.details}><Text size="sm">This draft attempt was retained, but the assistant did not produce a proposal.</Text><Text size="xs" tone="tertiary">{activeDraft.error || "The provider did not return a usable result."} Generate another proposal to retry with the current citations.</Text></div> : <><Text size="xs" tone="tertiary">{activeDraft.output}</Text>{activeDraft.changes.map((change) => <div key={change.section} className={s.stack}><ValueChange label={change.section.replaceAll("_", " ")} before={change.before} after={change.after} /><Text size="xs" tone="tertiary">Why: {change.rationale}</Text><CitationDeltaLinks label="Supporting citations" ids={change.observation_ids} evidence={evidence} evidenceError={evidenceError} workspace={workspace} /></div>)}{activeDraft.changes.length ? <Button type="button" size="sm" intent="primary" onClick={() => applyChanges(activeDraft.changes)}>Load changes into editor</Button> : null}</>}
       </article> : null}
     </div> : <Text size="xs" tone="tertiary">No proposals yet.</Text>}
   </section>;
+}
+
+function briefDraftStatusLabel(status: BriefDraft["status"]) {
+  return status === "timed_out" ? "timed out" : status;
 }
 
 function BriefDetail({ workspace, brief, clusters, relations, clustersError, questions, questionsError, connections, records, events, eventsError, shell }: { workspace: string; brief: WorkingBrief; clusters: EvidenceCluster[]; relations: EvidenceRelation[]; clustersError: Error | null; questions: InvestigationQuestion[]; questionsError: Error | null; connections: ResearchConnection[]; records: ResearchRecord[]; events: TimelineEvent[]; eventsError: Error | null; shell?: ReturnType<typeof useContext>["shell"] }) {

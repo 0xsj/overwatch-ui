@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
    * repo's rule is that no agent artifact exists in it at all. This is the flag
    * that stops the writing. */
   agentRules: false,
+  // Keep framework-only dev chrome out of screenshots and viewport reviews.
+  // It is not part of the product surface and obscures the lower-left UI.
+  devIndicators: false,
   // A 256 KiB text capture can exceed 1 MiB after JSON escaping.
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
 };

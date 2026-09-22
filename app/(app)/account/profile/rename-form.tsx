@@ -21,7 +21,7 @@ export function RenameForm({ name }: { name: string }) {
   const [state, action, pending] = useActionState(renameAction, initialFormState);
 
   return (
-    <form action={action} noValidate className={s.form}>
+    <form action={action} noValidate className={s.form} aria-label="Change your name">
       <FormError state={state} />
 
       {state.status === "ok" ? (

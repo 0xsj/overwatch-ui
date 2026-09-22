@@ -8,11 +8,13 @@ const GLYPH = { neutral: "·", accent: "✓", warn: "▲", crit: "⊘", info: "i
 export type AlertProps = HTMLAttributes<HTMLDivElement> &
   AlertVariants & { glyph?: ReactNode; live?: boolean };
 
-export function Alert({ tone, glyph, live, className, children, ...props }: AlertProps) {
+export function Alert({ tone, glyph, live, role, "aria-live": ariaLive, className, children, ...props }: AlertProps) {
+  const resolvedRole = role ?? (tone === "crit" ? "alert" : "status");
+  const resolvedLive = live === false ? undefined : ariaLive ?? (resolvedRole === "alert" ? "assertive" : resolvedRole === "status" ? "polite" : undefined);
   return (
     <div
-      role={live === false ? undefined : tone === "crit" ? "alert" : "status"}
-      aria-live={live === false ? undefined : tone === "crit" ? "assertive" : "polite"}
+      role={live === false ? undefined : resolvedRole}
+      aria-live={resolvedLive}
       className={cn(alertVariants({ tone }), className)}
       {...props}
     >

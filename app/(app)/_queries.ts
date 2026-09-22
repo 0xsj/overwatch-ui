@@ -22,19 +22,20 @@
    Every function here is a READ. Writes live in each area's `_actions.ts`,
    because a write belongs beside the screen that decides to make it.        */
 
-import { listRetentionCleanup, listRetentionCleanupReviews, listRetentionCleanupStatus, listRetentionReview, listSourceAlerts, listSourceIntake, listSources, searchSources, readRetentionCleanupReview, readSource, readCapture, listCaptureExtractions, readCaptureExtraction, listSourceObservations, readSourceObservation, listCitationShares, readSharedCitation, readSourceWatch, sourceRetentionReview } from "@/lib/services/sources";
-import { readAssistanceHistory, readAssistanceProviderPolicy, readLatestAssistance } from "@/lib/services/assistance";
+import { listRetentionCleanup, listRetentionCleanupReviews, listRetentionCleanupStatus, listRetentionReview, listSourceAlerts, listSourceIntake, listSources, searchSources, readRetentionCleanupReview, readSource, readCapture, listCaptureExtractions, readCaptureExtraction, listSourceObservations, readSourceObservation, listCitationShares, readSharedCitation, readSourceWatch, readSourceAlertDelivery, sourceRetentionReview } from "@/lib/services/sources";
+import { readAssistanceHistory, readAssistanceProviderPolicy, readAssistanceProviderRuns, readLatestAssistance } from "@/lib/services/assistance";
 import { readHealth } from "@/lib/services/health";
 import { listWorkingNotes, listWorkingNotesPage, readWorkingNote, type NoteContextKind } from "@/lib/services/notes";
 import { listEvidence, listEvidenceBoard, listEvidenceClusterCoverage, listEvidenceClusters, listEvidenceComparisons, listEvidenceQuestionSuggestions, listEvidenceRelations, listEvidenceSourceLinks, listEvidenceSyntheses, readEvidence, readEvidenceByIDs, type BoardReviewState } from "@/lib/services/review";
 import { listQuestions, readQuestion, readQuestionsByIDs } from "@/lib/services/questions";
 import { listEventAccounts, listEventClusters, listEventRelationships, listEventRevisions, listEvents, readEvent, readEventRevision } from "@/lib/services/events";
 import { listBriefDrafts, listBriefRecipientHandoffs, listBriefSnapshots, listBriefSnapshotComments, listBriefSnapshotShares, readBrief, readBriefRecipientHandoff, readBriefSharedHandoff, readBriefSnapshot, readBriefSnapshotActivity, readBriefSnapshotReview } from "@/lib/services/brief";
-import { listResearchRecords, readResearchRecord, readResearchRecordsByIDs, readResearchRecordSummary, type ResearchRecordCitationFilter, type ResearchRecordKind, type ResearchRecordResolutionFilter } from "@/lib/services/research-records";
+import { listResearchRecords, readResearchRecord, readResearchRecordNeighborhood, readResearchRecordsByIDs, readResearchRecordSummary, type ResearchRecordCitationFilter, type ResearchRecordKind, type ResearchRecordResolutionFilter } from "@/lib/services/research-records";
 import { listResearchConnections, listResearchConnectionReviews, listResearchConnectionRevisions, readResearchConnection, readResearchConnectionReview, readResearchConnectionRevision, readResearchConnectionSummary, readResearchConnectionsByIDs, type ResearchConnectionReviewFilter, type ResearchConnectionState } from "@/lib/services/research-connections";
 import { listResearchResolutions, readResearchResolutionImpact } from "@/lib/services/research-resolutions";
 import { listResearchResolutionSets, readResearchResolutionSetImpact } from "@/lib/services/research-resolution-sets";
 import { clientFor } from "@/lib/root";
+import { isAppError } from "@/lib/kernel";
 import { getChain, getMyActivity, getOrgAudit, getWorkspaceAudit, getWorkspaceLogs } from "@/lib/services/ledger";
 import { listSessions } from "@/lib/services/identity";
 import { listMembers, listWorkspaces } from "@/lib/services/tenancy";
@@ -219,13 +220,24 @@ export async function retentionCleanupStatusQuery(workspace: string, state = "",
   return listRetentionCleanupStatus(await clientFor("sources"), workspace, state, before, ref);
 }
 export async function sourceQuery(workspace: string, source: string) {
-  return readSource(await clientFor("sources"), workspace, source);
+  try {
+    return await readSource(await clientFor("sources"), workspace, source);
+  } catch (error) {
+    // A stale source link is an expected read outcome for a deep link. Keep it
+    // distinct from transport and server failures so the client can render a
+    // useful unavailable state without generating a server-action 500.
+    if (isAppError(error) && error.status === 404) return null;
+    throw error;
+  }
 }
 export async function sourceWatchQuery(workspace: string, source: string) {
   return readSourceWatch(await clientFor("sources"), workspace, source);
 }
 export async function sourceAlertsQuery(workspace: string, before?: string) {
   return listSourceAlerts(await clientFor("sources"), workspace, before);
+}
+export async function sourceAlertDeliveryQuery(workspace: string) {
+  return readSourceAlertDelivery(await clientFor("sources"), workspace);
 }
 export async function sourceRetentionReviewQuery(workspace: string, source: string) {
   return sourceRetentionReview(await clientFor("sources"), workspace, source);
@@ -248,6 +260,9 @@ export async function assistanceHistoryQuery(workspace: string, source: string, 
 
 export async function assistanceProviderPolicyQuery(workspace: string) {
   return readAssistanceProviderPolicy(await clientFor("sources"), workspace);
+}
+export async function assistanceProviderRunsQuery(workspace: string) {
+  return readAssistanceProviderRuns(await clientFor("sources"), workspace);
 }
 export async function healthQuery(workspace: string) {
   return readHealth(await clientFor("health"), workspace);
@@ -369,6 +384,9 @@ export async function researchRecordsQuery(workspace: string, before?: string, q
 export async function researchRecordQuery(workspace: string, record: string) {
   return readResearchRecord(await clientFor("research-records"), workspace, record);
 }
+export async function researchRecordNeighborhoodQuery(workspace: string, record: string, depth: 1 | 2 = 1) {
+  return readResearchRecordNeighborhood(await clientFor("research-records"), workspace, record, depth);
+}
 export async function researchRecordSummaryQuery(workspace: string) {
   return readResearchRecordSummary(await clientFor("research-records"), workspace);
 }
@@ -427,5 +445,14 @@ export async function sharedCitationQuery(workspace: string, token: string) {
 }
 
 export async function investigationContextQuery(workspace: string) {
-  return loadInvestigationContext(workspace);
+  try {
+    return await loadInvestigationContext(workspace);
+  } catch (error) {
+    // The route layout already turns an unavailable investigation into the
+    // shared not-found boundary. The client chrome asks for the same context
+    // while it hydrates, so a stale deep link must be a successful `null`
+    // answer there rather than a server-action 500 in the browser console.
+    if (isAppError(error) && error.status === 404) return null;
+    throw error;
+  }
 }

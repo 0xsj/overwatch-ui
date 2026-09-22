@@ -28,7 +28,7 @@ export function OrgSwitcher({ me, current }: { me: Me; current: MeOrg }) {
     return (
       <span className={s.single}>
         <Building2 size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-        {current.name}
+        <span className={s.currentName}>{current.name}</span>
       </span>
     );
   }
@@ -37,7 +37,7 @@ export function OrgSwitcher({ me, current }: { me: Me; current: MeOrg }) {
     <DropdownMenu>
       <DropdownMenuTrigger className={s.trigger}>
         <Building2 size={14} strokeWidth={1.7} className={s.icon} aria-hidden="true" />
-        {current.name}
+        <span className={s.currentName}>{current.name}</span>
         <ChevronsUpDown size={13} strokeWidth={1.7} className={s.chevron} aria-hidden="true" />
       </DropdownMenuTrigger>
 

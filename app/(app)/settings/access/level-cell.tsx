@@ -31,12 +31,14 @@ import s from "./level-cell.module.css";
 export function LevelCell({
   workspaceId,
   accountId,
+  name,
   role,
   access,
   editable,
 }: {
   workspaceId: string;
   accountId: string;
+  name: string;
   role: OrgRole;
   access: GrantLevel;
   editable: boolean;
@@ -88,7 +90,7 @@ export function LevelCell({
         }
         disabled={pending}
       >
-        <SelectTrigger className={s.trigger} data-level={value}>
+        <SelectTrigger aria-label={`${name}'s engagement access level`} className={s.trigger} data-level={value}>
           <SelectValue placeholder="no access" />
         </SelectTrigger>
         <SelectContent>

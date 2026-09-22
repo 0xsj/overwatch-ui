@@ -100,7 +100,7 @@ export function MemberRow({
     <div className={s.who}>
       <div className={s.rowControls}>
         <Select value={value} onValueChange={change} disabled={pending}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={`${name}'s organisation role`}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectGroup>
               <SelectLabel>Inside the firm</SelectLabel>

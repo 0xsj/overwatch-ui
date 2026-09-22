@@ -24,8 +24,8 @@ export function makeQueryClient(): QueryClient {
          *  engagement is not visible, and a refused spawn is the scope gate
          *  working. Retrying either is asking the same question again and
          *  hoping for a different answer, and it turns one wall into three. */
-        retry: (attempt, error) =>
-          attempt < 1 && !isAnswer(error),
+        retry: shouldRetry,
+        retryDelay,
 
         /** Refetch when the tab comes back, because the interesting data here
          *  changes without this client doing anything — a schedule starts runs
@@ -49,5 +49,18 @@ export function makeQueryClient(): QueryClient {
  *  holds here too. */
 function isAnswer(error: unknown): boolean {
   const status = (error as { status?: number } | null)?.status;
-  return status !== undefined && status >= 400 && status < 500;
+  const kind = (error as { kind?: unknown } | null)?.kind;
+  // 429 is a transient answer, not a refusal. The envelope also carries the
+  // server's Retry-After guidance, which retryDelay below will honor.
+  return status !== undefined && status >= 400 && status < 500 && status !== 429 && kind !== "rate_limited";
+}
+
+export function shouldRetry(attempt: number, error: unknown): boolean {
+  return attempt < 1 && !isAnswer(error);
+}
+
+export function retryDelay(attempt: number, error: unknown): number {
+  const guided = (error as { retryAfterMs?: unknown } | null)?.retryAfterMs;
+  if (typeof guided === "number" && Number.isFinite(guided) && guided >= 0) return Math.min(guided, 60_000);
+  return Math.min(1000 * 2 ** attempt, 30_000);
 }

@@ -1,4 +1,4 @@
-import { AppError, isErrorKind, type ErrorKind } from "@/lib/kernel";
+import { AppError, isErrorKind, type ErrorKind } from "../kernel/errors.ts";
 
 /** The problem document `pkg/httpx.WriteError` writes. FLAT — `kind` is a
  *  top-level key, not nested under `error`. This is the only file in the tree
@@ -43,6 +43,20 @@ function stringMap(value: unknown): Record<string, string> | undefined {
 }
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+const MAX_RETRY_AFTER_MS = 60_000;
+
+/** Parse RFC 7231's delta-seconds or HTTP-date form, but cap the result so a
+ * server or proxy cannot make a browser silently sleep for an unbounded time. */
+function retryAfterMs(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value.trim());
+  if (Number.isInteger(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+  }
+  const at = Date.parse(value);
+  if (!Number.isFinite(at)) return undefined;
+  return Math.min(Math.max(0, at - Date.now()), MAX_RETRY_AFTER_MS);
+}
 
 /** Turn a non-2xx response into an `AppError`. Never throws on a malformed
  *  body: an error path that can itself fail replaces one diagnosis with a
@@ -71,13 +85,25 @@ export async function errorFromResponse(response: Response): Promise<AppError> {
     // exactly when the route is missing.
     requestId: str(problem.request_id) ?? response.headers.get("x-request-id") ?? undefined,
     status: response.status,
+    retryAfterMs: retryAfterMs(response.headers.get("retry-after")),
   });
 }
 
-/** A failure with no response: DNS, a dropped socket, a timeout, an abort. */
+/** A failure with no response: DNS, a dropped socket, a timeout, an abort.
+ *
+ * AbortSignal.timeout() deliberately throws a DOMException named
+ * `TimeoutError`, not `AbortError`. Keeping that distinction matters to the
+ * retry policy and to the UI: a slow boundary is recoverable in a different
+ * way from a component that was unmounted or a user-cancelled request. */
 export function errorFromTransport(cause: unknown): AppError {
-  if (cause instanceof DOMException && cause.name === "AbortError")
-    return new AppError({ kind: "canceled", message: "The request was cancelled." });
+  if (cause instanceof DOMException) {
+    if (cause.name === "TimeoutError") {
+      return new AppError({ kind: "timeout", message: "The request timed out. Try again." });
+    }
+    if (cause.name === "AbortError") {
+      return new AppError({ kind: "canceled", message: "The request was cancelled." });
+    }
+  }
   return new AppError({
     kind: "unavailable",
     message: cause instanceof Error ? cause.message : "The server could not be reached.",

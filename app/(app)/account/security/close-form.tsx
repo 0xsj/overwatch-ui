@@ -47,7 +47,7 @@ export function CloseAccountForm() {
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <form action={action} noValidate className={s.form}>
+        <form action={action} noValidate className={s.form} aria-label="Close your account">
           <FormError state={state} />
           <Field
             label="Your current password"

@@ -1,0 +1,92 @@
+@layer screen {
+  .page {
+    position: relative;
+    min-block-size: 100%;
+    display: grid;
+    place-items: center;
+    padding: var(--space-10) var(--space-7);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .glow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(72% 48% at 50% -12%,
+      color-mix(in srgb, var(--accent) 13%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 38%,
+      transparent 74%);
+  }
+
+  .card {
+    inline-size: min(100%, 520px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--space-9);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-4);
+    background: var(--surface-panel);
+    box-shadow: var(--shadow);
+  }
+
+  .kicker {
+    color: var(--accent);
+    font-size: var(--text-10);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .title {
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(var(--text-20), 5vw, var(--text-28));
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+  }
+
+  .detail {
+    margin: 0;
+    color: var(--ink-3);
+    font-size: var(--text-13);
+    line-height: 1.55;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-block-start: var(--space-3);
+  }
+
+  .skeleton {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-start: var(--space-3);
+  }
+
+  .skeleton span {
+    display: block;
+    block-size: var(--space-4);
+    border-radius: var(--radius-1);
+    background: var(--surface-hover);
+    animation: route-pulse 1.2s ease-in-out infinite alternate;
+  }
+
+  .skeleton span:nth-child(1) { inline-size: 94%; }
+  .skeleton span:nth-child(2) { inline-size: 76%; animation-delay: 120ms; }
+  .skeleton span:nth-child(3) { inline-size: 58%; animation-delay: 240ms; }
+
+  @keyframes route-pulse {
+    from { opacity: 0.45; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton span { animation: none; }
+  }
+}

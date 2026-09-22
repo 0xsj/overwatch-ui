@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
-import { homeFor } from "../_navigation";
-import { loadShell } from "../_shell";
+import type { Metadata } from "next";
 
-/** The landing, and it depends on who is asking.
+export const metadata: Metadata = {
+  title: "Home | Overwatch",
+  description: "Your Overwatch workspace.",
+};
+
+/** Keep the legacy landing alias on the canonical investigation entrypoint.
  *
- *  A `client` has one room. Sending them to the overview means the first thing
- *  they see after signing in is a screen that answers 404 — which is correct
- *  non-disclosure arriving in the worst possible place. */
-export default async function Home() {
-  const shell = await loadShell();
-  redirect(homeFor(shell.context?.org.role));
+ *  That entrypoint owns the role-specific client handoff, so this alias does
+ *  not need to load the authenticated shell and redirect a second time. */
+export default function Page() {
+  redirect("/investigation");
 }
