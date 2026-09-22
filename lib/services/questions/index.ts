@@ -1,12 +1,16 @@
 import type { HttpClient } from "@/lib/http";
 
 export type QuestionState = "open" | "answered" | "dismissed" | "deferred";
+export type QuestionContextKind = "question" | "record" | "event" | "connection" | "event_relationship" | "brief" | "cluster";
+export type QuestionContext = { kind: QuestionContextKind; id: string };
 
 export type InvestigationQuestion = {
   question_id: string;
   workspace_id: string;
   question: string;
   context?: string;
+  context_kind?: QuestionContextKind;
+  context_id?: string;
   state: QuestionState;
   resolution?: string;
   author: string;
@@ -24,6 +28,8 @@ export type QuestionPage = {
 export type WriteQuestion = {
   question: string;
   context: string;
+  context_kind?: QuestionContextKind;
+  context_id?: string;
   state: QuestionState;
   resolution: string;
   observation_ids: string[];

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { citedParts, quoteAt, quoteOccurrences } from "../lib/services/sources/citation.ts";
+import { citedParts, citationQuality, quoteAt, quoteOccurrences } from "../lib/services/sources/citation.ts";
 import { diffText } from "../lib/services/sources/diff.ts";
 import { duplicateCaptureVersion } from "../lib/services/sources/history.ts";
 import { mayWriteResearch, shellForPath } from "../app/(app)/_route-context.ts";
@@ -21,20 +21,20 @@ import type { ResearchRecord } from "../lib/services/research-records/index.ts";
 import { listQuestions, readQuestionsByIDs } from "../lib/services/questions/index.ts";
 import type { ResearchConnectionRevision } from "../lib/services/research-connections/index.ts";
 import { createResearchConnectionReview, listResearchConnectionReviews, listResearchConnections, readResearchConnectionReview, readResearchConnectionSummary, readResearchConnectionsByIDs } from "../lib/services/research-connections/index.ts";
-import { listResearchRecords, readResearchRecordNeighborhood, readResearchRecordSummary, readResearchRecordsByIDs } from "../lib/services/research-records/index.ts";
+import { archiveResearchRecord, listResearchRecordRevisions, listResearchRecords, readResearchRecordNeighborhood, readResearchRecordSummary, readResearchRecordsByIDs, restoreResearchRecord } from "../lib/services/research-records/index.ts";
 import { readResearchResolutionImpact } from "../lib/services/research-resolutions/index.ts";
 import { createResearchResolutionSet, listResearchResolutionSets, readResearchResolutionSetImpact, reviewResearchResolutionSet, reverseResearchResolutionSet } from "../lib/services/research-resolution-sets/index.ts";
 import { connectionRevisionChanges, connectionRevisionEvidenceChanges, connectionRevisionObservationIds } from "../lib/services/research-connections/history.ts";
-import { recordHref } from "../lib/services/research-records/navigation.ts";
+import { recordCoverageQuestionDraft, recordHref } from "../lib/services/research-records/navigation.ts";
 import { placePrecisionLabel, projectPlaceGeometry } from "../lib/services/research-records/map.ts";
-import { connectionHref } from "../lib/services/research-connections/navigation.ts";
-import { eventHref, eventRevisionHref } from "../lib/services/events/navigation.ts";
+import { connectionHref, connectionQuestionDraft } from "../lib/services/research-connections/navigation.ts";
+import { eventHref, eventRelationshipHref, eventRelationshipQuestionDraft, eventRevisionHref } from "../lib/services/events/navigation.ts";
 import { createEventCluster, createEventRelationship, listEventAccounts, listEventClusters, listEventRelationships, reconcileEventAccounts, reviewEventCluster, reviewEventRelationship, type TimelineEvent } from "../lib/services/events/index.ts";
 import { compareEvents, sequenceEvents } from "../lib/services/events/temporal.ts";
 import { noteContextHref, noteDraftHref, noteHref } from "../lib/services/notes/navigation.ts";
 import { listWorkingNotesPage, writeWorkingNote } from "../lib/services/notes/index.ts";
-import { questionDraftHref, questionEvidenceHref, questionHref } from "../lib/services/questions/navigation.ts";
-import { sourceHref } from "../lib/services/sources/navigation.ts";
+import { questionContextHref, questionDraftHref, questionEvidenceHref, questionHref } from "../lib/services/questions/navigation.ts";
+import { observationHref, sourceHref } from "../lib/services/sources/navigation.ts";
 import { addSource, configureSourceWatch, createCitationShare, createSourceIntake, listCitationShares, listSourceAlerts, listSourceIntake, listSources, markSourceAlertSeen, readSharedCitation, readSourceWatch, refreshSourceGapAlerts, reviewSourceIntake, revokeCitationShare, runSourceWatch, searchSources, setSourceDuplicatePolicy, setSourcePublication } from "../lib/services/sources/sources.api.ts";
 import { repeatedAssets } from "../lib/services/entities/repeated.ts";
 import { readHealth } from "../lib/services/health/index.ts";
@@ -84,6 +84,14 @@ test("citations use code points across emoji, accents and repeated passages", ()
   const parts = citedParts(content, positions[1], positions[1] + Array.from(quote).length, quote);
   assert.equal(parts?.cited, quote);
   assert.equal(parts?.before, "🚉 İzmir — service paused.\n🚉 ");
+});
+
+test("citation quality reports exact artifact ranges and mismatches", () => {
+  const content = "🚉 İzmir — service paused.";
+  const quote = "İzmir — service paused.";
+  assert.deepEqual(citationQuality(content, 2, 25, quote), { status: "verified", range: { start: 2, end: 25, length: 23 } });
+  assert.equal(citationQuality(content, 3, 26, quote).status, "mismatch");
+  assert.equal(citationQuality(content, -1, 2, quote).reason, "The stored range is outside this artifact.");
 });
 
 test("overlapping matches can identify the exact selected occurrence", () => {
@@ -481,6 +489,10 @@ test("source handoff omits invalid offsets and bounds draft quotes", () => {
   assert.equal(new URLSearchParams(bounded.split("?")[1]).get("observe_quote")?.length, 200);
 });
 
+test("observation destinations preserve exact extraction and quote provenance", () => {
+  assert.equal(observationHref("case a", { source_id: "source/1", capture_id: "capture/2", observation_id: "observation/3", extraction_id: "extraction/4", quote: "East Quay", quote_start: 17 }, "/investigation/case%20a/records?record=record%2F1"), "/investigation/case%20a/sources/source%2F1?capture=capture%2F2&citation=observation%2F3&return=%2Finvestigation%2Fcase%2520a%2Frecords%3Frecord%3Drecord%252F1&extraction=extraction%2F4&observe_quote=East+Quay&observe_start=17");
+});
+
 test("capture text search returns overlapping Unicode code-point occurrences", () => {
   assert.deepEqual(textOccurrences("🚉 İzmir — service paused. 🚉 İzmir", "İzmir"), [2, 28]);
   assert.deepEqual(textOccurrences("Alpha and alpha", "ALPHA"), [0, 10]);
@@ -542,6 +554,15 @@ test("record coverage distinguishes corroboration gaps from conflicting evidence
   assert.equal(coverage.contradicting_count, 1);
   assert.equal(coverage.unreviewed_internal_pairs, 1);
   assert.equal(coverage.status, "contradiction_found");
+});
+
+test("record coverage question drafts preserve the authored record origin and citations", () => {
+  assert.deepEqual(recordCoverageQuestionDraft({ recordId: "record/1", name: "@harborline", kind: "account", description: "A provisional account record.", status: "contradiction_found", observationCount: 2, supportingCount: 1, contradictingCount: 1, unresolvedCount: 0, observationIds: ["observation/1", "observation/2", "observation/1"] }), {
+    prompt: "What evidence would corroborate or challenge the account record “@harborline”?",
+    context: "A provisional account record. Record coverage is currently contradiction found: 2 cited observations, 1 supporting, 1 contradicting, and 0 unresolved. Seek an independent or discriminating observation before treating the record as settled.",
+    observation_ids: ["observation/1", "observation/2"],
+    origin: { kind: "record", id: "record/1" },
+  });
 });
 
 test("cluster coverage only counts internal review and exposes disagreement", () => {
@@ -784,6 +805,24 @@ test("guided relationship handoffs open a proposed connection with cited support
   assert.equal(connectionHref("case a", { fromRecordId: "record-a", toRecordId: "record-b", kind: "associated_with", rationale: "Review together.", returnTo: "/investigation/case%20a/evidence" }), "/investigation/case%20a/connections?from_record=record-a&to_record=record-b&kind=associated_with&state=proposed&rationale=Review+together.&return=%2Finvestigation%2Fcase%2520a%2Fevidence");
 });
 
+test("relationship question drafts preserve uncertainty and exact supporting/opposing citations", () => {
+  assert.deepEqual(connectionQuestionDraft({
+    connectionId: "connection/1",
+    fromName: "@harborline",
+    toName: "Harborline author",
+    kindLabel: "Possible same subject",
+    stateLabel: "Proposed",
+    rationale: "The same distinctive handle appears in both records.",
+    supportingObservationIds: ["observation/1", "observation/2", "observation/1"],
+    opposingObservationIds: ["observation/3"],
+  }), {
+    prompt: "What would establish or challenge the possible same subject relationship between “@harborline” and “Harborline author”?",
+    context: "Relationship under review: Possible same subject. Current assessment: Proposed. The same distinctive handle appears in both records. Look for evidence that would distinguish support from contradiction rather than treating the relationship as established.",
+    observation_ids: ["observation/1", "observation/2", "observation/3"],
+    origin: { kind: "connection", id: "connection/1" },
+  });
+});
+
 test("graph destinations preserve explicit record and connection selection", () => {
   assert.equal(`/investigation/${encodeURIComponent("case a")}/records?record=${encodeURIComponent("record/1")}`, "/investigation/case%20a/records?record=record%2F1");
   assert.equal(`/investigation/${encodeURIComponent("case a")}/connections?connection=${encodeURIComponent("connection/1")}`, "/investigation/case%20a/connections?connection=connection%2F1");
@@ -793,6 +832,13 @@ test("timeline destinations preserve exact event selection", () => {
   assert.equal(eventHref("case a", "event/1"), "/investigation/case%20a/timeline?event=event%2F1");
   assert.equal(eventHref("case a"), "/investigation/case%20a/timeline");
   assert.equal(eventRevisionHref("case a", "event/1", "revision/1"), "/investigation/case%20a/timeline/event%2F1/revisions/revision%2F1");
+  assert.equal(eventRelationshipHref("case a", "relationship/1"), "/investigation/case%20a/timeline?relationship=relationship%2F1");
+  assert.deepEqual(eventRelationshipQuestionDraft({ relationshipId: "relationship/1", fromTitle: "East Quay disruption", toTitle: "Harborline account", kindLabel: "Possibly causes", stateLabel: "proposed", rationale: "The timing suggests a sequence, but causality remains provisional.", supportingObservationIds: ["observation/1"], opposingObservationIds: ["observation/2"] }), {
+    prompt: "What would establish or challenge the possibly causes relationship between “East Quay disruption” and “Harborline account”?",
+    context: "Event relationship under review: Possibly causes. Current assessment: proposed. The timing suggests a sequence, but causality remains provisional. Look for evidence that would distinguish event sequence or association from coincidence or reporting-chain repetition.",
+    observation_ids: ["observation/1", "observation/2"],
+    origin: { kind: "event_relationship", id: "relationship/1" },
+  });
 });
 
 test("event account comparison keeps the event route and reconciliation endpoint scoped", async () => {
@@ -916,7 +962,34 @@ test("research record pages preserve server search and kind filters", async () =
   } as unknown as HttpClient;
   await listResearchRecords(http, "case/a", "cursor/1", "  harborline  ", "account", "cited", "open");
   assert.equal(seenPath, "/workspaces/case%2Fa/records");
-  assert.deepEqual(seenParams, { before: "cursor/1", q: "harborline", kind: "account", citation: "cited", resolution: "open", limit: 50 });
+  assert.deepEqual(seenParams, { before: "cursor/1", q: "harborline", kind: "account", citation: "cited", resolution: "open", archived: undefined, limit: 50 });
+  await listResearchRecords(http, "case/a", undefined, "", undefined, "", "", "archived");
+  assert.deepEqual(seenParams, { before: undefined, q: undefined, kind: undefined, citation: undefined, resolution: undefined, archived: "archived", limit: 50 });
+});
+
+test("research record lifecycle actions use the auditable archive routes", async () => {
+  const seen: string[] = [];
+  const http = {
+    post: async (path: string) => { seen.push(path); return { record_id: "record/1" }; },
+  } as unknown as HttpClient;
+  await archiveResearchRecord(http, "case/a", "record/1");
+  await restoreResearchRecord(http, "case/a", "record/1");
+  assert.deepEqual(seen, [
+    "/workspaces/case%2Fa/records/record%2F1/archive",
+    "/workspaces/case%2Fa/records/record%2F1/restore",
+  ]);
+});
+
+test("research record history preserves the workspace-scoped revision route", async () => {
+  let seenPath = "";
+  const http = {
+    get: async (path: string) => {
+      seenPath = path;
+      return { items: [] };
+    },
+  } as unknown as HttpClient;
+  await listResearchRecordRevisions(http, "case/a", "record/1");
+  assert.equal(seenPath, "/workspaces/case%2Fa/records/record%2F1/revisions");
 });
 
 test("research record summaries use a workspace-scoped read", async () => {
@@ -933,14 +1006,53 @@ test("research record summaries use a workspace-scoped read", async () => {
 
 test("research record neighborhoods preserve the bounded authored context route", async () => {
   let seenPath = "";
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
   const http = {
-    get: async (path: string) => {
+    get: async (path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
       seenPath = path;
-      return { record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
+      seenParams = options?.params;
+      return { meta: { depth: 2, max_depth: 2, record_limit: 50, truncated: false, record_count: 1, connection_count: 0, event_count: 0, citation_count: 0 }, record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
     },
   } as unknown as HttpClient;
-  await readResearchRecordNeighborhood(http, "case/a", "record/1");
+  await readResearchRecordNeighborhood(http, "case/a", "record/1", 2);
   assert.equal(seenPath, "/workspaces/case%2Fa/records/record%2F1/neighborhood");
+  assert.deepEqual(seenParams, { depth: 2, limit: 50, kind: undefined, record_kind: undefined });
+});
+
+test("research record neighborhoods preserve an explicit record budget", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { meta: { depth: 2, max_depth: 2, record_limit: 10, truncated: true, record_count: 2, connection_count: 1, event_count: 0, citation_count: 0 }, record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
+    },
+  } as unknown as HttpClient;
+  await readResearchRecordNeighborhood(http, "case/a", "record/1", 2, 10);
+  assert.deepEqual(seenParams, { depth: 2, limit: 10, kind: undefined, record_kind: undefined });
+});
+
+test("research record neighborhoods preserve a relationship-kind lens", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { meta: { depth: 1, max_depth: 2, record_limit: 50, truncated: false, record_count: 2, connection_count: 1, event_count: 0, citation_count: 0 }, record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
+    },
+  } as unknown as HttpClient;
+  await readResearchRecordNeighborhood(http, "case/a", "record/1", 1, 50, "mentions");
+  assert.deepEqual(seenParams, { depth: 1, limit: 50, kind: "mentions", record_kind: undefined });
+});
+
+test("research record neighborhoods preserve an endpoint record-kind lens", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { meta: { depth: 1, max_depth: 2, record_limit: 50, truncated: false, record_count: 2, connection_count: 1, event_count: 0, citation_count: 0 }, record: { record_id: "record/1" }, records: [], connections: [], events: [], citations: [] };
+    },
+  } as unknown as HttpClient;
+  await readResearchRecordNeighborhood(http, "case/a", "record/1", 1, 50, "mentions", "organisation");
+  assert.deepEqual(seenParams, { depth: 1, limit: 50, kind: "mentions", record_kind: "organisation" });
 });
 
 test("research connection review queues preserve server filters", async () => {
@@ -955,7 +1067,43 @@ test("research connection review queues preserve server filters", async () => {
   } as unknown as HttpClient;
   await listResearchConnections(http, "case/a", "cursor/1", "deferred", "open");
   assert.equal(seenPath, "/workspaces/case%2Fa/connections");
-  assert.deepEqual(seenParams, { before: "cursor/1", state: "deferred", review: "open", limit: 50 });
+  assert.deepEqual(seenParams, { before: "cursor/1", q: undefined, state: "deferred", review: "open", kind: undefined, record_kind: undefined, limit: 50 });
+});
+
+test("research connection search preserves the workspace route and query", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { items: [], next_cursor: null };
+    },
+  } as unknown as HttpClient;
+  await listResearchConnections(http, "case/a", undefined, "", "", "harborline author");
+  assert.deepEqual(seenParams, { before: undefined, q: "harborline author", state: undefined, review: undefined, kind: undefined, record_kind: undefined, limit: 50 });
+});
+
+test("research connection queries preserve the relationship-kind filter", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { items: [], next_cursor: null };
+    },
+  } as unknown as HttpClient;
+  await listResearchConnections(http, "case/a", undefined, "", "", "", "mentions");
+  assert.deepEqual(seenParams, { before: undefined, q: undefined, state: undefined, review: undefined, kind: "mentions", record_kind: undefined, limit: 50 });
+});
+
+test("research connection queries preserve the endpoint record-kind filter", async () => {
+  let seenParams: Record<string, string | number | boolean | undefined> | undefined;
+  const http = {
+    get: async (_path: string, options?: { params?: Record<string, string | number | boolean | undefined> }) => {
+      seenParams = options?.params;
+      return { items: [], next_cursor: null };
+    },
+  } as unknown as HttpClient;
+  await listResearchConnections(http, "case/a", undefined, "", "", "", undefined, "person");
+  assert.deepEqual(seenParams, { before: undefined, q: undefined, state: undefined, review: undefined, kind: undefined, record_kind: "person", limit: 50 });
 });
 
 test("research connection summaries use a workspace-scoped read", async () => {
@@ -1009,7 +1157,9 @@ test("question destinations preserve exact selection and return context", () => 
   assert.equal(questionHref("case a", "question/1", "/investigation/case%20a/brief"), "/investigation/case%20a/questions?question=question%2F1&return=%2Finvestigation%2Fcase%2520a%2Fbrief");
   assert.equal(questionHref("case a"), "/investigation/case%20a/questions");
   assert.equal(questionEvidenceHref("case a", "question/1", questionHref("case a", "question/1")), "/investigation/case%20a/evidence?question=question%2F1&return=%2Finvestigation%2Fcase%2520a%2Fquestions%3Fquestion%3Dquestion%252F1");
-  assert.equal(questionDraftHref("case a", { prompt: "What corroborates East Quay?", context: "Two retained reports need another source.", observation_ids: ["observation/1", "observation/2"] }, "/investigation/case%20a/evidence"), "/investigation/case%20a/questions?new=1&draft_question=What+corroborates+East+Quay%3F&draft_context=Two+retained+reports+need+another+source.&draft_observations=observation%2F1%2Cobservation%2F2&return=%2Finvestigation%2Fcase%2520a%2Fevidence");
+  assert.equal(questionDraftHref("case a", { prompt: "What corroborates East Quay?", context: "Two retained reports need another source.", observation_ids: ["observation/1", "observation/2"], origin: { kind: "connection", id: "connection/1" } }, "/investigation/case%20a/evidence"), "/investigation/case%20a/questions?new=1&draft_question=What+corroborates+East+Quay%3F&draft_context=Two+retained+reports+need+another+source.&draft_observations=observation%2F1%2Cobservation%2F2&draft_context_kind=connection&draft_context_id=connection%2F1&return=%2Finvestigation%2Fcase%2520a%2Fevidence");
+  assert.equal(questionContextHref("case a", { kind: "connection", id: "connection/1" }), "/investigation/case%20a/connections?connection=connection%2F1");
+  assert.equal(questionContextHref("case a", { kind: "cluster", id: "cluster/1" }), "/investigation/case%20a/evidence?cluster=cluster%2F1");
 });
 
 test("source destinations preserve capture, citation, search, match, extraction and return context", () => {

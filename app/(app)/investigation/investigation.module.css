@@ -3,6 +3,7 @@
   .contextTop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); margin-block-end: var(--space-5); }
   .contextName { overflow-wrap: anywhere; font-size: var(--text-12-5); color: var(--ink-2); border-inline-start: 1px solid var(--line-strong); padding-inline-start: var(--space-5); }
   .back, .inlineLink { color: var(--accent); font-size: var(--text-12-5); text-decoration: underline; text-underline-offset: 3px; }
+  .linkButton { padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: var(--text-12-5); text-align: start; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); border-block-end: 1px solid var(--line-strong); }
   .tabs a { padding: var(--space-4) var(--space-6); color: var(--ink-2); font-size: var(--text-12-5); border-block-end: 2px solid transparent; }
   .tabs a[aria-current] { color: var(--accent); border-color: var(--accent); }

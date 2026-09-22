@@ -10,9 +10,9 @@ import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
 import { filterLoadedRows } from "@/lib/query/filter";
 import type { Evidence } from "@/lib/services/review";
-import type { InvestigationQuestion, QuestionState, WriteQuestion } from "@/lib/services/questions";
+import type { InvestigationQuestion, QuestionContext, QuestionContextKind, QuestionState, WriteQuestion } from "@/lib/services/questions";
 import { noteDraftHref } from "@/lib/services/notes/navigation";
-import { questionEvidenceHref, questionHref, type QuestionDraft } from "@/lib/services/questions/navigation";
+import { questionContextFrom, questionContextHref, questionContextLabel, questionEvidenceHref, questionHref, type QuestionDraft } from "@/lib/services/questions/navigation";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
@@ -150,7 +150,11 @@ function readQuestionDraft(searchParams: URLSearchParams): QuestionDraft | undef
   const prompt = searchParams.get("draft_question")?.trim() ?? "";
   const context = searchParams.get("draft_context")?.trim() ?? "";
   const observation_ids = (searchParams.get("draft_observations") ?? "").split(",").map((id) => id.trim()).filter(Boolean).slice(0, 8);
-  return prompt ? { prompt, context, observation_ids } : undefined;
+  const originKind = searchParams.get("draft_context_kind") as QuestionContextKind | null;
+  const originID = searchParams.get("draft_context_id")?.trim() ?? "";
+  const origin = originKind && originID && ["question", "record", "event", "connection", "event_relationship", "brief", "cluster"].includes(originKind)
+    ? { kind: originKind, id: originID } as QuestionContext : undefined;
+  return prompt ? { prompt, context, observation_ids, ...(origin ? { origin } : {}) } : undefined;
 }
 
 function mergeEvidence(primary: Evidence[], ...additionalRows: Evidence[][]) {
@@ -201,10 +205,11 @@ function QuestionEditor({ workspace, question, initialDraft, evidence, evidenceE
 }) {
   const [prompt, setPrompt] = useState(question?.question ?? initialDraft?.prompt ?? "");
   const [context, setContext] = useState(question?.context ?? initialDraft?.context ?? "");
+  const origin = question ? questionContextFrom(question) : initialDraft?.origin;
   const [state, setState] = useState<QuestionState>(question?.state ?? "open");
   const [resolution, setResolution] = useState(question?.resolution ?? "");
   const [observationIds, setObservationIds] = useState<string[]>(question?.observation_ids ?? initialDraft?.observation_ids ?? []);
-  const body: WriteQuestion = { question: prompt, context, state, resolution, observation_ids: observationIds };
+  const body: WriteQuestion = { question: prompt, context, state, resolution, observation_ids: observationIds, ...(origin ? { context_kind: origin.kind, context_id: origin.id } : {}) };
   const save = useResearchWrite(
     () => question ? updateQuestionAction(workspace, question.question_id, body) : createQuestionAction(workspace, body),
     [keys.questions.all(workspace)],
@@ -223,7 +228,7 @@ function QuestionEditor({ workspace, question, initialDraft, evidence, evidenceE
     </select>}</Field>
     {state !== "open" ? <Field label={state === "answered" ? "Answer" : "Disposition"} hint={state === "answered" ? "Keep the answer qualified if it is still provisional." : "Record why this question is no longer being pursued."} required>{(aria) => <Textarea {...aria} value={resolution} onChange={(event) => setResolution(event.target.value)} placeholder={state === "answered" ? "What did the investigation establish?" : "Why is this question being set aside?"} />}</Field> : null}
     <CitationPicker workspace={workspace} label="Cited observations" selected={observationIds} evidence={evidence} setSelected={setObservationIds} error={evidenceError} max={8} hasNext={evidenceHasNext} fetchingNext={evidenceFetchingNext} fetchMore={fetchMoreEvidence} returnTo={returnTo} />
-    {question ? <QuestionHandoffLinks workspace={workspace} question={question} mayWrite={mayWrite} /> : null}
+    {question ? <QuestionHandoffLinks workspace={workspace} question={question} mayWrite={mayWrite} /> : origin ? <div className={s.row}><Link className={s.inlineLink} href={questionContextHref(workspace, origin)}>Originating {questionContextLabel(origin.kind)}</Link></div> : null}
     <Failure error={save.error} />
     {save.isSuccess ? <Text size="sm" tone="accent" role="status">Question saved.</Text> : null}
     <div className={s.row}><Button type="submit" intent="primary" loading={save.isPending}>{question ? "Update question" : "Save question"}</Button>{question ? <Text size="xs" tone="tertiary">Last updated by {authorLabel(question.updated_by, shell)}</Text> : null}</div>
@@ -250,8 +255,10 @@ function QuestionDetail({ question, evidence, workspace, shell, evidenceError, m
 
 function QuestionHandoffLinks({ workspace, question, mayWrite }: { workspace: string; question: InvestigationQuestion; mayWrite: boolean }) {
   const returnTo = questionHref(workspace, question.question_id);
+  const origin = questionContextFrom(question);
   return <div className={s.row}>
     <Link className={s.inlineLink} href={questionEvidenceHref(workspace, question.question_id, returnTo)}>Review linked evidence</Link>
+    {origin ? <Link className={s.inlineLink} href={questionContextHref(workspace, origin)}>Open originating {questionContextLabel(origin.kind)}</Link> : null}
     {mayWrite ? <Link className={s.inlineLink} href={noteDraftHref(workspace, { body: nextStepNote(question) }, returnTo, { kind: "question", id: question.question_id })}>Start a next-step note</Link> : null}
   </div>;
 }

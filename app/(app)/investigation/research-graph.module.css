@@ -27,6 +27,7 @@
 .edgeProposed :global(.react-flow__edge-path) { stroke: var(--warn); stroke-dasharray: 6 3; }
 .edgeConflicted :global(.react-flow__edge-path) { stroke: var(--crit); stroke-width: 2.5; }
 .edgeUncited :global(.react-flow__edge-path) { stroke: var(--warn); stroke-dasharray: 2 5; }
+.edgeEvent :global(.react-flow__edge-path) { stroke: var(--accent-line); stroke-dasharray: 2 3; }
 .canvas :global(.react-flow__edge-text) { fill: var(--ink-2); font-size: 10px; }
 .canvas :global(.react-flow__edge-textbg) { fill: var(--surface-ground); }
 
@@ -38,6 +39,10 @@
   .node { cursor: pointer; }
   .node:hover, .node[data-selected="true"] { border-color: var(--accent); background: var(--surface-hover); }
   .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .eventNode { position: relative; display: grid; gap: var(--space-2); align-content: center; inline-size: 230px; min-block-size: 88px; padding: var(--space-4) var(--space-5); border: 1px dashed var(--accent-line); border-radius: var(--radius-2); background: var(--surface-sunk); color: var(--ink); cursor: pointer; }
+  .eventNode strong { overflow-wrap: anywhere; font-size: var(--text-13); line-height: 1.4; }
+  .eventNode:hover, .eventNode[data-selected="true"] { border-color: var(--accent); background: var(--surface-hover); }
+  .eventNode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .handle { inline-size: 7px; block-size: 7px; border: 1px solid var(--line-strong); background: var(--surface-panel-2); }
   .minimap { background: var(--surface-sunk); }
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--ink-3); font-size: var(--text-11-5); }
@@ -47,4 +52,5 @@
   .legendProposed { border-color: var(--warn) !important; border-top-style: dashed; }
   .legendConflicted { border-color: var(--crit) !important; border-block-start-width: 3px !important; }
   .legendUncited { border-color: var(--warn) !important; border-top-style: dotted; }
+  .legendEvent { border-color: var(--accent-line) !important; border-top-style: dotted; }
 }

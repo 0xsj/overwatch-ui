@@ -14,7 +14,7 @@ import { questionGap, recordCoverage, type QuestionGap, type RecordCoverage } fr
 import type { InvestigationQuestion } from "@/lib/services/questions";
 import { questionDraftHref, questionEvidenceHref, questionHref } from "@/lib/services/questions/navigation";
 import { researchRecordCandidates, synthesisText, type ResearchRecordCandidate } from "@/lib/services/research-records/candidates";
-import { recordHref } from "@/lib/services/research-records/navigation";
+import { recordCoverageQuestionDraft, recordHref } from "@/lib/services/research-records/navigation";
 import type { ResearchRecord } from "@/lib/services/research-records";
 import type { TimelineEvent } from "@/lib/services/events";
 import { mayWriteResearch } from "../_route-context";
@@ -479,12 +479,14 @@ function CoverageBoard({ workspace, records, questions, relations, clusters, clu
 
 function CoverageRecordCard({ workspace, record, coverage, evidenceByID }: { workspace: string; record: ResearchRecord; coverage: RecordCoverage; evidenceByID: Map<string, Evidence> }) {
   const tone = coverage.status === "contradiction_found" ? "crit" : coverage.status === "covered" ? "accent" : "warn";
+  const questionDraft = recordCoverageQuestionDraft({ recordId: record.record_id, name: record.name, kind: record.kind, description: record.description, status: coverage.status, observationCount: coverage.observation_count, supportingCount: coverage.supporting_count, contradictingCount: coverage.contradicting_count, unresolvedCount: coverage.unresolved_count, observationIds: record.observation_ids });
   return <article className={s.coverageCard}>
     <div className={s.row}><Badge tone={tone}>{coverageStatusLabels[coverage.status]}</Badge><Link className={s.inlineLink} href={`${investigationPath(workspace, "records")}?record=${encodeURIComponent(record.record_id)}`}>{record.name}</Link><span className={s.muted}>{record.kind}</span></div>
     <Text size="xs" tone="tertiary">{coverage.observation_count} cited observation{coverage.observation_count === 1 ? "" : "s"} · {coverage.reviewed_observation_count} touched by saved review</Text>
     <Text size="xs" tone="tertiary">{coverage.supporting_count} supporting · {coverage.contradicting_count} contradicting · {coverage.repeating_count} repeating · {coverage.unresolved_count} unresolved</Text>
     {coverage.unreviewed_internal_pairs ? <Text size="xs" tone="tertiary">{coverage.unreviewed_internal_pairs} of {coverage.possible_internal_pairs} internal comparison{coverage.possible_internal_pairs === 1 ? "" : "s"} still need review.</Text> : null}
     <CoverageCitations workspace={workspace} observationIDs={record.observation_ids} evidenceByID={evidenceByID} />
+    {coverage.status !== "covered" ? <Link className={s.inlineLink} href={questionDraftHref(workspace, questionDraft, investigationPath(workspace, "evidence"))}>Draft a question about this record gap</Link> : null}
   </article>;
 }
 
@@ -517,7 +519,7 @@ function ClusterGapCard({ workspace, cluster, coverage, evidenceByID }: { worksp
     <Text size="xs" tone="tertiary">{coverage.observation_count} cited observation{coverage.observation_count === 1 ? "" : "s"} · {coverage.distinct_source_count} distinct retained source{coverage.distinct_source_count === 1 ? "" : "s"} · {coverage.supporting_count} supporting · {coverage.contradicting_count} contradicting · {coverage.repeating_count} repeating</Text>
     {coverage.unreviewed_internal_pairs ? <Text size="xs" tone="tertiary">{coverage.unreviewed_internal_pairs} of {coverage.possible_internal_pairs} internal comparison{coverage.possible_internal_pairs === 1 ? "" : "s"} still need review.</Text> : null}
     <CoverageCitations workspace={workspace} observationIDs={cluster.observation_ids} evidenceByID={evidenceByID} />
-    <Link className={s.inlineLink} href={questionDraftHref(workspace, { prompt, context, observation_ids: cluster.observation_ids.slice(0, 8) }, investigationPath(workspace, "evidence"))}>Draft an investigation question</Link>
+    <Link className={s.inlineLink} href={questionDraftHref(workspace, { prompt, context, observation_ids: cluster.observation_ids.slice(0, 8), origin: { kind: "cluster", id: cluster.cluster_id } }, investigationPath(workspace, "evidence"))}>Draft an investigation question</Link>
   </article>;
 }
 

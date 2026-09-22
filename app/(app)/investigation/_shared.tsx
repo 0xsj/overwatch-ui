@@ -15,7 +15,7 @@ import { filterLoadedRows, unresolvedIDs } from "@/lib/query/filter";
 import type { Shell } from "../_shell";
 import { keys } from "@/lib/query";
 import { reviewBoundaryCopy, type ReviewBoundaryKind } from "@/lib/services/assistance/review-boundary";
-import { sourceHref } from "@/lib/services/sources/navigation";
+import { observationHref } from "@/lib/services/sources/navigation";
 import { noteDraftHref } from "@/lib/services/notes/navigation";
 import type { NoteContext } from "@/lib/services/notes";
 export { recordHref } from "@/lib/services/research-records/navigation";
@@ -30,6 +30,8 @@ export const authorLabel = (author: string, shell?: Shell) => {
   return shell?.members.find((member) => member.account_id === author)?.name || author;
 };
 export const dateLabel = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+export { observationHref } from "@/lib/services/sources/navigation";
 
 export { reviewBoundaryCopy, type ReviewBoundaryKind } from "@/lib/services/assistance/review-boundary";
 
@@ -121,7 +123,7 @@ export function ObservationPicker({ workspace, label, selected, evidence, setSel
     <Text size="sm">{label} <span className={s.muted}>(optional, up to {max})</span></Text>
     {error ? <Failure error={error} /> : evidence.length ? <div className={s.stack}><Input aria-label={`Filter ${label.toLowerCase()}`} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter loaded observations" /><Text size="xs" tone="tertiary">Showing {visible.length} of {evidence.length} loaded observation{evidence.length === 1 ? "" : "s"}.</Text>{visible.length ? <div className={s.checkboxList}>{visible.map((row) => { const checked = selected.includes(row.observation_id); const disabled = !checked && (selected.length >= max || other.includes(row.observation_id)); return <label key={row.observation_id} className={s.checkboxLabel}><input type="checkbox" checked={checked} disabled={disabled} onChange={() => setSelected(checked ? selected.filter((id) => id !== row.observation_id) : [...selected, row.observation_id])} /><span className={s.questionLinkText}>{row.source_title}: {row.statement}</span></label>; })}</div> : <Text size="xs" tone="tertiary">No loaded observations match. Clear the filter or load more.</Text>}<MoreButton available={hasNext} pending={fetchingNext} load={fetchMore} /></div> : <Text size="xs" tone="tertiary">No cited observations are loaded yet.</Text>}
     {unresolved.length ? <Text size="xs" tone="tertiary">{unresolved.length} selected citation ID{unresolved.length === 1 ? " is" : "s are"} currently unresolved; the ID{unresolved.length === 1 ? " is" : "s remain"} preserved.</Text> : null}
-    {selected.length ? <div className={s.stack}><Text size="xs" tone="tertiary">Selected citation details</Text>{selected.map((id) => { const row = evidence.find((one) => one.observation_id === id); if (!row) return <Text key={id} size="xs" tone="tertiary">Observation {id} could not be resolved yet.</Text>; return <article key={id} className={s.observation}><div className={s.eventMeta}><Link className={s.inlineLink} href={sourceHref(workspace, row.source_id, row.capture_id, row.observation_id, returnTo)}>{row.source_title}</Link><span className={s.muted}>Observation {row.observation_id}</span></div><Text size="sm" className={s.evidenceStatement}>{row.statement}</Text><blockquote className={s.quote}>{row.quote}</blockquote><Text size="xs" tone="tertiary">Capture {row.capture_id} · recorded {dateLabel(row.recorded_at)}</Text></article>; })}</div> : null}
+    {selected.length ? <div className={s.stack}><Text size="xs" tone="tertiary">Selected citation details</Text>{selected.map((id) => { const row = evidence.find((one) => one.observation_id === id); if (!row) return <Text key={id} size="xs" tone="tertiary">Observation {id} could not be resolved yet.</Text>; return <article key={id} className={s.observation}><div className={s.eventMeta}><Link className={s.inlineLink} href={observationHref(workspace, row, returnTo)}>{row.source_title}</Link><span className={s.muted}>Observation {row.observation_id}</span></div><Text size="sm" className={s.evidenceStatement}>{row.statement}</Text><blockquote className={s.quote}>{row.quote}</blockquote><Text size="xs" tone="tertiary">Capture {row.capture_id} · recorded {dateLabel(row.recorded_at)}</Text></article>; })}</div> : null}
   </div>;
 }
 

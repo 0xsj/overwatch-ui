@@ -1,13 +1,14 @@
 import type { HttpClient } from "@/lib/http";
 import type { TimelineEvent } from "@/lib/services/events";
 import type { Evidence } from "@/lib/services/review";
-import type { ResearchConnection } from "@/lib/services/research-connections";
+import type { ResearchConnection, ResearchConnectionKind } from "@/lib/services/research-connections";
 
 export type ResearchRecordKind = "person" | "account" | "organisation" | "place";
 export type PlacePrecision = "exact" | "approximate" | "region";
 export type PlaceGeometry = { latitude: number; longitude: number; precision: PlacePrecision; observation_ids: string[] };
 export type ResearchRecordCitationFilter = "" | "cited" | "uncited";
 export type ResearchRecordResolutionFilter = "" | "open" | "accepted" | "none";
+export type ResearchRecordArchiveFilter = "active" | "archived" | "all";
 
 export type ResearchRecord = {
   record_id: string;
@@ -21,7 +22,27 @@ export type ResearchRecord = {
   updated_by: string;
   created_at: string;
   updated_at: string;
+  archived_at?: string;
+  archived_by?: string;
 };
+
+export type ResearchRecordRevision = {
+  revision_id: string;
+  workspace_id: string;
+  record_id: string;
+  revision: number;
+  kind: ResearchRecordKind;
+  name: string;
+  description?: string;
+  observation_ids: string[];
+  place_geometry?: PlaceGeometry;
+  archived_at?: string;
+  archived_by?: string;
+  changed_by: string;
+  changed_at: string;
+};
+
+export type ResearchRecordRevisionPage = { items: ResearchRecordRevision[] };
 
 export type ResearchRecordPage = { items: ResearchRecord[]; next_cursor: string | null };
 
@@ -44,6 +65,7 @@ export type ResearchRecordNeighborhood = {
   events: TimelineEvent[];
   citations: Evidence[];
 };
+export type ResearchRecordNeighborhoodLimit = 10 | 25 | 50;
 
 export type ResearchRecordSummary = {
   record_count: number;
@@ -65,8 +87,8 @@ export type WriteResearchRecord = {
 
 const base = (workspace: string) => `/workspaces/${encodeURIComponent(workspace)}/records`;
 
-export function listResearchRecords(http: HttpClient, workspace: string, before?: string, query = "", kind?: ResearchRecordKind, citation: ResearchRecordCitationFilter = "", resolution: ResearchRecordResolutionFilter = "") {
-	return http.get<ResearchRecordPage>(base(workspace), { params: { before, q: query.trim() || undefined, kind: kind || undefined, citation: citation || undefined, resolution: resolution || undefined, limit: 50 } });
+export function listResearchRecords(http: HttpClient, workspace: string, before?: string, query = "", kind?: ResearchRecordKind, citation: ResearchRecordCitationFilter = "", resolution: ResearchRecordResolutionFilter = "", archived: ResearchRecordArchiveFilter = "active") {
+	return http.get<ResearchRecordPage>(base(workspace), { params: { before, q: query.trim() || undefined, kind: kind || undefined, citation: citation || undefined, resolution: resolution || undefined, archived: archived === "active" ? undefined : archived, limit: 50 } });
 }
 
 export function readResearchRecordSummary(http: HttpClient, workspace: string) {
@@ -77,8 +99,12 @@ export function readResearchRecord(http: HttpClient, workspace: string, record: 
   return http.get<ResearchRecord>(`${base(workspace)}/${encodeURIComponent(record)}`);
 }
 
-export function readResearchRecordNeighborhood(http: HttpClient, workspace: string, record: string, depth: 1 | 2 = 1) {
-  return http.get<ResearchRecordNeighborhood>(`${base(workspace)}/${encodeURIComponent(record)}/neighborhood`, { params: { depth, limit: 50 } });
+export function listResearchRecordRevisions(http: HttpClient, workspace: string, record: string) {
+  return http.get<ResearchRecordRevisionPage>(`${base(workspace)}/${encodeURIComponent(record)}/revisions`);
+}
+
+export function readResearchRecordNeighborhood(http: HttpClient, workspace: string, record: string, depth: 1 | 2 = 1, limit: ResearchRecordNeighborhoodLimit = 50, kind?: ResearchConnectionKind, recordKind?: ResearchRecordKind) {
+  return http.get<ResearchRecordNeighborhood>(`${base(workspace)}/${encodeURIComponent(record)}/neighborhood`, { params: { depth, limit, kind: kind || undefined, record_kind: recordKind || undefined } });
 }
 /** Hydrate only the records a relationship surface actually needs. Missing
  * records remain absent so callers can keep the stable identifier visible;
@@ -107,4 +133,12 @@ export function createResearchRecord(http: HttpClient, workspace: string, body: 
 
 export function updateResearchRecord(http: HttpClient, workspace: string, record: string, body: WriteResearchRecord) {
   return http.put<ResearchRecord>(`${base(workspace)}/${encodeURIComponent(record)}`, { body });
+}
+
+export function archiveResearchRecord(http: HttpClient, workspace: string, record: string) {
+  return http.post<ResearchRecord>(`${base(workspace)}/${encodeURIComponent(record)}/archive`, { body: {} });
+}
+
+export function restoreResearchRecord(http: HttpClient, workspace: string, record: string) {
+  return http.post<ResearchRecord>(`${base(workspace)}/${encodeURIComponent(record)}/restore`, { body: {} });
 }

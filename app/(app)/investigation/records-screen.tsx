@@ -9,7 +9,7 @@ import { Button, Field, Input, Textarea } from "@/components/forms";
 import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
 import type { Evidence } from "@/lib/services/review";
-import type { PlacePrecision, ResearchRecord, ResearchRecordCitationFilter, ResearchRecordKind, ResearchRecordNeighborhood, ResearchRecordResolutionFilter, WriteResearchRecord } from "@/lib/services/research-records";
+import type { PlacePrecision, ResearchRecord, ResearchRecordArchiveFilter, ResearchRecordCitationFilter, ResearchRecordKind, ResearchRecordNeighborhood, ResearchRecordNeighborhoodLimit, ResearchRecordResolutionFilter, ResearchRecordRevision, WriteResearchRecord } from "@/lib/services/research-records";
 import type { RecordCandidatePrefill, RelationshipPrefill } from "@/lib/services/research-records/navigation";
 import type { ResearchConnectionKind } from "@/lib/services/research-connections";
 import { connectionHref } from "@/lib/services/research-connections/navigation";
@@ -19,9 +19,9 @@ import { eventHref } from "@/lib/services/events/navigation";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { evidenceByIDsQuery, evidenceQuery, researchRecordNeighborhoodQuery, researchRecordQuery, researchRecordsByIDsQuery, researchRecordsQuery, researchRecordSummaryQuery, researchResolutionImpactQuery, researchResolutionSetImpactQuery, researchResolutionSetsQuery, researchResolutionsQuery } from "../_queries";
-import { createResearchRecordAction, createResearchResolutionAction, createResearchResolutionSetAction, reverseResearchResolutionAction, reverseResearchResolutionSetAction, reviewResearchResolutionAction, reviewResearchResolutionSetAction, updateResearchRecordAction } from "./_actions";
-import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, RecordPicker, recordHref, sourceHref, useResearchWrite, WorkingNoteLink } from "./_shared";
+import { evidenceByIDsQuery, evidenceQuery, researchRecordNeighborhoodQuery, researchRecordQuery, researchRecordRevisionsQuery, researchRecordsByIDsQuery, researchRecordsQuery, researchRecordSummaryQuery, researchResolutionImpactQuery, researchResolutionSetImpactQuery, researchResolutionSetsQuery, researchResolutionsQuery } from "../_queries";
+import { archiveResearchRecordAction, createResearchRecordAction, createResearchResolutionAction, createResearchResolutionSetAction, restoreResearchRecordAction, reverseResearchResolutionAction, reverseResearchResolutionSetAction, reviewResearchResolutionAction, reviewResearchResolutionSetAction, updateResearchRecordAction } from "./_actions";
+import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, observationHref, RecordPicker, recordHref, useResearchWrite, WorkingNoteLink } from "./_shared";
 import s from "./investigation.module.css";
 
 const kindLabels: Record<ResearchRecordKind, string> = {
@@ -43,8 +43,16 @@ function resolutionFilter(raw: string | null): ResearchRecordResolutionFilter {
   return raw === "open" || raw === "accepted" || raw === "none" ? raw : "";
 }
 
+function archiveFilter(raw: string | null): ResearchRecordArchiveFilter {
+  return raw === "archived" || raw === "all" ? raw : "active";
+}
+
 function neighborhoodDepth(raw: string | null): 1 | 2 {
   return raw === "2" ? 2 : 1;
+}
+
+function neighborhoodLimit(raw: string | null): ResearchRecordNeighborhoodLimit {
+  return raw === "10" ? 10 : raw === "25" ? 25 : 50;
 }
 
 const connectionKindLabels: Record<ResearchConnectionKind, string> = {
@@ -96,20 +104,23 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
   const requestedReturn = searchParams.get("return") ?? "";
   const returnTo = requestedReturn.startsWith(`/investigation/${encodeURIComponent(workspace)}/`) ? requestedReturn : "";
   const depth = neighborhoodDepth(searchParams.get("depth"));
+  const limit = neighborhoodLimit(searchParams.get("limit"));
+  const neighborhoodKind = connectionKind(searchParams.get("neighborhood_kind"));
   const initialPromotion = promotionFrom(searchParams);
   const initialObservationIds = searchParams.getAll("observation");
   const recordQuery = searchParams.get("q")?.trim().slice(0, 200) ?? "";
   const recordKind = candidateKind(searchParams.get("kind")) ?? "";
   const recordCitation = citationFilter(searchParams.get("citation"));
   const recordResolution = resolutionFilter(searchParams.get("resolution"));
+  const recordArchived = archiveFilter(searchParams.get("archived"));
   const recordSummary = useQuery({
     queryKey: keys.records.summary(workspace),
     queryFn: () => researchRecordSummaryQuery(workspace),
     retry: false,
   });
   const records = useInfiniteQuery({
-    queryKey: keys.records.list(workspace, recordQuery, recordKind, recordCitation, recordResolution),
-    queryFn: ({ pageParam }) => researchRecordsQuery(workspace, pageParam, recordQuery, recordKind || undefined, recordCitation, recordResolution),
+    queryKey: keys.records.list(workspace, recordQuery, recordKind, recordCitation, recordResolution, recordArchived),
+    queryFn: ({ pageParam }) => researchRecordsQuery(workspace, pageParam, recordQuery, recordKind || undefined, recordCitation, recordResolution, recordArchived),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
@@ -146,9 +157,15 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
   });
   const active = rows.find((record) => record.record_id === activeId) ?? targetedRecord.data;
   const targetedRecordLoading = Boolean(activeId && !active && targetedRecord.isPending);
+  const recordRevisions = useQuery({
+    queryKey: keys.records.revisions(workspace, activeId ?? ""),
+    queryFn: () => researchRecordRevisionsQuery(workspace, activeId!),
+    enabled: Boolean(activeId),
+    retry: false,
+  });
   const neighborhood = useQuery({
-    queryKey: keys.records.neighborhood(workspace, activeId ?? "", depth),
-    queryFn: () => researchRecordNeighborhoodQuery(workspace, activeId!, depth),
+    queryKey: keys.records.neighborhood(workspace, activeId ?? "", depth, limit, neighborhoodKind ?? ""),
+    queryFn: () => researchRecordNeighborhoodQuery(workspace, activeId!, depth, limit, neighborhoodKind),
     enabled: Boolean(activeId),
     retry: false,
   });
@@ -160,17 +177,21 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
   });
   const evidenceRows = mergeEvidence(evidence.data?.pages.flatMap((page) => page.items) ?? [], candidateEvidence.data ?? []);
   const evidenceError = evidence.isError ? evidence.error : candidateEvidence.isError ? candidateEvidence.error : null;
-  const setRecordFilter = (name: "q" | "kind" | "citation" | "resolution", value: string) => {
+  const setRecordFilter = (name: "q" | "kind" | "citation" | "resolution" | "archived", value: string) => {
     const next = new URLSearchParams(searchParams.toString());
-    const cleaned = name === "q" ? value.slice(0, 200) : value;
+    const cleaned = name === "q" ? value.slice(0, 200) : name === "archived" && value === "active" ? "" : value;
     if (cleaned.trim()) next.set(name, cleaned); else next.delete(name);
     next.delete("before");
     const path = investigationPath(workspace, "records");
     router.replace(`${path}${next.size ? `?${next}` : ""}`);
   };
-  const setNeighborhoodDepth = (value: string) => {
+  const setNeighborhoodControl = (name: "depth" | "limit" | "kind", value: string) => {
     const next = new URLSearchParams(searchParams.toString());
-    if (value === "2") next.set("depth", "2"); else next.delete("depth");
+    if (name === "depth") {
+      if (value === "2") next.set("depth", "2"); else next.delete("depth");
+    } else if (name === "limit") {
+      if (value === "10" || value === "25") next.set("limit", value); else next.delete("limit");
+    } else if (connectionKind(value)) next.set("neighborhood_kind", value); else next.delete("neighborhood_kind");
     const path = investigationPath(workspace, "records");
     router.replace(`${path}${next.size ? `?${next}` : ""}`);
   };
@@ -205,19 +226,20 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
       </div>}</Query>
     </Panel>
     <div className={s.columns}>
-      <Panel title="Records" note={rows.length ? `${rows.length} loaded${recordQuery || recordKind || recordCitation || recordResolution ? " matching" : ""}` : undefined}>
+      <Panel title="Records" note={rows.length ? `${rows.length} loaded${recordQuery || recordKind || recordCitation || recordResolution || recordArchived !== "active" ? " matching" : ""}` : undefined}>
         <Query of={records} label="research records">{() => <div className={s.stack}>
           <div className={s.row}>
             <Input aria-label="Search research records" maxLength={200} value={recordQuery} onChange={(event) => setRecordFilter("q", event.target.value)} placeholder="Search records and cited observations" />
             <label className={s.row}><Text as="span" size="sm">Type</Text><select aria-label="Filter research records by type" className={s.select} value={recordKind} onChange={(event) => setRecordFilter("kind", event.target.value)}><option value="">All types</option>{(Object.keys(kindLabels) as ResearchRecordKind[]).map((kind) => <option key={kind} value={kind}>{kindLabels[kind]}</option>)}</select></label>
             <label className={s.row}><Text as="span" size="sm">Citations</Text><select aria-label="Filter research records by citation coverage" className={s.select} value={recordCitation} onChange={(event) => setRecordFilter("citation", event.target.value)}><option value="">All citation states</option><option value="cited">Cited</option><option value="uncited">Uncited</option></select></label>
             <label className={s.row}><Text as="span" size="sm">Resolution</Text><select aria-label="Filter research records by resolution review" className={s.select} value={recordResolution} onChange={(event) => setRecordFilter("resolution", event.target.value)}><option value="">All review states</option><option value="open">Needs review</option><option value="accepted">Accepted</option><option value="none">No active resolution</option></select></label>
+            <label className={s.row}><Text as="span" size="sm">Archive</Text><select aria-label="Filter research records by archive state" className={s.select} value={recordArchived} onChange={(event) => setRecordFilter("archived", event.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All records</option></select></label>
           </div>
           {!rows.length ? (
             <div className={s.empty}>
-              <Text size="sm">{recordQuery || recordKind || recordCitation || recordResolution ? "No research records match these filters." : "No research records yet."}</Text>
-              <Text size="sm" tone="tertiary">{recordQuery || recordKind || recordCitation || recordResolution ? "Try different filters or clear the browse facets." : "Create a qualified working record when the investigation needs to refer to a person, account, organisation, or place across several citations."}</Text>
-              {!recordQuery && !recordKind && !recordCitation && !recordResolution && mayWrite ? <Button type="button" intent="primary" onClick={resetDraft}>Create a record</Button> : null}
+              <Text size="sm">{recordQuery || recordKind || recordCitation || recordResolution || recordArchived !== "active" ? "No research records match these filters." : "No research records yet."}</Text>
+              <Text size="sm" tone="tertiary">{recordQuery || recordKind || recordCitation || recordResolution || recordArchived !== "active" ? "Try different filters or clear the browse facets." : "Create a qualified working record when the investigation needs to refer to a person, account, organisation, or place across several citations."}</Text>
+              {!recordQuery && !recordKind && !recordCitation && !recordResolution && recordArchived === "active" && mayWrite ? <Button type="button" intent="primary" onClick={resetDraft}>Create a record</Button> : null}
             </div>
           ) : <div className={s.stack}><Text size="xs" tone="tertiary">Showing {visibleRows.length} matching record{visibleRows.length === 1 ? "" : "s"} across the loaded pages.</Text><div className={s.eventList}>{visibleRows.map((record) => <RecordCard key={record.record_id} record={record} active={record.record_id === activeId} evidence={evidenceRows} workspace={workspace} shell={shell} select={() => { setActiveId(record.record_id); setDraft({ observationIds: [], candidateKind: undefined, candidateName: "", candidateDescription: "" }); }} />)}</div></div>}
           <MoreButton available={records.hasNextPage} pending={records.isFetchingNextPage} load={() => void records.fetchNextPage()} />
@@ -227,12 +249,46 @@ export function RecordsScreen({ workspace }: { workspace: string }) {
         {targetedRecordLoading ? <Text size="sm" tone="tertiary">Opening the selected record…</Text> : targetedRecord.error && !active ? <Failure error={targetedRecord.error} /> : <RecordEditor key={active?.record_id ?? `new:${draft.observationIds.join(",")}:${draft.candidateKind ?? ""}:${draft.candidateName}:${promotion?.fromRecordId ?? ""}`} workspace={workspace} record={active} initialObservationIds={draft.observationIds} initialCandidate={draft.candidateKind && draft.candidateName ? { kind: draft.candidateKind, name: draft.candidateName, ...(draft.candidateDescription ? { description: draft.candidateDescription } : {}) } : undefined} promotion={promotion} evidence={evidenceRows} evidenceError={evidenceError} evidenceHasNext={evidence.hasNextPage} evidenceFetchingNext={evidence.isFetchingNextPage} fetchMoreEvidence={() => void evidence.fetchNextPage()} mayWrite={mayWrite} shell={shell} saved={saved} />}
       </Panel>
     </div>
-    {activeId ? <Panel title="Record neighborhood" note="A bounded view of the selected record, its authored relationships, linked timeline events, and cited provenance." actions={<label className={s.row}><Text as="span" size="sm">Depth</Text><select aria-label="Neighborhood depth" className={s.select} value={depth} onChange={(event) => setNeighborhoodDepth(event.target.value)}><option value="1">Direct links</option><option value="2">Two hops</option></select></label>}>
+    {activeId ? <Panel title="Record neighborhood" note={`A bounded view of the selected record, its authored relationships, linked timeline events, and cited provenance. Up to ${limit} related records are included${neighborhoodKind ? ` for ${connectionKindLabels[neighborhoodKind].toLowerCase()} relationships` : ""}.`} actions={<div className={s.row}><label className={s.row}><Text as="span" size="sm">Depth</Text><select aria-label="Neighborhood depth" className={s.select} value={depth} onChange={(event) => setNeighborhoodControl("depth", event.target.value)}><option value="1">Direct links</option><option value="2">Two hops</option></select></label><label className={s.row}><Text as="span" size="sm">Budget</Text><select aria-label="Neighborhood record budget" className={s.select} value={limit} onChange={(event) => setNeighborhoodControl("limit", event.target.value)}><option value="10">10 records</option><option value="25">25 records</option><option value="50">50 records</option></select></label><label className={s.row}><Text as="span" size="sm">Relationship</Text><select aria-label="Neighborhood relationship type" className={s.select} value={neighborhoodKind ?? ""} onChange={(event) => setNeighborhoodControl("kind", event.target.value)}><option value="">All relationships</option>{(Object.keys(connectionKindLabels) as ResearchConnectionKind[]).map((kind) => <option key={kind} value={kind}>{connectionKindLabels[kind]}</option>)}</select></label></div>}>
       <Query of={neighborhood} label="record neighborhood">{(data) => <RecordNeighborhood workspace={workspace} neighborhood={data} />}</Query>
+    </Panel> : null}
+    {activeId ? <Panel title="Record history" note="Immutable snapshots preserve the authored record, citations, and archive state as they changed.">
+      <Query of={recordRevisions} label="record history">{(data) => <RecordHistory revisions={data.items} shell={shell} />}</Query>
     </Panel> : null}
     <IdentityResolutionPanel workspace={workspace} records={rows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} resolutions={resolutionRows} resolutionsError={resolutions.isError ? resolutions.error : null} mayWrite={mayWrite} shell={shell} more={resolutions.hasNextPage} morePending={resolutions.isFetchingNextPage} loadMore={() => void resolutions.fetchNextPage()} />
     <IdentityResolutionSetPanel workspace={workspace} records={rows} recordsHasNext={records.hasNextPage} recordsFetchingNext={records.isFetchingNextPage} fetchMoreRecords={() => void records.fetchNextPage()} resolutions={resolutionRows} resolutionSets={resolutionSetRows} resolutionSetsError={resolutionSets.isError ? resolutionSets.error : null} mayWrite={mayWrite} shell={shell} more={resolutionSets.hasNextPage} morePending={resolutionSets.isFetchingNextPage} loadMore={() => void resolutionSets.fetchNextPage()} />
   </>;
+}
+
+function recordRevisionChanges(current: ResearchRecordRevision, previous?: ResearchRecordRevision): string[] {
+  if (!previous) return ["Initial authored record created."];
+  const changes: string[] = [];
+  if (current.kind !== previous.kind) changes.push(`Type changed from ${kindLabels[previous.kind]} to ${kindLabels[current.kind]}.`);
+  if (current.name !== previous.name) changes.push(`Name changed from “${previous.name}” to “${current.name}”.`);
+  if ((current.description ?? "") !== (previous.description ?? "")) changes.push("Description updated.");
+  const before = new Set(previous.observation_ids);
+  const after = new Set(current.observation_ids);
+  const added = current.observation_ids.filter((id) => !before.has(id)).length;
+  const removed = previous.observation_ids.filter((id) => !after.has(id)).length;
+  if (added || removed) changes.push(`Citations changed${added ? ` · ${added} added` : ""}${removed ? ` · ${removed} removed` : ""}.`);
+  const geometry = (value: ResearchRecordRevision["place_geometry"]) => value ? `${value.latitude}:${value.longitude}:${value.precision}:${value.observation_ids.join(",")}` : "";
+  if (geometry(current.place_geometry) !== geometry(previous.place_geometry)) changes.push("Place geometry or its supporting citations updated.");
+  if (Boolean(current.archived_at) !== Boolean(previous.archived_at)) changes.push(current.archived_at ? "Record archived." : "Record restored.");
+  return changes.length ? changes : ["No field values changed; this snapshot records the authored action."];
+}
+
+function RecordHistory({ revisions, shell }: { revisions: ResearchRecordRevision[]; shell?: ReturnType<typeof useContext>["shell"] }) {
+  if (!revisions.length) return <Text size="sm" tone="tertiary">No history is available for this record.</Text>;
+  return <div className={s.stack}>{[...revisions].reverse().map((revision, index) => {
+    const previous = revisions[revisions.length - index - 2];
+    const changes = recordRevisionChanges(revision, previous);
+    return <article key={revision.revision_id} className={s.observation}>
+      <div className={s.eventMeta}><Badge tone={revision.archived_at ? "warn" : index === 0 ? "accent" : "neutral"}>Revision {revision.revision}</Badge><span className={s.muted}>{authorLabel(revision.changed_by, shell)} · {dateLabel(revision.changed_at)}</span>{revision.archived_at ? <Badge tone="warn">Archived</Badge> : null}</div>
+      <Text size="sm" className={s.eventTitle}>{revision.name}</Text>
+      <Text size="xs" tone="tertiary">{kindLabels[revision.kind]} · {revision.observation_ids.length} cited observation{revision.observation_ids.length === 1 ? "" : "s"}{revision.place_geometry ? " · mapped place context" : ""}</Text>
+      <div className={s.stack}>{changes.map((change) => <Text size="sm" key={change}>{change}</Text>)}</div>
+    </article>;
+  })}</div>;
 }
 
 function RecordNeighborhood({ workspace, neighborhood }: { workspace: string; neighborhood: ResearchRecordNeighborhood }) {
@@ -260,7 +316,7 @@ function RecordNeighborhood({ workspace, neighborhood }: { workspace: string; ne
     </div>
     <div className={s.stack}>
       <Text size="sm">Citations and provenance</Text>
-      {neighborhood.citations.length ? neighborhood.citations.map((citation) => <div className={s.eventMeta} key={citation.observation_id}><Link className={s.inlineLink} href={sourceHref(workspace, citation.source_id, citation.capture_id, citation.observation_id)}>{citation.source_title}</Link><Text size="xs" tone="tertiary">{citation.locator ? `${citation.locator} · ` : ""}{citation.statement || citation.quote}</Text></div>) : <Text size="sm" tone="tertiary">No visible citations are attached to this neighborhood.</Text>}
+      {neighborhood.citations.length ? neighborhood.citations.map((citation) => <div className={s.eventMeta} key={citation.observation_id}><Link className={s.inlineLink} href={observationHref(workspace, citation)}>{citation.source_title}</Link><Text size="xs" tone="tertiary">{citation.locator ? `${citation.locator} · ` : ""}{citation.statement || citation.quote}</Text></div>) : <Text size="sm" tone="tertiary">No visible citations are attached to this neighborhood.</Text>}
     </div>
   </div>;
 }
@@ -461,7 +517,7 @@ function sameIDs(left: string[], right: string[]) {
 function RecordCard({ record, active, evidence, workspace, shell, select }: { record: ResearchRecord; active: boolean; evidence: Evidence[]; workspace: string; shell?: ReturnType<typeof useContext>["shell"]; select: () => void }) {
   return <article className={active ? `${s.eventCard} ${s.eventCardActive}` : s.eventCard}>
     <button type="button" className={s.eventCardSelect} onClick={select}>
-      <span className={s.eventMeta}><Badge tone="neutral">{kindLabels[record.kind]}</Badge><span className={s.muted}>{authorLabel(record.updated_by, shell)} · {dateLabel(record.updated_at)}</span></span>
+      <span className={s.eventMeta}><Badge tone="neutral">{kindLabels[record.kind]}</Badge>{record.archived_at ? <Badge tone="warn">Archived</Badge> : null}<span className={s.muted}>{authorLabel(record.updated_by, shell)} · {dateLabel(record.updated_at)}</span></span>
       <strong className={s.eventTitle}>{record.name}</strong>
       {record.description ? <span className={s.body}>{record.description}</span> : null}
       {record.place_geometry ? <span className={s.muted}>Map point · {record.place_geometry.latitude.toFixed(4)}, {record.place_geometry.longitude.toFixed(4)} · {record.place_geometry.precision}</span> : null}
@@ -469,7 +525,7 @@ function RecordCard({ record, active, evidence, workspace, shell, select }: { re
     </button>
     {record.observation_ids.length ? <span className={s.questionLinks}>{record.observation_ids.map((id) => {
       const found = evidence.find((one) => one.observation_id === id);
-      return found ? <Link key={id} href={sourceHref(workspace, found.source_id, found.capture_id, found.observation_id, recordHref(workspace, record.record_id))} className={s.inlineLink}>{found.source_title}: {found.statement}</Link> : <span key={id} className={s.muted}>Citation {id.slice(0, 8)}…</span>;
+      return found ? <Link key={id} href={observationHref(workspace, found, recordHref(workspace, record.record_id))} className={s.inlineLink}>{found.source_title}: {found.statement}</Link> : <span key={id} className={s.muted}>Citation {id.slice(0, 8)}…</span>;
     })}</span> : null}
   </article>;
 }
@@ -490,8 +546,10 @@ function RecordEditor({ workspace, record, initialObservationIds, initialCandida
     ...(kind === "place" && latitude.trim() && longitude.trim() && Number.isFinite(numericLatitude) && Number.isFinite(numericLongitude) ? { place_geometry: { latitude: numericLatitude, longitude: numericLongitude, precision, observation_ids: geometryObservationIds } } : {}),
   };
   const save = useResearchWrite(() => record ? updateResearchRecordAction(workspace, record.record_id, body) : createResearchRecordAction(workspace, body), [keys.records.all(workspace)], saved);
+  const lifecycle = useResearchWrite(() => record?.archived_at ? restoreResearchRecordAction(workspace, record.record_id) : archiveResearchRecordAction(workspace, record!.record_id), [keys.records.all(workspace)]);
 
   if (!mayWrite) return record ? <RecordDetail record={record} evidence={evidence} workspace={workspace} shell={shell} error={evidenceError} /> : <Text size="sm" tone="tertiary">This investigation is read-only. Existing records remain visible, but new records require write access.</Text>;
+  if (record?.archived_at) return <div className={s.stack}><RecordDetail record={record} evidence={evidence} workspace={workspace} shell={shell} error={evidenceError} /><Text size="xs" tone="tertiary">This record is archived and cannot be edited until it is restored.</Text><Failure error={lifecycle.error} /><Button type="button" intent="primary" loading={lifecycle.isPending} onClick={() => lifecycle.mutate()}>Restore record</Button></div>;
 
   return <form className={s.eventEditor} aria-label={record ? "Edit research record" : "Create research record"} onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
     {promotion ? <Text size="sm" tone="accent">{promotion.fromRecordId ? "The first record is saved. Review the second record before a proposed connection is opened." : `This is a reviewable ${connectionKindLabels[promotion.relationship.kind].toLowerCase()} hypothesis. Verify both records before creating any connection.`}{initialObservationIds.length ? <> Using {initialObservationIds.length} supporting observation{initialObservationIds.length === 1 ? "" : "s"}.</> : null}</Text> : initialObservationIds.length || initialCandidate ? <Text size="sm" tone="accent">Started from a review candidate{initialObservationIds.length ? <> using {initialObservationIds.length} supporting observation{initialObservationIds.length === 1 ? "" : "s"}</> : null}. Verify the suggested fields and citation before saving.</Text> : null}
@@ -502,13 +560,14 @@ function RecordEditor({ workspace, record, initialObservationIds, initialCandida
     {kind === "place" ? <PlaceGeometryEditor observationIds={observationIds} selectedObservationIds={geometryObservationIds} setSelectedObservationIds={setGeometryObservationIds} latitude={latitude} longitude={longitude} precision={precision} setLatitude={setLatitude} setLongitude={setLongitude} setPrecision={setPrecision} evidence={evidence} /> : null}
     <Failure error={save.error} />
     {save.isSuccess ? <Text size="sm" tone="accent" role="status">Record saved.</Text> : null}
-    <div className={s.row}><Button type="submit" intent="primary" loading={save.isPending}>{record ? "Update record" : "Save record"}</Button>{record ? <><Text size="xs" tone="tertiary">Last updated by {authorLabel(record.updated_by, shell)}</Text><WorkingNoteLink workspace={workspace} context={{ kind: "record", id: record.record_id }} returnTo={recordHref(workspace, record.record_id)} body={`Follow up on research record: ${record.name}\n\n${record.description ?? ""}\n\nNext steps: `} /></> : null}</div>
+    <Failure error={lifecycle.error} />
+    <div className={s.row}><Button type="submit" intent="primary" loading={save.isPending}>{record ? "Update record" : "Save record"}</Button>{record ? <><Button type="button" intent="ghost" loading={lifecycle.isPending} onClick={() => lifecycle.mutate()}>{record.archived_at ? "Restore record" : "Archive record"}</Button><Text size="xs" tone="tertiary">Last updated by {authorLabel(record.updated_by, shell)}</Text><WorkingNoteLink workspace={workspace} context={{ kind: "record", id: record.record_id }} returnTo={recordHref(workspace, record.record_id)} body={`Follow up on research record: ${record.name}\n\n${record.description ?? ""}\n\nNext steps: `} /></> : null}</div>
   </form>;
 }
 
 function RecordDetail({ record, evidence, workspace, shell, error }: { record: ResearchRecord; evidence: Evidence[]; workspace: string; shell?: ReturnType<typeof useContext>["shell"]; error: Error | null }) {
   return <div className={s.stack}>
-    <div className={s.eventMeta}><Badge tone="neutral">{kindLabels[record.kind]}</Badge><span className={s.muted}>Updated by {authorLabel(record.updated_by, shell)} · {dateLabel(record.updated_at)}</span></div>
+    <div className={s.eventMeta}><Badge tone="neutral">{kindLabels[record.kind]}</Badge>{record.archived_at ? <Badge tone="warn">Archived</Badge> : null}<span className={s.muted}>Updated by {authorLabel(record.updated_by, shell)} · {dateLabel(record.updated_at)}</span></div>
     <Text size="sm" className={s.eventTitle}>{record.name}</Text>
     {record.description ? <Text size="sm" tone="tertiary">{record.description}</Text> : <Text size="sm" tone="tertiary">No description recorded.</Text>}
     {record.place_geometry ? <PlaceGeometryDetail geometry={record.place_geometry} evidence={evidence} workspace={workspace} error={error} returnTo={recordHref(workspace, record.record_id)} /> : null}
@@ -539,6 +598,6 @@ function CitationLinks({ ids, evidence, workspace, error, returnTo }: { ids: str
   if (!ids.length) return <Text size="sm" tone="tertiary">No cited observations attached.</Text>;
   return <div className={s.stack}><Text size="xs" tone="tertiary">Cited observations</Text>{error ? <Failure error={error} /> : ids.map((id) => {
     const found = evidence.find((one) => one.observation_id === id);
-    return found ? <Link key={id} className={s.inlineLink} href={sourceHref(workspace, found.source_id, found.capture_id, found.observation_id, returnTo)}>{found.source_title}: {found.statement}</Link> : <Text key={id} size="xs" tone="tertiary">Citation {id}</Text>;
+    return found ? <Link key={id} className={s.inlineLink} href={observationHref(workspace, found, returnTo)}>{found.source_title}: {found.statement}</Link> : <Text key={id} size="xs" tone="tertiary">Citation {id}</Text>;
   })}</div>;
 }

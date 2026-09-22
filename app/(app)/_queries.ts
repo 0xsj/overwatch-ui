@@ -30,8 +30,8 @@ import { listEvidence, listEvidenceBoard, listEvidenceClusterCoverage, listEvide
 import { listQuestions, readQuestion, readQuestionsByIDs } from "@/lib/services/questions";
 import { listEventAccounts, listEventClusters, listEventRelationships, listEventRevisions, listEvents, readEvent, readEventRevision } from "@/lib/services/events";
 import { listBriefDrafts, listBriefRecipientHandoffs, listBriefSnapshots, listBriefSnapshotComments, listBriefSnapshotShares, readBrief, readBriefRecipientHandoff, readBriefSharedHandoff, readBriefSnapshot, readBriefSnapshotActivity, readBriefSnapshotReview } from "@/lib/services/brief";
-import { listResearchRecords, readResearchRecord, readResearchRecordNeighborhood, readResearchRecordsByIDs, readResearchRecordSummary, type ResearchRecordCitationFilter, type ResearchRecordKind, type ResearchRecordResolutionFilter } from "@/lib/services/research-records";
-import { listResearchConnections, listResearchConnectionReviews, listResearchConnectionRevisions, readResearchConnection, readResearchConnectionReview, readResearchConnectionRevision, readResearchConnectionSummary, readResearchConnectionsByIDs, type ResearchConnectionReviewFilter, type ResearchConnectionState } from "@/lib/services/research-connections";
+import { listResearchRecordRevisions, listResearchRecords, readResearchRecord, readResearchRecordNeighborhood, readResearchRecordsByIDs, readResearchRecordSummary, type ResearchRecordArchiveFilter, type ResearchRecordCitationFilter, type ResearchRecordKind, type ResearchRecordResolutionFilter } from "@/lib/services/research-records";
+import { listResearchConnections, listResearchConnectionReviews, listResearchConnectionRevisions, readResearchConnection, readResearchConnectionReview, readResearchConnectionRevision, readResearchConnectionSummary, readResearchConnectionsByIDs, type ResearchConnectionKind, type ResearchConnectionReviewFilter, type ResearchConnectionState } from "@/lib/services/research-connections";
 import { listResearchResolutions, readResearchResolutionImpact } from "@/lib/services/research-resolutions";
 import { listResearchResolutionSets, readResearchResolutionSetImpact } from "@/lib/services/research-resolution-sets";
 import { clientFor } from "@/lib/root";
@@ -378,14 +378,17 @@ export async function briefSnapshotEvidenceQuery(workspace: string, observationI
   return evidenceByIDsQuery(workspace, observationIds);
 }
 
-export async function researchRecordsQuery(workspace: string, before?: string, query = "", kind?: ResearchRecordKind, citation: ResearchRecordCitationFilter = "", resolution: ResearchRecordResolutionFilter = "") {
-  return listResearchRecords(await clientFor("research-records"), workspace, before, query, kind, citation, resolution);
+export async function researchRecordsQuery(workspace: string, before?: string, query = "", kind?: ResearchRecordKind, citation: ResearchRecordCitationFilter = "", resolution: ResearchRecordResolutionFilter = "", archived: ResearchRecordArchiveFilter = "active") {
+  return listResearchRecords(await clientFor("research-records"), workspace, before, query, kind, citation, resolution, archived);
 }
 export async function researchRecordQuery(workspace: string, record: string) {
   return readResearchRecord(await clientFor("research-records"), workspace, record);
 }
-export async function researchRecordNeighborhoodQuery(workspace: string, record: string, depth: 1 | 2 = 1) {
-  return readResearchRecordNeighborhood(await clientFor("research-records"), workspace, record, depth);
+export async function researchRecordRevisionsQuery(workspace: string, record: string) {
+  return listResearchRecordRevisions(await clientFor("research-records"), workspace, record);
+}
+export async function researchRecordNeighborhoodQuery(workspace: string, record: string, depth: 1 | 2 = 1, limit: 10 | 25 | 50 = 50, kind?: ResearchConnectionKind, recordKind?: ResearchRecordKind) {
+  return readResearchRecordNeighborhood(await clientFor("research-records"), workspace, record, depth, limit, kind, recordKind);
 }
 export async function researchRecordSummaryQuery(workspace: string) {
   return readResearchRecordSummary(await clientFor("research-records"), workspace);
@@ -393,8 +396,8 @@ export async function researchRecordSummaryQuery(workspace: string) {
 export async function researchRecordsByIDsQuery(workspace: string, recordIDs: string[]) {
   return readResearchRecordsByIDs(await clientFor("research-records"), workspace, recordIDs);
 }
-export async function researchConnectionsQuery(workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "") {
-  return listResearchConnections(await clientFor("research-connections"), workspace, before, state, review);
+export async function researchConnectionsQuery(workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "", query = "", kind?: ResearchConnectionKind, recordKind?: ResearchRecordKind) {
+  return listResearchConnections(await clientFor("research-connections"), workspace, before, state, review, query, kind, recordKind);
 }
 export async function researchConnectionSummaryQuery(workspace: string) {
   return readResearchConnectionSummary(await clientFor("research-connections"), workspace);

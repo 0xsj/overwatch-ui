@@ -30,3 +30,26 @@ export function citedParts(content: string, start: number, end: number, quote: s
   if (cited !== quote) return null;
   return { before: points.slice(0, start).join(""), cited, after: points.slice(end).join("") };
 }
+
+export type CitationQuality = {
+  status: "verified" | "mismatch";
+  range: { start: number; end: number; length: number };
+  reason?: string;
+};
+
+/** Validate the stored passage against the exact artifact currently being read. */
+export function citationQuality(content: string, start: number, end: number, quote: string): CitationQuality {
+  const points = Array.from(content);
+  const range = {
+    start: Number.isInteger(start) && start >= 0 ? start : 0,
+    end: Number.isInteger(end) && end >= 0 ? end : 0,
+    length: Number.isInteger(start) && Number.isInteger(end) && end >= start ? end - start : 0,
+  };
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > points.length) {
+    return { status: "mismatch", range, reason: "The stored range is outside this artifact." };
+  }
+  if (points.slice(start, end).join("") !== quote) {
+    return { status: "mismatch", range, reason: "The stored quote does not match the artifact at this range." };
+  }
+  return { status: "verified", range };
+}

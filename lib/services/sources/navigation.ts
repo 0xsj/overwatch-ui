@@ -1,5 +1,14 @@
 const MAX_SEARCH_LENGTH = 200;
 
+export type CitableObservation = {
+  source_id: string;
+  capture_id: string;
+  observation_id: string;
+  extraction_id?: string;
+  quote: string;
+  quote_start: number;
+};
+
 /** Build a workspace-scoped source URL with optional capture, citation, and reader state. */
 export const sourceHref = (
   workspace: string,
@@ -31,3 +40,17 @@ export const sourceHref = (
   }
   return `${path}${params.size ? `?${params}` : ""}`;
 };
+
+/** Build the exact source-reader destination for a persisted observation. */
+export const observationHref = (workspace: string, observation: CitableObservation, returnTo?: string) => sourceHref(
+  workspace,
+  observation.source_id,
+  observation.capture_id,
+  observation.observation_id,
+  returnTo,
+  undefined,
+  undefined,
+  observation.extraction_id,
+  observation.quote,
+  observation.quote_start,
+);

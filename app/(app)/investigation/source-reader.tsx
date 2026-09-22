@@ -11,7 +11,7 @@ import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
 import { filterLoadedRows } from "@/lib/query/filter";
 import type { Capture, CitationShare, ManualObservation, SourceDetail, SourceDuplicatePolicy, SourceSensitivity, SourceWatch, TextCapture } from "@/lib/services/sources";
-import { citedParts, quoteOccurrences } from "@/lib/services/sources/citation";
+import { citedParts, citationQuality, quoteOccurrences, type CitationQuality } from "@/lib/services/sources/citation";
 import { diffText, type TextDiffLine } from "@/lib/services/sources/diff";
 import { duplicateCaptureVersion } from "@/lib/services/sources/history";
 import { textOccurrences } from "@/lib/services/sources/search";
@@ -22,7 +22,7 @@ import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
 import { assistanceHistoryQuery, captureExtractionQuery, captureExtractionsQuery, captureQuery, latestAssistanceQuery, sourceObservationQuery, sourceObservationSharesQuery, sourceObservationsQuery, sourceQuery, sourceRetentionReviewQuery, sourceWatchQuery } from "../_queries";
 import { configureSourceWatchAction, createCitationShareAction, extractCaptureAction, fetchSourceAction, generateAssistanceAction, purgeSourceAction, revokeCitationShareAction, reviewAssistanceProposalAction, runSourceWatchAction, setSourceDuplicatePolicyAction, setSourcePrivacyAction, setSourcePublicationAction, setSourceRetentionAction } from "./_actions";
-import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, recordHref, ReviewBoundary, sourceHref, useResearchWrite } from "./_shared";
+import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, observationHref, recordHref, ReviewBoundary, sourceHref, useResearchWrite } from "./_shared";
 import { ObservationForm, type ObservationPrefill } from "./observation-form";
 import { SourceForm } from "./source-form";
 import s from "./investigation.module.css";
@@ -141,14 +141,14 @@ function SourceRecord({ workspace, detail, returnTo }: { workspace: string; deta
     {mismatch ? <Alert tone="warn"><Text size="sm">This observation cites a different capture. <Link className={s.inlineLink} href={sourceHref(workspace, source.source_id, citation.data?.capture_id, citationId, returnTo)}>Open its cited version</Link></Text></Alert> : null}
     {captureId && !selected && (!citationId || citation.isSuccess) ? <Alert tone="warn"><Text size="sm">The requested capture is unavailable in this source. Choose a retained version above.</Text></Alert> : null}
     {!captureId && !citationId ? <Panel title="No text retained yet"><Text size="sm" tone="tertiary">Only the source reference is saved. Add captured text before recording an observation.</Text></Panel> : null}
-    {source.purged_at ? <Panel title="Retained bytes unavailable"><Text size="sm" tone="tertiary">This source was purged on {dateLabel(source.purged_at)}. Capture metadata, observations, and the audit trail remain addressable, but the original bytes are no longer served.</Text></Panel> : selected && !mismatch && (!citationId || citation.isSuccess) ? <Query of={captured} label="captured material">{(capture) => isTextCapture(capture) ? <CapturedReader key={`${capture.capture_id}:${requestedObservationQuote}:${requestedObservationStart ?? ""}`} workspace={workspace} capture={capture} citation={citation.data} mayWrite={mayWrite} capturedBy={authorLabel(capture.captured_by, shell)} returnTo={returnTo} initialObservationDraft={observationDraft} searchQuery={searchQuery} searchIndex={searchIndex} onSearchChange={(query, index, extractionId) => router.replace(sourceHref(workspace, source.source_id, capture.capture_id, citationId || undefined, returnTo, query, index, extractionId, requestedObservationQuote || undefined, requestedObservationStart))} /> : <BinaryCaptureReader workspace={workspace} source={source.source_id} capture={capture} citation={citation.data} mayWrite={mayWrite} capturedBy={authorLabel(capture.captured_by, shell)} returnTo={returnTo} initialObservationDraft={observationDraft} searchQuery={searchQuery} searchIndex={searchIndex} requestedExtractionId={requestedExtractionId} onSearchChange={(query, index, extractionId) => router.replace(sourceHref(workspace, source.source_id, capture.capture_id, citationId || undefined, returnTo, query, index, extractionId, requestedObservationQuote || undefined, requestedObservationStart))} />}</Query> : null}
+    {source.purged_at ? <Panel title="Retained bytes unavailable"><Text size="sm" tone="tertiary">This source was purged on {dateLabel(source.purged_at)}. Capture metadata, observations, and the audit trail remain addressable, but the original bytes are no longer served.</Text></Panel> : selected && !mismatch && (!citationId || citation.isSuccess) ? <Query of={captured} label="captured material">{(capture) => isTextCapture(capture) ? <CapturedReader key={`${capture.capture_id}:${requestedObservationQuote}:${requestedObservationStart ?? ""}`} workspace={workspace} capture={capture} citation={citation.data} extractionId={citation.data?.extraction_id ?? requestedExtractionId} derived={Boolean(citation.data?.extraction_id ?? requestedExtractionId)} mayWrite={mayWrite} capturedBy={authorLabel(capture.captured_by, shell)} returnTo={returnTo} initialObservationDraft={observationDraft} searchQuery={searchQuery} searchIndex={searchIndex} onSearchChange={(query, index, extractionId) => router.replace(sourceHref(workspace, source.source_id, capture.capture_id, citationId || undefined, returnTo, query, index, extractionId, requestedObservationQuote || undefined, requestedObservationStart))} /> : <BinaryCaptureReader workspace={workspace} source={source.source_id} capture={capture} citation={citation.data} mayWrite={mayWrite} capturedBy={authorLabel(capture.captured_by, shell)} returnTo={returnTo} initialObservationDraft={observationDraft} searchQuery={searchQuery} searchIndex={searchIndex} requestedExtractionId={requestedExtractionId} onSearchChange={(query, index, extractionId) => router.replace(sourceHref(workspace, source.source_id, capture.capture_id, citationId || undefined, returnTo, query, index, extractionId, requestedObservationQuote || undefined, requestedObservationStart))} />}</Query> : null}
     <div className={s.columns}>
       <Panel title="Cited observations" note="Each statement retains its original passage and capture.">
         <Query of={observations} label="cited observations">{() => <div className={s.stack}>
           {observationRows.length ? <><Input aria-label="Filter source observations" value={observationFilter} onChange={(event) => setObservationFilter(event.target.value)} placeholder="Filter loaded observations" /><Text size="xs" tone="tertiary">Showing {visibleObservationRows.length} of {observationRows.length} loaded observation{observationRows.length === 1 ? "" : "s"}.</Text></> : null}
           {visibleObservationRows.map((observation) => <article key={observation.observation_id} className={s.observation}>
             <p className={s.body}>{observation.statement}</p><blockquote className={s.quote}>{observation.quote}</blockquote>
-            <div className={s.row}><Link href={sourceHref(workspace, source.source_id, observation.capture_id, observation.observation_id, returnTo)} className={s.inlineLink}>View cited passage</Link>{mayWrite ? <Link href={recordHref(workspace, observation.observation_id, undefined, undefined, sourceHref(workspace, source.source_id, observation.capture_id, observation.observation_id, returnTo))} className={s.inlineLink}>Create research record</Link> : null}<span className={s.muted}>{authorLabel(observation.author, shell)} · {observation.extraction_id ? "Derived text" : observation.locator || "Manual observation"} · {dateLabel(observation.recorded_at)}</span></div>
+            <div className={s.row}><Link href={observationHref(workspace, observation, returnTo)} className={s.inlineLink}>View cited passage</Link>{mayWrite ? <Link href={recordHref(workspace, observation.observation_id, undefined, undefined, observationHref(workspace, observation, returnTo))} className={s.inlineLink}>Create research record</Link> : null}<span className={s.muted}>{authorLabel(observation.author, shell)} · {observation.extraction_id ? "Derived text" : observation.locator || "Manual observation"} · {dateLabel(observation.recorded_at)}</span></div>
           </article>)}
           {!observationRows.length ? <Text size="sm" tone="tertiary">No observations recorded from this source yet.</Text> : visibleObservationRows.length ? null : <Text size="sm" tone="tertiary">No loaded observations match. Clear the filter or load more.</Text>}
           <MoreButton available={observations.hasNextPage} pending={observations.isFetchingNextPage} load={() => void observations.fetchNextPage()} />
@@ -221,7 +221,8 @@ function BinaryCaptureReader({ workspace, source, capture, citation, mayWrite, c
       <Text size="sm">This {capture.media_type} capture is retained and hash-verified.</Text>
       {isPDF || isImage ? <>
         <Text size="sm" tone="tertiary">{isPDF ? "PDF text extraction" : "Image OCR"} creates a separate derived artifact linked to this exact capture.</Text>
-        {mayWrite ? <Button type="button" intent="ghost" loading={extract.isPending} onClick={() => extract.mutate()}>{extract.isPending ? (isImage ? "Running OCR…" : "Extracting…") : isImage ? "Run OCR" : "Extract text"}</Button> : null}
+        {latest && latest.status !== "succeeded" ? <Alert tone={latest.status === "failed" ? "warn" : "info"}><Text size="sm">{latest.status === "unsupported" ? "This capture has no usable extraction adapter in the current runtime." : "The latest extraction attempt failed."}</Text><Text size="xs" tone="tertiary">The attempt is retained in history. A retry creates a new attempt against the same immutable capture, so the failure and any later recovery remain auditable.</Text></Alert> : null}
+        {mayWrite ? <Button type="button" intent="ghost" loading={extract.isPending} onClick={() => extract.mutate()}>{extract.isPending ? (isImage ? "Running OCR…" : "Extracting…") : latest?.status === "failed" || latest?.status === "unsupported" ? (isImage ? "Retry OCR" : "Retry extraction") : isImage ? "Run OCR" : "Extract text"}</Button> : null}
         <Failure error={extract.error} />
         {latest || citation?.extraction_id ? <div className={s.stack}>
           <Text size="sm">{citation?.extraction_id ? "Cited extraction" : "Latest extraction"}{extracted.data ? `: ${extracted.data.status} · ${extracted.data.method}` : latest ? `: ${latest.status} · ${latest.method}` : ""}</Text>
@@ -278,6 +279,7 @@ function CapturedReader({ workspace, capture, citation, extractionId, mayWrite, 
   const [observationDraft, setObservationDraft] = useState<ObservationPrefill | undefined>(initialObservationDraft);
   const [observationDraftVersion, setObservationDraftVersion] = useState(0);
   const parts = useMemo(() => citation ? citedParts(capture.content, citation.quote_start, citation.quote_end, citation.quote) : null, [capture.content, citation]);
+  const quality = useMemo(() => citation ? citationQuality(capture.content, citation.quote_start, citation.quote_end, citation.quote) : undefined, [capture.content, citation]);
   const matches = useMemo(() => textOccurrences(capture.content, searchQuery), [capture.content, searchQuery]);
   const activeSearchIndex = matches.length ? Math.min(searchIndex, matches.length - 1) : 0;
   const activeSearchStart = matches[activeSearchIndex];
@@ -302,6 +304,7 @@ function CapturedReader({ workspace, capture, citation, extractionId, mayWrite, 
     <Panel title={derived ? derivedLabel : "Retained text"} note={derived ? `Extraction ${extractionId} · source capture v${capture.version}` : `Capture v${capture.version} · ${capture.bytes.toLocaleString()} bytes`}>
       <div className={s.stack}>
         {citation ? parts ? <Alert tone="info"><Text size="sm">Highlighted passage supports: {citation.statement}</Text>{mayWrite ? <Link href={recordHref(workspace, citation.observation_id, undefined, undefined, recordReturn)} className={s.inlineLink}>Create research record from this observation</Link> : null}</Alert> : <Alert tone="warn"><Text size="sm">The citation does not match this capture. Its passage cannot be highlighted.</Text></Alert> : null}
+        {citation && quality ? <CitationProvenance capture={capture} citation={citation} extractionId={extractionId} derived={derived} quality={quality} /> : null}
         <form className={s.row} role="search" onSubmit={(event) => { event.preventDefault(); advanceSearch(1); }}>
           <Input aria-label="Search retained text" value={searchQuery} maxLength={200} onChange={(event) => onSearchChange(event.target.value, 0, extractionId)} placeholder="Search this capture" />
           <Button type="submit" size="sm" intent="ghost" disabled={!matches.length}>Find</Button>
@@ -317,6 +320,16 @@ function CapturedReader({ workspace, capture, citation, extractionId, mayWrite, 
       <Panel id="record-observation" title="Record an observation"><ObservationForm key={observationDraftVersion} workspace={workspace} source={capture.source_id} capture={capture} extractionId={extractionId} reader={reader} prefill={observationDraft} returnTo={returnTo} /></Panel>
       <AssistancePanel workspace={workspace} source={capture.source_id} capture={capture} extractionId={extractionId} prepareObservation={prepareObservation} />
     </> : null}
+  </div>;
+}
+
+function CitationProvenance({ capture, citation, extractionId, derived, quality }: { capture: TextCapture; citation: ManualObservation; extractionId?: string; derived: boolean; quality: CitationQuality }) {
+  const verified = quality.status === "verified";
+  return <div className={s.sourceCard} aria-label="Citation provenance">
+    <div className={s.row}><Text size="sm">Citation provenance</Text><Badge tone={verified ? "accent" : "crit"}>{verified ? "Exact range verified" : "Range mismatch"}</Badge></div>
+    <Text size="xs" tone="tertiary">Capture v{capture.version} → {derived ? "derived text artifact" : "retained text"}{extractionId ? ` · extraction ${extractionId}` : ""}</Text>
+    <Text size="xs" tone="tertiary">Unicode range {quality.range.start}–{quality.range.end} · {quality.range.length} code point{quality.range.length === 1 ? "" : "s"} · stored quote {Array.from(citation.quote).length} code point{Array.from(citation.quote).length === 1 ? "" : "s"}</Text>
+    {verified ? <Text size="xs" tone="tertiary">The stored quote matches this artifact at the stored range, so the highlighted passage is the cited evidence.</Text> : <Text size="xs" tone="tertiary">{quality.reason} Recheck the capture or preserve a corrected observation before relying on this citation.</Text>}
   </div>;
 }
 

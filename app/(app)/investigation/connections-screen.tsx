@@ -9,18 +9,20 @@ import { Badge, Panel } from "@/components/display";
 import { Button, Field, Input, Textarea } from "@/components/forms";
 import { Text } from "@/components/typography";
 import { keys } from "@/lib/query";
-import { filterLoadedRows } from "@/lib/query/filter";
 import type { Evidence } from "@/lib/services/review";
-import type { ResearchRecord } from "@/lib/services/research-records";
+import type { ResearchRecord, ResearchRecordKind, ResearchRecordNeighborhood, ResearchRecordNeighborhoodLimit } from "@/lib/services/research-records";
 import type { ResearchConnection, ResearchConnectionKind, ResearchConnectionReview, ResearchConnectionReviewFilter, ResearchConnectionRevision, ResearchConnectionState, WriteResearchConnection } from "@/lib/services/research-connections";
 import type { ConnectionPrefill } from "@/lib/services/research-connections/navigation";
+import { connectionQuestionDraft } from "@/lib/services/research-connections/navigation";
 import { connectionRevisionChanges, connectionRevisionEvidenceChanges } from "@/lib/services/research-connections/history";
+import { eventHref } from "@/lib/services/events/navigation";
+import { questionDraftHref } from "@/lib/services/questions/navigation";
 import { mayWriteResearch } from "../_route-context";
 import { PageHead } from "../_components/page-head";
 import { Query, useContext } from "../_hooks";
-import { evidenceByIDsQuery, evidenceQuery, researchConnectionQuery, researchConnectionReviewsQuery, researchConnectionRevisionsQuery, researchConnectionsQuery, researchConnectionSummaryQuery, researchRecordsByIDsQuery, researchRecordsQuery } from "../_queries";
+import { evidenceByIDsQuery, evidenceQuery, researchConnectionQuery, researchConnectionReviewsQuery, researchConnectionRevisionsQuery, researchConnectionsQuery, researchConnectionSummaryQuery, researchRecordNeighborhoodQuery, researchRecordsByIDsQuery, researchRecordsQuery } from "../_queries";
 import { createResearchConnectionAction, createResearchConnectionReviewAction, updateResearchConnectionAction } from "./_actions";
-import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, RecordPicker, sourceHref, useResearchWrite, WorkingNoteLink } from "./_shared";
+import { authorLabel, dateLabel, Failure, investigationPath, MoreButton, ObservationPicker as CitationPicker, observationHref, RecordPicker, useResearchWrite, WorkingNoteLink } from "./_shared";
 import { ResearchGraph } from "./research-graph";
 import s from "./investigation.module.css";
 
@@ -38,6 +40,12 @@ const stateLabels: Record<ResearchConnectionState, string> = {
   rejected: "Rejected",
   deferred: "Deferred",
 };
+const recordKindLabels: Record<ResearchRecordKind, string> = {
+  person: "People",
+  account: "Accounts",
+  organisation: "Organisations",
+  place: "Places",
+};
 const connectionReviewFindingLabels: Record<ResearchConnectionReview["findings"][number]["kind"], string> = {
   support: "Support",
   opposition: "Opposition",
@@ -51,6 +59,36 @@ function connectionStateFilter(raw: string | null): ResearchConnectionState | ""
 
 function connectionReviewQueueFilter(raw: string | null): ResearchConnectionReviewFilter {
   return raw === "open" || raw === "conflicted" || raw === "uncited" ? raw : "";
+}
+
+function connectionKindFilter(raw: string | null): ResearchConnectionKind | "" {
+  return raw && raw in kindLabels ? raw as ResearchConnectionKind : "";
+}
+
+function connectionRecordKindFilter(raw: string | null): ResearchRecordKind | "" {
+  return raw && raw in recordKindLabels ? raw as ResearchRecordKind : "";
+}
+
+type MapBudget = 50 | 100 | 200;
+
+function mapBudget(raw: string | null): MapBudget {
+  return raw === "50" ? 50 : raw === "200" ? 200 : 100;
+}
+
+type FocusDepth = 1 | 2;
+
+function focusDepth(raw: string | null): FocusDepth {
+  return raw === "2" ? 2 : 1;
+}
+
+function focusLimit(raw: string | null): ResearchRecordNeighborhoodLimit {
+  return raw === "25" ? 25 : raw === "50" ? 50 : 10;
+}
+
+function boundedMapConnections(connections: ResearchConnection[], budget: MapBudget, activeID?: string | null) {
+  const active = activeID ? connections.find((connection) => connection.connection_id === activeID) : undefined;
+  const remaining = connections.filter((connection) => connection.connection_id !== activeID).slice(0, active ? Math.max(0, budget - 1) : budget);
+  return active ? [active, ...remaining] : remaining;
 }
 
 function connectionPrefillFrom(searchParams: ReturnType<typeof useSearchParams>): ConnectionPrefill | undefined {
@@ -74,20 +112,27 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
   const [usePrefill, setUsePrefill] = useState(Boolean(initialPrefill));
   const connectionState = connectionStateFilter(searchParams.get("state"));
   const connectionReview = connectionReviewQueueFilter(searchParams.get("review"));
+  const connectionKind = connectionKindFilter(searchParams.get("kind"));
+  const connectionRecordKind = connectionRecordKindFilter(searchParams.get("record_kind"));
+  const connectionQuery = searchParams.get("q")?.trim().slice(0, 200) ?? "";
+  const graphBudget = mapBudget(searchParams.get("map_budget"));
+  const focusedRecordID = searchParams.get("focus_record") ?? "";
+  const focusedDepth = focusDepth(searchParams.get("focus_depth"));
+  const focusedLimit = focusLimit(searchParams.get("focus_limit"));
   const connectionSummary = useQuery({
     queryKey: keys.connections.summary(workspace),
     queryFn: () => researchConnectionSummaryQuery(workspace),
     retry: false,
   });
   const connections = useInfiniteQuery({
-    queryKey: keys.connections.list(workspace, connectionState, connectionReview),
-    queryFn: ({ pageParam }) => researchConnectionsQuery(workspace, pageParam, connectionState, connectionReview),
+    queryKey: keys.connections.list(workspace, connectionState, connectionReview, connectionQuery, connectionKind, connectionRecordKind),
+    queryFn: ({ pageParam }) => researchConnectionsQuery(workspace, pageParam, connectionState, connectionReview, connectionQuery, connectionKind || undefined, connectionRecordKind || undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
   const records = useInfiniteQuery({
-    queryKey: keys.records.list(workspace),
-    queryFn: ({ pageParam }) => researchRecordsQuery(workspace, pageParam),
+    queryKey: keys.records.list(workspace, connectionQuery, connectionRecordKind),
+    queryFn: ({ pageParam }) => researchRecordsQuery(workspace, pageParam, connectionQuery, connectionRecordKind || undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
@@ -100,8 +145,6 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
   const connectionRows = connections.data?.pages.flatMap((page) => page.items) ?? [];
   const recordRows = records.data?.pages.flatMap((page) => page.items) ?? [];
   const listedEvidenceRows = evidence.data?.pages.flatMap((page) => page.items) ?? [];
-  const mapHasMore = Boolean(records.hasNextPage || connections.hasNextPage);
-  const mapLoading = records.isFetchingNextPage || connections.isFetchingNextPage;
   const [activeId, setActiveId] = useState<string | null>(() => searchParams.get("connection"));
   const targetedConnection = useQuery({
     queryKey: keys.connections.one(workspace, activeId ?? ""),
@@ -119,11 +162,29 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
     enabled: needsTargetedRecords,
     retry: false,
   });
-  const editorRecordRows = mergeRecords(recordRows, targetedRecords.data ?? []);
   const graphConnectionRows = mergeConnections(connectionRows, active ? [active] : []);
-  const [filter, setFilter] = useState("");
-  const recordName = new Map(editorRecordRows.map((record) => [record.record_id, record.name]));
-  const visibleConnections = filterLoadedRows(connectionRows, filter, (row) => [row.connection_id, row.from_record_id, row.to_record_id, recordName.get(row.from_record_id) ?? "", recordName.get(row.to_record_id) ?? "", row.kind, row.state, row.rationale]);
+  const mapConnectionRows = boundedMapConnections(graphConnectionRows, graphBudget, active?.connection_id);
+  const graphRecordIDs = [...new Set(mapConnectionRows.flatMap((connection) => [connection.from_record_id, connection.to_record_id]))];
+  const graphRecordIDsMissing = graphRecordIDs.filter((id) => !recordRows.some((record) => record.record_id === id));
+  const graphRecords = useQuery({
+    queryKey: keys.records.byIDs(workspace, graphRecordIDsMissing),
+    queryFn: () => researchRecordsByIDsQuery(workspace, graphRecordIDsMissing),
+    enabled: graphRecordIDsMissing.length > 0,
+    retry: false,
+  });
+  const editorRecordRows = mergeRecords(mergeRecords(recordRows, graphRecords.data ?? []), targetedRecords.data ?? []);
+  const graphFilterActive = Boolean(connectionState || connectionReview || connectionQuery || connectionKind || connectionRecordKind);
+  const mapConnectionIDsVisible = new Set(mapConnectionRows.flatMap((connection) => [connection.from_record_id, connection.to_record_id]));
+  const graphRecordRows = graphConnectionRows.length ? editorRecordRows.filter((record) => mapConnectionIDsVisible.has(record.record_id)) : graphFilterActive ? [] : editorRecordRows.slice(0, graphBudget);
+  const mapHasMore = Boolean(connections.hasNextPage && connectionRows.length < graphBudget);
+  const mapCapped = Boolean(connections.hasNextPage && connectionRows.length >= graphBudget);
+  const mapLoading = connections.isFetchingNextPage || graphRecords.isFetching;
+  const focusedNeighborhood = useQuery({
+    queryKey: keys.records.neighborhood(workspace, focusedRecordID, focusedDepth, focusedLimit, connectionKind, connectionRecordKind),
+    queryFn: () => researchRecordNeighborhoodQuery(workspace, focusedRecordID, focusedDepth, focusedLimit, connectionKind || undefined, connectionRecordKind || undefined),
+    enabled: Boolean(focusedRecordID),
+    retry: false,
+  });
   const targetedRecordContextLoading = Boolean(needsTargetedRecords && targetedRecords.isPending);
   const targetedObservationIds = [...new Set(active ? [...active.supporting_observation_ids, ...active.opposing_observation_ids] : initialPrefill?.supportingObservationIds ?? [])];
   const targetedEvidence = useQuery({
@@ -159,17 +220,59 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
   const editorPrefill = usePrefill ? initialPrefill : undefined;
   const editorKey = active?.connection_id ?? `new:${editorPrefill?.fromRecordId ?? ""}:${editorPrefill?.toRecordId ?? ""}:${editorPrefill?.kind ?? ""}`;
   const openRecord = useCallback((record: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("focus_record", record);
+    router.push(`${investigationPath(workspace, "connections")}?${next}`);
+  }, [router, searchParams, workspace]);
+  const openRecordWorkspace = useCallback((record: string) => {
     router.push(`${investigationPath(workspace, "records")}?record=${encodeURIComponent(record)}`);
+  }, [router, workspace]);
+  const openEvent = useCallback((event: string) => {
+    router.push(eventHref(workspace, event));
   }, [router, workspace]);
   const openConnection = useCallback((connection: string) => {
     const next = new URLSearchParams(searchParams.toString());
     next.set("connection", connection);
     router.push(`${investigationPath(workspace, "connections")}?${next}`);
   }, [router, searchParams, workspace]);
-  const setConnectionFilter = (name: "state" | "review", value: string) => {
+  const setConnectionFilter = (name: "state" | "review" | "kind" | "record_kind", value: string) => {
     const next = new URLSearchParams(searchParams.toString());
     if (value) next.set(name, value); else next.delete(name);
     next.delete("before");
+    const path = investigationPath(workspace, "connections");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
+  const setConnectionQuery = (value: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    const cleaned = value.slice(0, 200);
+    if (cleaned.trim()) next.set("q", cleaned); else next.delete("q");
+    next.delete("before");
+    const path = investigationPath(workspace, "connections");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
+  const setMapBudget = (value: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === "50" || value === "200") next.set("map_budget", value); else next.delete("map_budget");
+    const path = investigationPath(workspace, "connections");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
+  const setFocusedNeighborhoodOption = (name: "focus_depth" | "focus_limit", value: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (name === "focus_depth") {
+      if (value === "2") next.set(name, value); else next.delete(name);
+    } else if (value === "25" || value === "50") {
+      next.set(name, value);
+    } else {
+      next.delete(name);
+    }
+    const path = investigationPath(workspace, "connections");
+    router.replace(`${path}${next.size ? `?${next}` : ""}`);
+  };
+  const clearFocusedRecord = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("focus_record");
+    next.delete("focus_depth");
+    next.delete("focus_limit");
     const path = investigationPath(workspace, "connections");
     router.replace(`${path}${next.size ? `?${next}` : ""}`);
   };
@@ -190,24 +293,29 @@ export function ConnectionsScreen({ workspace }: { workspace: string }) {
         <Text size="xs" tone="tertiary">State mix: {summary.state_counts.proposed ?? 0} proposed · {summary.state_counts.accepted ?? 0} accepted · {summary.state_counts.deferred ?? 0} deferred · {summary.state_counts.rejected ?? 0} rejected. These are authored assessments, not automated truth claims.</Text>
       </div>}</Query>
     </Panel>
-    <Panel title="Research map" note={`${editorRecordRows.length} records · ${graphConnectionRows.length} connections loaded${mapHasMore ? " · more available" : ""}`} actions={mapHasMore ? <Button type="button" size="sm" intent="ghost" loading={mapLoading} onClick={() => { if (records.hasNextPage) void records.fetchNextPage(); if (connections.hasNextPage) void connections.fetchNextPage(); }}>{mapLoading ? "Loading map data…" : "Load more into map"}</Button> : undefined}>
-      <ResearchGraph records={editorRecordRows} connections={graphConnectionRows} complete={!mapHasMore} onSelectRecord={openRecord} onSelectConnection={openConnection} />
+      <Panel title="Research map" note={`${graphRecordRows.length} records · ${mapConnectionRows.length} connections shown${focusedNeighborhood.data?.events.length ? ` · ${focusedNeighborhood.data.events.length} focused event${focusedNeighborhood.data.events.length === 1 ? "" : "s"}` : ""}${graphFilterActive ? " · matching filters" : ""}${mapCapped ? ` · ${graphBudget}-connection budget reached` : mapHasMore ? " · more available" : ""}`} actions={<div className={s.row}><label className={s.row}><Text as="span" size="sm">Map budget</Text><select aria-label="Research map connection budget" className={s.select} value={graphBudget} onChange={(event) => setMapBudget(event.target.value)}><option value="50">50 connections</option><option value="100">100 connections</option><option value="200">200 connections</option></select></label>{mapHasMore ? <Button type="button" size="sm" intent="ghost" loading={mapLoading} onClick={() => { if (connections.hasNextPage) void connections.fetchNextPage(); }}>{mapLoading ? "Loading map data…" : "Load more into map"}</Button> : null}</div>}>
+      <ResearchGraph records={graphRecordRows} connections={mapConnectionRows} events={focusedNeighborhood.data?.events ?? []} complete={!mapHasMore} capped={mapCapped} selectedRecordID={focusedRecordID} emptyMessage={graphFilterActive ? "No records are connected under the current filters." : undefined} onSelectRecord={openRecord} onSelectConnection={openConnection} onSelectEvent={openEvent} />
     </Panel>
+    {focusedRecordID ? <Panel title="Focused record context" note="A bounded live neighborhood keeps related records, timeline events, and citations together while you inspect the map." actions={<div className={s.row}><label className={s.row}><Text as="span" size="sm">Context depth</Text><select aria-label="Focused context depth" className={s.select} value={focusedDepth} onChange={(event) => setFocusedNeighborhoodOption("focus_depth", event.target.value)}><option value="1">1 hop</option><option value="2">2 hops</option></select></label><label className={s.row}><Text as="span" size="sm">Related records</Text><select aria-label="Focused context related record limit" className={s.select} value={focusedLimit} onChange={(event) => setFocusedNeighborhoodOption("focus_limit", event.target.value)}><option value="10">10 records</option><option value="25">25 records</option><option value="50">50 records</option></select></label><Button type="button" size="sm" intent="ghost" onClick={clearFocusedRecord}>Close focus</Button></div>}>
+      <Query of={focusedNeighborhood} label="focused record context">{(neighborhood) => <FocusedRecordContext workspace={workspace} neighborhood={neighborhood} openRecord={openRecordWorkspace} />}</Query>
+    </Panel> : null}
     <div className={s.columns}>
-      <Panel title="Qualified connections" note={connectionRows.length ? `${connectionRows.length} loaded${connectionState || connectionReview ? " matching" : ""}` : undefined}>
+      <Panel title="Qualified connections" note={connectionRows.length ? `${connectionRows.length} loaded${connectionState || connectionReview || connectionQuery || connectionKind || connectionRecordKind ? " matching" : ""}` : undefined}>
         <Query of={connections} label="qualified connections">{() => <div className={s.stack}>
           <div className={s.row}>
             <label className={s.row}><Text as="span" size="sm">State</Text><select aria-label="Filter connections by state" className={s.select} value={connectionState} onChange={(event) => setConnectionFilter("state", event.target.value)}><option value="">All states</option>{(Object.keys(stateLabels) as ResearchConnectionState[]).map((state) => <option key={state} value={state}>{stateLabels[state]}</option>)}</select></label>
             <label className={s.row}><Text as="span" size="sm">Queue</Text><select aria-label="Filter connections by review queue" className={s.select} value={connectionReview} onChange={(event) => setConnectionFilter("review", event.target.value)}><option value="">All review queues</option><option value="open">Open hypotheses</option><option value="conflicted">Conflicting evidence</option><option value="uncited">Uncited relationships</option></select></label>
-            <Input aria-label="Filter loaded connections" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter loaded connections" />
+            <label className={s.row}><Text as="span" size="sm">Relationship</Text><select aria-label="Filter connections by relationship type" className={s.select} value={connectionKind} onChange={(event) => setConnectionFilter("kind", event.target.value)}><option value="">All relationship types</option>{(Object.keys(kindLabels) as ResearchConnectionKind[]).map((kind) => <option key={kind} value={kind}>{kindLabels[kind]}</option>)}</select></label>
+            <label className={s.row}><Text as="span" size="sm">Endpoint kind</Text><select aria-label="Filter connections by endpoint record kind" className={s.select} value={connectionRecordKind} onChange={(event) => setConnectionFilter("record_kind", event.target.value)}><option value="">All endpoint kinds</option>{(Object.keys(recordKindLabels) as ResearchRecordKind[]).map((kind) => <option key={kind} value={kind}>{recordKindLabels[kind]}</option>)}</select></label>
+            <Input aria-label="Search connections and endpoint records" maxLength={200} value={connectionQuery} onChange={(event) => setConnectionQuery(event.target.value)} placeholder="Search records, rationale, or IDs" />
           </div>
           {!connectionRows.length ? (
             <div className={s.empty}>
-              <Text size="sm">{connectionState || connectionReview ? "No connections match these filters." : "No connections recorded yet."}</Text>
-              <Text size="sm" tone="tertiary">{connectionState || connectionReview ? "Try another queue or clear the browse filters." : "Create a proposed relationship when the material gives you a lead worth reviewing, not a reason to merge records."}</Text>
-              {!connectionState && !connectionReview && mayWrite ? <Button type="button" intent="primary" onClick={() => { setActiveId(null); setUsePrefill(false); }}>Record a connection</Button> : null}
+              <Text size="sm">{connectionState || connectionReview || connectionQuery || connectionKind || connectionRecordKind ? "No connections match these filters." : "No connections recorded yet."}</Text>
+              <Text size="sm" tone="tertiary">{connectionState || connectionReview || connectionQuery || connectionKind || connectionRecordKind ? "Try another search or clear the browse filters." : "Create a proposed relationship when the material gives you a lead worth reviewing, not a reason to merge records."}</Text>
+              {!connectionState && !connectionReview && !connectionQuery && !connectionKind && !connectionRecordKind && mayWrite ? <Button type="button" intent="primary" onClick={() => { setActiveId(null); setUsePrefill(false); }}>Record a connection</Button> : null}
             </div>
-          ) : <div className={s.stack}><Text size="xs" tone="tertiary">Showing {visibleConnections.length} of {connectionRows.length} loaded connection{connectionRows.length === 1 ? "" : "s"}.</Text>{visibleConnections.length ? <div className={s.eventList}>{visibleConnections.map((connection) => <ConnectionCard key={connection.connection_id} connection={connection} active={connection.connection_id === activeId} records={editorRecordRows} shell={shell} select={() => setActiveId(connection.connection_id)} />)}</div> : <Text size="sm" tone="tertiary">No loaded connections match the text filter. Clear it or load more.</Text>}</div>}
+          ) : <div className={s.stack}><Text size="xs" tone="tertiary">Showing {connectionRows.length} matching connection{connectionRows.length === 1 ? "" : "s"}.</Text><div className={s.eventList}>{connectionRows.map((connection) => <ConnectionCard key={connection.connection_id} connection={connection} active={connection.connection_id === activeId} records={editorRecordRows} shell={shell} select={() => setActiveId(connection.connection_id)} />)}</div></div>}
           <MoreButton available={connections.hasNextPage} pending={connections.isFetchingNextPage} load={() => void connections.fetchNextPage()} />
         </div>}</Query>
       </Panel>
@@ -234,6 +342,30 @@ function mergeConnections(primary: ResearchConnection[], additional: ResearchCon
   const byID = new Map(primary.map((row) => [row.connection_id, row]));
   for (const row of additional) if (!byID.has(row.connection_id)) byID.set(row.connection_id, row);
   return [...byID.values()];
+}
+
+function FocusedRecordContext({ workspace, neighborhood, openRecord }: { workspace: string; neighborhood: ResearchRecordNeighborhood; openRecord: (record: string) => void }) {
+  const recordPath = (record: string) => `${investigationPath(workspace, "records")}?record=${encodeURIComponent(record)}`;
+  const connectionPath = (connection: string) => `${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection)}`;
+  return <div className={s.stack}>
+    <div className={s.row}><Badge tone="neutral">{neighborhood.record.kind}</Badge><Text size="sm">{neighborhood.record.name}</Text><Badge tone={neighborhood.meta.truncated ? "warn" : "accent"}>{neighborhood.meta.depth}-hop context{neighborhood.meta.truncated ? " · truncated" : ""}</Badge><Link className={s.inlineLink} href={recordPath(neighborhood.record.record_id)}>Open full record</Link></div>
+    <div className={s.columns}>
+      <div className={s.stack}>
+        <Text size="sm">Related records</Text>
+        {neighborhood.records.length ? neighborhood.records.map((record) => <div className={s.eventMeta} key={record.record_id}><button type="button" className={s.linkButton} onClick={() => openRecord(record.record_id)}>{record.name}</button><Text size="xs" tone="tertiary">{record.kind}{record.description ? ` · ${record.description}` : ""}</Text></div>) : <Text size="sm" tone="tertiary">No related records in this bounded context.</Text>}
+      </div>
+      <div className={s.stack}>
+        <Text size="sm">Relationships and events</Text>
+        {neighborhood.connections.map((connection) => <div className={s.eventMeta} key={connection.connection_id}><Link className={s.inlineLink} href={connectionPath(connection.connection_id)}>{kindLabels[connection.kind]}</Link><Text size="xs" tone="tertiary">{connection.state} · {connection.rationale}</Text></div>)}
+        {neighborhood.events.map((event) => <div className={s.eventMeta} key={event.event_id}><Link className={s.inlineLink} href={eventHref(workspace, event.event_id)}>{event.title}</Link><Text size="xs" tone="tertiary">{event.sort_date ?? event.reported_time ?? "Undated"}{event.location ? ` · ${event.location}` : ""}</Text></div>)}
+        {!neighborhood.connections.length && !neighborhood.events.length ? <Text size="sm" tone="tertiary">No relationships or timeline events in this context.</Text> : null}
+      </div>
+    </div>
+    <div className={s.stack}>
+      <Text size="sm">Cited provenance</Text>
+      {neighborhood.citations.length ? neighborhood.citations.map((citation) => <div className={s.eventMeta} key={citation.observation_id}><Link className={s.inlineLink} href={observationHref(workspace, citation)}>{citation.source_title}</Link><Text size="xs" tone="tertiary">{citation.locator ? `${citation.locator} · ` : ""}{citation.statement || citation.quote}</Text></div>) : <Text size="sm" tone="tertiary">No visible citations are attached to this context.</Text>}
+    </div>
+  </div>;
 }
 
 function ConnectionCard({ connection, active, records, shell, select }: { connection: ResearchConnection; active: boolean; records: ResearchRecord[]; shell?: ReturnType<typeof useContext>["shell"]; select: () => void }) {
@@ -283,6 +415,16 @@ function ConnectionDetail({ connection, records, evidence, workspace, shell, err
   const from = records.find((record) => record.record_id === connection.from_record_id);
   const to = records.find((record) => record.record_id === connection.to_record_id);
   const returnTo = `${investigationPath(workspace, "connections")}?connection=${encodeURIComponent(connection.connection_id)}`;
+  const questionDraft = connectionQuestionDraft({
+    connectionId: connection.connection_id,
+    fromName: from?.name ?? connection.from_record_id,
+    toName: to?.name ?? connection.to_record_id,
+    kindLabel: kindLabels[connection.kind],
+    stateLabel: stateLabels[connection.state],
+    rationale: connection.rationale,
+    supportingObservationIds: connection.supporting_observation_ids,
+    opposingObservationIds: connection.opposing_observation_ids,
+  });
   return <div className={s.stack}>
     <div className={s.eventMeta}><Badge tone={connection.state === "accepted" ? "accent" : connection.state === "rejected" ? "neutral" : "warn"}>{stateLabels[connection.state]}</Badge><span className={s.muted}>Updated by {authorLabel(connection.updated_by, shell)} · {dateLabel(connection.updated_at)}</span></div>
     <Text size="sm" className={s.eventTitle}>{from?.name ?? connection.from_record_id} <span className={s.muted}>→</span> {to?.name ?? connection.to_record_id}</Text>
@@ -290,6 +432,7 @@ function ConnectionDetail({ connection, records, evidence, workspace, shell, err
     <Text size="sm">{connection.rationale}</Text>
     <CitationLinks title="Supporting observations" ids={connection.supporting_observation_ids} evidence={evidence} workspace={workspace} error={error} returnTo={returnTo} />
     <CitationLinks title="Opposing observations" ids={connection.opposing_observation_ids} evidence={evidence} workspace={workspace} error={error} returnTo={returnTo} />
+    <div className={s.row}><Link className={s.inlineLink} href={questionDraftHref(workspace, questionDraft, returnTo)}>Draft an investigation question from this relationship</Link></div>
   </div>;
 }
 
@@ -337,6 +480,6 @@ function connectionReviewStatusLabel(status: ResearchConnectionReview["status"])
 function CitationLinks({ title, ids, evidence, workspace, error, returnTo }: { title: string; ids: string[]; evidence: Evidence[]; workspace: string; error: Error | null; returnTo?: string }) {
   return <div className={s.details}><Text size="xs" tone="tertiary">{title}</Text>{error ? <Failure error={error} /> : ids.length ? ids.map((id) => {
     const found = evidence.find((one) => one.observation_id === id);
-    return found ? <Link key={id} className={s.inlineLink} href={sourceHref(workspace, found.source_id, found.capture_id, found.observation_id, returnTo)}>{found.source_title}: {found.statement}</Link> : <Text key={id} size="xs" tone="tertiary">Citation {id}</Text>;
+    return found ? <Link key={id} className={s.inlineLink} href={observationHref(workspace, found, returnTo)}>{found.source_title}: {found.statement}</Link> : <Text key={id} size="xs" tone="tertiary">Citation {id}</Text>;
   }) : <Text size="sm" tone="tertiary">None attached.</Text>}</div>;
 }

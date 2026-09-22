@@ -3,13 +3,13 @@ import { bearerOf, type MemoryRequest, type MemoryRoute } from "@/lib/http";
 import type { AddObservation, AddSource, ArtifactCleanupCandidate, ArtifactCleanupReview, ArtifactCleanupReviewSummary, ArtifactCleanupSweepRun, ArtifactLifecycleStatus, Capture, CitationContext, CitationShare, ConfigureSourceWatch, CreateSourceIntake, ManualObservation, MediaType, RetentionQueueState, ReviewSourceIntake, SetSourceDuplicatePolicy, SetSourcePrivacy, SetSourcePublication, SetSourceRetention, SourceAlert, SourceAlertDelivery, SourceAlertDeliveryInput, SourceExtraction, SourceIntakeCandidate, SourceRetentionReview, SourceSearchResult, SourceSummary, SourceWatch, SourceWatchRunResult, TextCapture } from "@/lib/services/sources";
 import type { NoteContext, WorkingNote, WorkingNotePage } from "@/lib/services/notes";
 import type { BoardReviewState, Evidence, EvidenceBoardItem, EvidenceCluster, EvidenceClusterCoverage, EvidenceComparison, EvidenceComparisonFinding, EvidenceQuestionSuggestionGap, EvidenceQuestionSuggestions, EvidenceRelation, EvidenceSourceLink, EvidenceSynthesis, QuestionSuggestionGapKind, RelationKind, SetEvidenceRelation, SetEvidenceSourceLink, WriteEvidenceCluster } from "@/lib/services/review";
-import type { InvestigationQuestion, QuestionState, WriteQuestion } from "@/lib/services/questions";
+import type { InvestigationQuestion, QuestionContextKind, QuestionState, WriteQuestion } from "@/lib/services/questions";
 import type { AssistanceDetail, AssistanceProposal, AssistanceProviderPolicy, AssistanceProviderRun } from "@/lib/services/assistance";
 import type { EventAccount, EventAccountPage, EventCluster, EventClusterPage, EventParticipantLink, EventParticipantRole, EventRecordSnapshot, EventRelationship, EventRelationshipPage, EventReconciliation, TimelineEvent, TimelineEventRevision, EventTimePrecision, WriteEvent } from "@/lib/services/events";
 import { renderBriefRecipientHandoffMarkdown } from "@/lib/services/brief/export";
 import type { BriefDraft, BriefDraftChange, BriefHandoffExport, BriefHandoffShare, BriefRecipientHandoff, BriefSnapshot, BriefSnapshotComment, BriefSnapshotReview, BriefSnapshotReviewDecision, WorkingBrief, WriteBrief } from "@/lib/services/brief";
 import type { AuditEntry, AuditPage } from "@/lib/services/ledger";
-import type { PlaceGeometry, PlacePrecision, ResearchRecord, ResearchRecordKind, WriteResearchRecord } from "@/lib/services/research-records";
+import type { PlaceGeometry, PlacePrecision, ResearchRecord, ResearchRecordKind, ResearchRecordRevision, WriteResearchRecord } from "@/lib/services/research-records";
 import type { ResearchConnection, ResearchConnectionKind, ResearchConnectionReview, ResearchConnectionRevision, ResearchConnectionReviewFilter, ResearchConnectionReviewFlags, ResearchConnectionState, WriteResearchConnection } from "@/lib/services/research-connections";
 import type { ResearchResolution, ResearchResolutionDecision } from "@/lib/services/research-resolutions";
 import type { ResearchResolutionSet, ResearchResolutionSetDecision } from "@/lib/services/research-resolution-sets";
@@ -57,6 +57,7 @@ type Store = {
   snapshotReviews: Map<string, BriefSnapshotReview>;
   snapshotComments: Map<string, BriefSnapshotComment[]>;
   records: Map<string, ResearchRecord[]>;
+  recordRevisions: Map<string, ResearchRecordRevision[]>;
   connections: Map<string, ResearchConnection[]>;
   connectionReviews: Map<string, ResearchConnectionReview[]>;
   revisions: Map<string, ResearchConnectionRevision[]>;
@@ -70,7 +71,7 @@ type Store = {
 };
 const fixtureGlobal = globalThis as typeof globalThis & { __owFixtureResearch?: Store };
 const store: Store = fixtureGlobal.__owFixtureResearch ??= {
-  sources: new Map(), watches: new Map(), alerts: new Map(), alertSeen: new Map(), alertDelivery: new Map(), intakeCandidates: new Map(), intakeContent: new Map(), captures: new Map(), extractions: new Map(), observations: new Map(), citationShares: new Map(), notes: new Map(), relations: new Map(), sourceLinks: new Map(), clusters: new Map(), syntheses: new Map(), comparisons: new Map(), questionSuggestions: new Map(), questions: new Map(), assistance: new Map(), assistancePolicies: new Map(), events: new Map(), eventRevisions: new Map(), eventAccounts: new Map(), eventReconciliations: new Map(), eventClusters: new Map(), eventRelationships: new Map(), briefs: new Map(), briefDrafts: new Map(), snapshots: new Map(), handoffShares: new Map(), handoffActivity: new Map(), snapshotReviews: new Map(), snapshotComments: new Map(), records: new Map(), connections: new Map(), connectionReviews: new Map(), revisions: new Map(), resolutions: new Map(), resolutionSets: new Map(), cleanedRefs: new Set(), cleanupRuns: new Map(), cleanupReviews: new Map(), cleanupReviewHistory: new Map(), sequence: 0,
+  sources: new Map(), watches: new Map(), alerts: new Map(), alertSeen: new Map(), alertDelivery: new Map(), intakeCandidates: new Map(), intakeContent: new Map(), captures: new Map(), extractions: new Map(), observations: new Map(), citationShares: new Map(), notes: new Map(), relations: new Map(), sourceLinks: new Map(), clusters: new Map(), syntheses: new Map(), comparisons: new Map(), questionSuggestions: new Map(), questions: new Map(), assistance: new Map(), assistancePolicies: new Map(), events: new Map(), eventRevisions: new Map(), eventAccounts: new Map(), eventReconciliations: new Map(), eventClusters: new Map(), eventRelationships: new Map(), briefs: new Map(), briefDrafts: new Map(), snapshots: new Map(), handoffShares: new Map(), handoffActivity: new Map(), snapshotReviews: new Map(), snapshotComments: new Map(), records: new Map(), recordRevisions: new Map(), connections: new Map(), connectionReviews: new Map(), revisions: new Map(), resolutions: new Map(), resolutionSets: new Map(), cleanedRefs: new Set(), cleanupRuns: new Map(), cleanupReviews: new Map(), cleanupReviewHistory: new Map(), sequence: 0,
 };
 store.watches ??= new Map();
 store.alerts ??= new Map();
@@ -103,6 +104,7 @@ store.handoffActivity ??= new Map();
 store.snapshotReviews ??= new Map();
 store.snapshotComments ??= new Map();
 store.records ??= new Map();
+store.recordRevisions ??= new Map();
 store.connections ??= new Map();
 store.connectionReviews ??= new Map();
 store.revisions ??= new Map();
@@ -477,6 +479,7 @@ function sourceSearchResultId(result: SourceSearchResult) {
 const relationKinds: RelationKind[] = ["supports", "contradicts", "repeats", "unresolved"];
 const clusterKinds = ["claim", "account"] as const;
 const questionStates: QuestionState[] = ["open", "answered", "dismissed", "deferred"];
+const questionContextKinds: QuestionContextKind[] = ["question", "record", "event", "connection", "event_relationship", "brief", "cluster"];
 const observationsIn = (workspace: string) => [...store.observations.values()].flat().filter((one) => one.workspace_id === workspace);
 const questionsIn = (workspace: string) => store.questions.get(workspace) ?? [];
 const sourceTitle = (sourceId: string) => store.sources.get(sourceId)?.title ?? "Untitled source";
@@ -863,6 +866,24 @@ function recordDraft(workspace: string, body: Partial<WriteResearchRecord>) {
   return { kind, name, description, observation_ids: unique, ...(place_geometry ? { place_geometry } : {}) };
 }
 
+function recordRevision(record: ResearchRecord, changedBy: string, revision: number): ResearchRecordRevision {
+  return {
+    revision_id: nextId(), workspace_id: record.workspace_id, record_id: record.record_id, revision,
+    kind: record.kind, name: record.name, ...(record.description ? { description: record.description } : {}),
+    observation_ids: [...record.observation_ids],
+    ...(record.place_geometry ? { place_geometry: { ...record.place_geometry, observation_ids: [...record.place_geometry.observation_ids] } } : {}),
+    ...(record.archived_at ? { archived_at: record.archived_at, archived_by: record.archived_by } : {}),
+    changed_by: changedBy, changed_at: record.updated_at,
+  };
+}
+
+function saveFixtureRecord(workspace: string, updated: ResearchRecord) {
+  const records = store.records.get(workspace) ?? [];
+  store.records.set(workspace, [updated, ...records.filter((one) => one.record_id !== updated.record_id)]);
+  const history = store.recordRevisions.get(updated.record_id) ?? [];
+  store.recordRevisions.set(updated.record_id, [...history, recordRevision(updated, updated.updated_by, history.length + 1)]);
+}
+
   const connectionKinds: ResearchConnectionKind[] = ["associated_with", "may_belong_to", "mentions", "concerns_same_event", "located_at", "possible_same_subject"];
 const connectionStates: ResearchConnectionState[] = ["proposed", "accepted", "rejected", "deferred"];
 
@@ -1034,7 +1055,11 @@ function questionDraft(workspace: string, body: Partial<WriteQuestion>) {
   if (unique.length !== ids.length) throw invalid("A question cannot cite the same observation twice.");
   const known = observationsIn(workspace);
   if (unique.some((id) => !known.some((one) => one.observation_id === id))) throw missing();
-  return { question, context, state, resolution, observation_ids: unique };
+  const contextKind = typeof body.context_kind === "string" ? body.context_kind.trim() as QuestionContextKind : "";
+  const contextID = typeof body.context_id === "string" ? body.context_id.trim() : "";
+  if (!contextKind && !contextID) return { question, context, state, resolution, observation_ids: unique, context_kind: undefined, context_id: undefined };
+  if (!contextKind || !contextID || !questionContextKinds.includes(contextKind)) throw invalid("Question origin needs a supported kind and identifier.");
+  return { question, context, state, resolution, observation_ids: unique, context_kind: contextKind, context_id: contextID };
 }
 
 export const researchRoutes: MemoryRoute[] = [(req) => {
@@ -1123,15 +1148,32 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     if (req.method === "GET") {
       const rawState = String(req.params.state ?? "");
       const rawReview = String(req.params.review ?? "");
+      const rawKind = String(req.params.kind ?? "");
+      const rawRecordKind = String(req.params.record_kind ?? "");
+      const query = String(req.params.q ?? "").trim().toLowerCase();
       const validStates: ResearchConnectionState[] = ["proposed", "accepted", "rejected", "deferred"];
       const validReviews: ResearchConnectionReviewFilter[] = ["", "open", "conflicted", "uncited"];
+      const validRecordKinds: ResearchRecordKind[] = ["person", "account", "organisation", "place"];
       if (rawState && !validStates.includes(rawState as ResearchConnectionState)) throw invalid("Choose a valid connection state.");
       if (!validReviews.includes(rawReview as ResearchConnectionReviewFilter)) throw invalid("Choose open, conflicted, or uncited.");
+      if (rawKind && !connectionKinds.includes(rawKind as ResearchConnectionKind)) throw invalid("Choose a valid connection type.");
+      if (rawRecordKind && !validRecordKinds.includes(rawRecordKind as ResearchRecordKind)) throw invalid("Choose a valid endpoint record kind.");
+      if (query.length > 200) throw invalid("Connection search must be 200 characters or fewer.");
+      const records = store.records.get(workspace) ?? [];
+      const recordsByID = new Map(records.map((one) => [one.record_id, one]));
       const filtered = connections.filter((connection) => {
         if (rawState && connection.state !== rawState) return false;
+        if (rawKind && connection.kind !== rawKind) return false;
+        if (rawRecordKind && recordsByID.get(connection.from_record_id)?.kind !== rawRecordKind && recordsByID.get(connection.to_record_id)?.kind !== rawRecordKind) return false;
         if (rawReview === "open" && connection.state !== "proposed" && connection.state !== "deferred") return false;
         if (rawReview === "conflicted" && !(connection.supporting_observation_ids.length > 0 && connection.opposing_observation_ids.length > 0)) return false;
         if (rawReview === "uncited" && (connection.supporting_observation_ids.length > 0 || connection.opposing_observation_ids.length > 0)) return false;
+        if (query) {
+          const from = recordsByID.get(connection.from_record_id);
+          const to = recordsByID.get(connection.to_record_id);
+          const searchable = [connection.connection_id, connection.from_record_id, connection.to_record_id, connection.kind, connection.state, connection.rationale, from?.name, from?.description, to?.name, to?.description].filter(Boolean).join(" ").toLowerCase();
+          if (!searchable.includes(query)) return false;
+        }
         return true;
       });
       return page(filtered.map(withConnectionReviewFlags), req, (one) => one.connection_id);
@@ -1193,7 +1235,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       if (!canonical) throw missing();
       const removed = new Set(existing.added_observation_ids);
       const updatedCanonical: ResearchRecord = { ...canonical, observation_ids: canonical.observation_ids.filter((id) => !removed.has(id)), updated_by: author, updated_at: new Date().toISOString() };
-      store.records.set(workspace, [updatedCanonical, ...records.filter((one) => one.record_id !== canonical.record_id)]);
+      saveFixtureRecord(workspace, updatedCanonical);
       const updated: ResearchResolutionSet = { ...existing, state: "reversed", reversed_by: author, reversed_at: updatedCanonical.updated_at };
       store.resolutionSets.set(workspace, [updated, ...sets.filter((one) => one.resolution_set_id !== resolutionSetId)]);
       return updated;
@@ -1215,7 +1257,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       if (merged.length > 12) throw invalid("The canonical record would have too many observations.");
       const now = new Date().toISOString();
       const updatedCanonical: ResearchRecord = { ...canonical, observation_ids: merged, updated_by: author, updated_at: now };
-      store.records.set(workspace, [updatedCanonical, ...records.filter((one) => one.record_id !== canonical.record_id)]);
+      saveFixtureRecord(workspace, updatedCanonical);
       const updated: ResearchResolutionSet = { ...existing, state: "accepted", reviewed_by: author, reviewed_at: now, canonical_observation_ids_before: [...canonical.observation_ids], added_observation_ids: added, canonical_observation_ids_after: merged };
       store.resolutionSets.set(workspace, [updated, ...sets.filter((one) => one.resolution_set_id !== resolutionSetId)]);
       return updated;
@@ -1263,7 +1305,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       if (!canonical) throw missing();
       const removed = new Set(existing.added_observation_ids);
       const updatedCanonical: ResearchRecord = { ...canonical, observation_ids: canonical.observation_ids.filter((id) => !removed.has(id)), updated_by: author, updated_at: new Date().toISOString() };
-      store.records.set(workspace, [updatedCanonical, ...records.filter((one) => one.record_id !== canonical.record_id)]);
+      saveFixtureRecord(workspace, updatedCanonical);
       const updated: ResearchResolution = { ...existing, state: "reversed", reversed_by: author, reversed_at: updatedCanonical.updated_at };
       store.resolutions.set(workspace, [updated, ...resolutions.filter((one) => one.resolution_id !== resolutionId)]);
       return updated;
@@ -1286,7 +1328,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       if (merged.length > 12) throw invalid("The canonical record would have too many observations.");
       const now = new Date().toISOString();
       const updatedCanonical: ResearchRecord = { ...canonical, observation_ids: merged, updated_by: author, updated_at: now };
-      store.records.set(workspace, [updatedCanonical, ...records.filter((one) => one.record_id !== canonical.record_id)]);
+      saveFixtureRecord(workspace, updatedCanonical);
       const updated: ResearchResolution = { ...existing, state: "accepted", reviewed_by: author, reviewed_at: now, canonical_observation_ids_before: [...canonical.observation_ids], added_observation_ids: added, canonical_observation_ids_after: merged };
       store.resolutions.set(workspace, [updated, ...resolutions.filter((one) => one.resolution_id !== resolutionId)]);
       return updated;
@@ -1304,8 +1346,12 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     if (!record) throw missing();
     const depth = String(req.params.depth ?? "") ? Number(req.params.depth) : 1;
     const limit = String(req.params.limit ?? "") ? Number(req.params.limit) : 50;
+    const rawKind = String(req.params.kind ?? "");
+    const rawRecordKind = String(req.params.record_kind ?? "");
     if (!Number.isInteger(depth) || depth < 1 || depth > 2) throw invalid("Neighborhood depth must be 1 or 2.");
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw invalid("Neighborhood limit must be between 1 and 50.");
+    if (rawKind && !connectionKinds.includes(rawKind as ResearchConnectionKind)) throw invalid("Choose a valid neighborhood relationship type.");
+    if (rawRecordKind && !recordKinds.includes(rawRecordKind as ResearchRecordKind)) throw invalid("Choose a valid neighborhood endpoint record kind.");
     const allConnections = store.connections.get(workspace) ?? [];
     const allEvents = store.events.get(workspace) ?? [];
     const maxRecords = limit + 1;
@@ -1326,6 +1372,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     const seenConnections = new Set<string>();
     const events: TimelineEvent[] = [];
     const seenEvents = new Set<string>();
+    const recordKindMatches = (id: string) => !rawRecordKind || records.find((one) => one.record_id === id)?.kind === rawRecordKind;
     let frontier = [recordId];
     for (let level = 1; level <= depth && frontier.length; level += 1) {
       const next: string[] = [];
@@ -1337,6 +1384,8 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       };
       for (const current of frontier) {
         for (const connection of allConnections.filter((one) => one.from_record_id === current || one.to_record_id === current)) {
+          if (rawKind && connection.kind !== rawKind) continue;
+          if (rawRecordKind && !recordKindMatches(connection.from_record_id) && !recordKindMatches(connection.to_record_id)) continue;
           const fromVisible = addRecord(connection.from_record_id);
           const toVisible = addRecord(connection.to_record_id);
           if (!fromVisible || !toVisible) continue;
@@ -1351,6 +1400,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
         }
         for (const event of allEvents.filter((one) => one.participant_record_ids.includes(current) || one.location_record_id === current)) {
           const linked = [...event.participant_record_ids, ...(event.location_record_id ? [event.location_record_id] : [])];
+          if (rawRecordKind && !linked.some(recordKindMatches)) continue;
           if (!linked.every(addRecord)) continue;
           if (!seenEvents.has(event.event_id)) {
             seenEvents.add(event.event_id);
@@ -1385,16 +1435,44 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
     };
   }
 
+  const recordLifecycleMatch = /^\/workspaces\/([^/]+)\/records\/([^/]+)\/(archive|restore)$/.exec(req.path);
+  if (recordLifecycleMatch) {
+    const [, workspace, recordId, action] = recordLifecycleMatch;
+    const author = caller(req, workspace);
+    const records = store.records.get(workspace) ?? [];
+    const found = records.find((one) => one.record_id === recordId);
+    if (!found) throw missing();
+    if (req.method !== "POST") return undefined;
+    const now = new Date().toISOString();
+    const updated: ResearchRecord = action === "archive"
+      ? { ...found, archived_at: now, archived_by: author, updated_by: author, updated_at: now }
+      : { ...found, archived_at: undefined, archived_by: undefined, updated_by: author, updated_at: now };
+    store.records.set(workspace, [updated, ...records.filter((one) => one.record_id !== recordId)]);
+    const history = store.recordRevisions.get(recordId) ?? [];
+    store.recordRevisions.set(recordId, [...history, recordRevision(updated, author, history.length + 1)]);
+    return updated;
+  }
+
+  const recordRevisionMatch = /^\/workspaces\/([^/]+)\/records\/([^/]+)\/revisions$/.exec(req.path);
+  if (recordRevisionMatch) {
+    const [, workspace, recordId] = recordRevisionMatch;
+    caller(req, workspace);
+    if (req.method !== "GET") return undefined;
+    if (!(store.records.get(workspace) ?? []).some((one) => one.record_id === recordId)) throw missing();
+    return { items: (store.recordRevisions.get(recordId) ?? []).slice() };
+  }
+
   const recordMatch = /^\/workspaces\/([^/]+)\/records(?:\/([^/]+))?$/.exec(req.path);
   if (recordMatch) {
     const [, workspace, recordId] = recordMatch;
     const author = caller(req, workspace);
     if (req.method === "GET" && recordId === "summary") {
-      const records = store.records.get(workspace) ?? [];
+      const records = (store.records.get(workspace) ?? []).filter((one) => !one.archived_at);
       const resolutions = store.resolutions.get(workspace) ?? [];
+      const activeRecordIDs = new Set(records.map((one) => one.record_id));
       const cited = records.filter((one) => one.observation_ids.length > 0);
-      const open = new Set(resolutions.filter((one) => one.state === "proposed").flatMap((one) => [one.alias_record_id, one.canonical_record_id]));
-      const accepted = new Set(resolutions.filter((one) => one.state === "accepted").flatMap((one) => [one.alias_record_id, one.canonical_record_id]));
+      const open = new Set(resolutions.filter((one) => one.state === "proposed").flatMap((one) => [one.alias_record_id, one.canonical_record_id]).filter((id) => activeRecordIDs.has(id)));
+      const accepted = new Set(resolutions.filter((one) => one.state === "accepted").flatMap((one) => [one.alias_record_id, one.canonical_record_id]).filter((id) => activeRecordIDs.has(id)));
       return {
         record_count: records.length,
         kind_counts: Object.fromEntries(recordKinds.map((kind) => [kind, records.filter((one) => one.kind === kind).length])),
@@ -1416,13 +1494,16 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       const kind = String(req.params.kind ?? "").trim();
       const citation = String(req.params.citation ?? "").trim();
       const resolution = String(req.params.resolution ?? "").trim();
+      const archived = String(req.params.archived ?? "active").trim() || "active";
       if (query.length > 200) throw invalid("Research record search must be 200 characters or fewer.");
       if (kind && !recordKinds.includes(kind as ResearchRecordKind)) throw invalid("Choose a valid research record type.");
       if (citation && !["cited", "uncited"].includes(citation)) throw invalid("Choose cited or uncited records.");
       if (resolution && !["open", "accepted", "none"].includes(resolution)) throw invalid("Choose open, accepted, or no active resolution records.");
+      if (!["active", "archived", "all"].includes(archived)) throw invalid("Choose active, archived, or all records.");
       const resolutions = store.resolutions.get(workspace) ?? [];
       const hasResolution = (record: ResearchRecord, state: "proposed" | "accepted") => resolutions.some((one) => one.state === state && (one.alias_record_id === record.record_id || one.canonical_record_id === record.record_id));
       const filtered = records
+        .filter((one) => archived === "all" || archived === "active" && !one.archived_at || archived === "archived" && Boolean(one.archived_at))
         .filter((one) => !kind || one.kind === kind)
         .filter((one) => !citation || citation === "cited" && one.observation_ids.length > 0 || citation === "uncited" && one.observation_ids.length === 0)
         .filter((one) => !resolution || resolution === "open" && hasResolution(one, "proposed") || resolution === "accepted" && hasResolution(one, "accepted") || resolution === "none" && !hasResolution(one, "proposed") && !hasResolution(one, "accepted"))
@@ -1434,13 +1515,17 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
       const now = new Date().toISOString();
       const fresh: ResearchRecord = { record_id: nextId(), workspace_id: workspace, ...draft, ...(draft.description ? { description: draft.description } : {}), author, updated_by: author, created_at: now, updated_at: now };
       store.records.set(workspace, [fresh, ...records]);
+      store.recordRevisions.set(fresh.record_id, [recordRevision(fresh, author, 1)]);
       return fresh;
     }
     if (req.method === "PUT" && recordId) {
       const existing = records.find((one) => one.record_id === recordId);
       if (!existing) throw missing();
+      if (existing.archived_at) throw new AppError({ kind: "conflict", status: 409, message: "Archived research records must be restored before editing." });
       const updated: ResearchRecord = { ...existing, ...draft, ...(draft.description ? { description: draft.description } : { description: undefined }), updated_by: author, updated_at: new Date().toISOString() };
       store.records.set(workspace, [updated, ...records.filter((one) => one.record_id !== recordId)]);
+      const history = store.recordRevisions.get(recordId) ?? [];
+      store.recordRevisions.set(recordId, [...history, recordRevision(updated, author, history.length + 1)]);
       return updated;
     }
     return undefined;
@@ -2027,6 +2112,7 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
         question_id: nextId(), workspace_id: workspace, question: draft.question,
         ...(draft.context ? { context: draft.context } : {}), state: draft.state,
         ...(draft.resolution ? { resolution: draft.resolution } : {}),
+        ...(draft.context_kind && draft.context_id ? { context_kind: draft.context_kind, context_id: draft.context_id } : {}),
         author, updated_by: author, created_at: now, updated_at: now,
         observation_ids: draft.observation_ids,
       };
@@ -2041,6 +2127,8 @@ export const researchRoutes: MemoryRoute[] = [(req) => {
         updated_at: new Date().toISOString(), observation_ids: draft.observation_ids,
         context: draft.context || undefined,
         resolution: draft.resolution || undefined,
+        context_kind: draft.context_kind,
+        context_id: draft.context_id,
       };
       store.questions.set(workspace, [updated, ...questions.filter((one) => one.question_id !== questionId)]);
       return updated;

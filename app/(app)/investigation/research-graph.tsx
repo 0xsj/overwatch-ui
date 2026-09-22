@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { TimelineEvent } from "@/lib/services/events";
 import type { ResearchConnection } from "@/lib/services/research-connections";
 import type { ResearchRecord } from "@/lib/services/research-records";
 import { Badge } from "@/components/display";
@@ -26,7 +27,8 @@ const stateLabels: Record<ResearchConnection["state"], string> = {
 };
 
 type ReviewCounts = { open: number; conflicted: number; uncited: number };
-type RecordNodeData = { record: ResearchRecord; degree: number; reviewCounts: ReviewCounts; select?: () => void };
+type RecordNodeData = { record: ResearchRecord; degree: number; reviewCounts: ReviewCounts; selected?: boolean; select?: () => void };
+type EventNodeData = { event: TimelineEvent; select?: () => void };
 
 function reviewFlags(connection: ResearchConnection) {
   return connection.review_flags ?? {
@@ -37,9 +39,9 @@ function reviewFlags(connection: ResearchConnection) {
 }
 
 function RecordNode({ data, selected }: NodeProps) {
-  const { record, degree, reviewCounts, select } = data as unknown as RecordNodeData;
+  const { record, degree, reviewCounts, selected: focused, select } = data as unknown as RecordNodeData;
   const queueLabels = [reviewCounts.open ? `${reviewCounts.open} open` : "", reviewCounts.conflicted ? `${reviewCounts.conflicted} conflicting` : "", reviewCounts.uncited ? `${reviewCounts.uncited} uncited` : ""].filter(Boolean);
-  return <div className={s.node} data-selected={selected || undefined} role={select ? "button" : "group"} tabIndex={select ? 0 : -1} aria-label={`${select ? "Open " : ""}${record.kind} ${record.name}; ${degree} connection${degree === 1 ? "" : "s"}${queueLabels.length ? `; ${queueLabels.join(", ")}` : ""}`} onClick={(event) => { event.stopPropagation(); select?.(); }} onKeyDown={(event) => {
+  return <div className={s.node} data-selected={selected || focused || undefined} role={select ? "button" : "group"} tabIndex={select ? 0 : -1} aria-label={`${select ? "Open " : ""}${record.kind} ${record.name}; ${degree} connection${degree === 1 ? "" : "s"}${queueLabels.length ? `; ${queueLabels.join(", ")}` : ""}`} onClick={(event) => { event.stopPropagation(); select?.(); }} onKeyDown={(event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       select?.();
@@ -54,7 +56,23 @@ function RecordNode({ data, selected }: NodeProps) {
   </div>;
 }
 
-export function ResearchGraph({ records, connections, complete = true, onSelectRecord, onSelectConnection }: { records: ResearchRecord[]; connections: ResearchConnection[]; complete?: boolean; onSelectRecord?: (record: string) => void; onSelectConnection?: (connection: string) => void }) {
+function EventNode({ data, selected }: NodeProps) {
+  const { event, select } = data as unknown as EventNodeData;
+  return <div className={s.eventNode} data-selected={selected || undefined} role={select ? "button" : "group"} tabIndex={select ? 0 : -1} aria-label={`${select ? "Open " : ""}event ${event.title}`} onClick={(click) => { click.stopPropagation(); select?.(); }} onKeyDown={(keyboard) => {
+    if (keyboard.key === "Enter" || keyboard.key === " ") {
+      keyboard.preventDefault();
+      select?.();
+    }
+  }}>
+    <Handle type="target" position={Position.Left} className={s.handle} />
+    <Badge tone="accent">event</Badge>
+    <strong>{event.title}</strong>
+    <Text as="span" size="xs" tone="tertiary">{event.sort_date ?? event.reported_time ?? "Undated"}{event.location ? ` · ${event.location}` : ""}</Text>
+    <Handle type="source" position={Position.Right} className={s.handle} />
+  </div>;
+}
+
+export function ResearchGraph({ records, connections, events = [], complete = true, capped = false, selectedRecordID, emptyMessage = "Create research records to start the investigation map.", onSelectRecord, onSelectConnection, onSelectEvent }: { records: ResearchRecord[]; connections: ResearchConnection[]; events?: TimelineEvent[]; complete?: boolean; capped?: boolean; selectedRecordID?: string; emptyMessage?: string; onSelectRecord?: (record: string) => void; onSelectConnection?: (connection: string) => void; onSelectEvent?: (event: string) => void }) {
   const recordByID = useMemo(() => new Map(records.map((record) => [record.record_id, record])), [records]);
   const degree = useMemo(() => {
     const values = new Map<string, number>();
@@ -78,14 +96,25 @@ export function ResearchGraph({ records, connections, complete = true, onSelectR
     }
     return values;
   }, [connections]);
-  const nodes = useMemo<Node[]>(() => records.map((record, index) => ({
-    id: record.record_id,
-    type: "research-record",
-    position: { x: (index % 3) * 290, y: Math.floor(index / 3) * 150 },
-    data: { record, degree: degree.get(record.record_id) ?? 0, reviewCounts: reviewCounts.get(record.record_id) ?? { open: 0, conflicted: 0, uncited: 0 }, select: onSelectRecord ? () => onSelectRecord(record.record_id) : undefined },
-    draggable: false,
-  })), [degree, onSelectRecord, records, reviewCounts]);
-  const edges = useMemo<Edge[]>(() => connections.flatMap((connection) => {
+  const nodes = useMemo<Node[]>(() => {
+    const recordNodes = records.map((record, index) => ({
+      id: record.record_id,
+      type: "research-record",
+      position: { x: (index % 3) * 290, y: Math.floor(index / 3) * 150 },
+      data: { record, degree: degree.get(record.record_id) ?? 0, reviewCounts: reviewCounts.get(record.record_id) ?? { open: 0, conflicted: 0, uncited: 0 }, selected: record.record_id === selectedRecordID, select: onSelectRecord ? () => onSelectRecord(record.record_id) : undefined },
+      draggable: false,
+    }));
+    const eventNodes = events.map((event, index) => ({
+      id: `event:${event.event_id}`,
+      type: "research-event",
+      position: { x: 980, y: index * 150 },
+      data: { event, select: onSelectEvent ? () => onSelectEvent(event.event_id) : undefined },
+      draggable: false,
+    }));
+    return [...recordNodes, ...eventNodes];
+  }, [degree, events, onSelectEvent, onSelectRecord, records, reviewCounts, selectedRecordID]);
+  const edges = useMemo<Edge[]>(() => {
+    const connectionEdges = connections.flatMap((connection) => {
     if (!recordByID.has(connection.from_record_id) || !recordByID.has(connection.to_record_id)) return [];
     const flags = reviewFlags(connection);
     const reviewLabel = flags.conflicted ? "conflicting evidence" : flags.uncited ? "uncited" : flags.open ? "open hypothesis" : "reviewed evidence";
@@ -100,19 +129,36 @@ export function ResearchGraph({ records, connections, complete = true, onSelectR
       className: `${stateClass} ${queueClass}`.trim(),
       animated: connection.state === "proposed",
       ariaLabel: `${relationshipLabels[connection.kind]}, ${stateLabels[connection.state]}, ${reviewLabel}`,
+      data: { connectionID: connection.connection_id },
     } satisfies Edge];
-  }), [connections, recordByID]);
-  const nodeTypes = useMemo(() => ({ "research-record": RecordNode }), []);
+    });
+    const eventEdges = events.flatMap((event) => {
+      const participantIDs = [...new Set([...event.participant_record_ids, ...(event.location_record_id ? [event.location_record_id] : [])])];
+      if (!participantIDs.some((recordID) => recordByID.has(recordID))) return [];
+      return participantIDs.filter((recordID) => recordByID.has(recordID)).map((recordID) => ({
+        id: `event-edge:${event.event_id}:${recordID}`,
+        source: recordID,
+        target: `event:${event.event_id}`,
+        type: "smoothstep",
+        label: "participates in",
+        className: s.edgeEvent,
+        ariaLabel: `${recordByID.get(recordID)?.name ?? "Record"} participates in ${event.title}`,
+        data: { eventID: event.event_id },
+      } satisfies Edge));
+    });
+    return [...connectionEdges, ...eventEdges];
+  }, [connections, events, recordByID]);
+  const nodeTypes = useMemo(() => ({ "research-record": RecordNode, "research-event": EventNode }), []);
 
-  if (!records.length) return <Text size="sm" tone="tertiary">Create research records to start the investigation map.</Text>;
-  return <div className={s.map} aria-label="Research record map">
+  if (!records.length && !events.length) return <Text size="sm" tone="tertiary">{emptyMessage}</Text>;
+  return <div className={s.map} aria-label="Research record and event map">
     <div className={s.canvas}>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesConnectable={false} nodesDraggable={false} onEdgeClick={(_, edge) => onSelectConnection?.(edge.id)} fitView fitViewOptions={{ padding: 0.25 }} proOptions={{ hideAttribution: true }}>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesConnectable={false} nodesDraggable={false} onEdgeClick={(_, edge) => { const data = edge.data as { connectionID?: string; eventID?: string } | undefined; if (data?.connectionID) onSelectConnection?.(data.connectionID); else if (data?.eventID) onSelectEvent?.(data.eventID); }} fitView fitViewOptions={{ padding: 0.25 }} proOptions={{ hideAttribution: true }}>
       <Background gap={22} size={1} />
       <Controls showInteractive={false} />
       <MiniMap pannable zoomable className={s.minimap} />
       </ReactFlow>
     </div>
-    <div className={s.legend} aria-label="Research map legend"><Text size="xs" tone="tertiary">Map cues</Text><span className={s.legendItem}><i className={s.legendAccepted} />Accepted</span><span className={s.legendItem}><i className={s.legendProposed} />Proposed or deferred</span><span className={s.legendItem}><i className={s.legendConflicted} />Conflicting evidence</span><span className={s.legendItem}><i className={s.legendUncited} />Uncited</span><span className={s.muted}>{complete ? "All loaded map pages are shown." : "More records or relationships are available below."}</span></div>
+    <div className={s.legend} aria-label="Research map legend"><Text size="xs" tone="tertiary">Map cues</Text><span className={s.legendItem}><i className={s.legendAccepted} />Accepted</span><span className={s.legendItem}><i className={s.legendProposed} />Proposed or deferred</span><span className={s.legendItem}><i className={s.legendConflicted} />Conflicting evidence</span><span className={s.legendItem}><i className={s.legendUncited} />Uncited</span><span className={s.legendItem}><i className={s.legendEvent} />Timeline event</span><span className={s.muted}>{capped ? "Map budget reached. Increase the budget to load more." : complete ? "All loaded map pages are shown." : "More records or relationships are available below."}</span></div>
   </div>;
 }

@@ -99,8 +99,8 @@ export type ResearchConnectionReviewPage = { items: ResearchConnectionReview[]; 
 
 const base = (workspace: string) => "/workspaces/" + encodeURIComponent(workspace) + "/connections";
 
-export function listResearchConnections(http: HttpClient, workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "") {
-  return http.get<ResearchConnectionPage>(base(workspace), { params: { before, state: state || undefined, review: review || undefined, limit: 50 } });
+export function listResearchConnections(http: HttpClient, workspace: string, before?: string, state: ResearchConnectionState | "" = "", review: ResearchConnectionReviewFilter = "", query = "", kind?: ResearchConnectionKind, recordKind?: ResearchRecordKind) {
+  return http.get<ResearchConnectionPage>(base(workspace), { params: { before, q: query.trim() || undefined, state: state || undefined, review: review || undefined, kind: kind || undefined, record_kind: recordKind || undefined, limit: 50 } });
 }
 
 export function readResearchConnectionSummary(http: HttpClient, workspace: string) {

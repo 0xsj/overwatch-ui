@@ -11,7 +11,7 @@ import { createQuestion, updateQuestion, type WriteQuestion } from "@/lib/servic
 import { generateAssistance, reviewAssistanceProposal, setAssistanceProviderPolicy, type ReviewAssistanceProposal } from "@/lib/services/assistance";
 import { createEvent, createEventAccount, createEventCluster, createEventRelationship, reconcileEventAccounts, reviewEventCluster, reviewEventRelationship, updateEvent, type WriteEvent, type WriteEventAccount, type WriteEventCluster, type WriteEventRelationship } from "@/lib/services/events";
 import { addBriefSnapshotComment, assignBriefSnapshotReviewer, createBriefDraft, createBriefSnapshot, createBriefSnapshotShare, revokeBriefSnapshotShare, saveBrief, submitBriefSnapshotReview, type AddSnapshotComment, type SnapshotReviewAssignment, type SnapshotReviewDecision, type WriteBrief } from "@/lib/services/brief";
-import { createResearchRecord, updateResearchRecord, type WriteResearchRecord } from "@/lib/services/research-records";
+import { archiveResearchRecord, createResearchRecord, restoreResearchRecord, updateResearchRecord, type WriteResearchRecord } from "@/lib/services/research-records";
 import { createResearchConnection, createResearchConnectionReview, updateResearchConnection, type WriteResearchConnection } from "@/lib/services/research-connections";
 import { createResearchResolution, reviewResearchResolution, reverseResearchResolution, type ProposeResearchResolution, type ResearchResolutionDecision } from "@/lib/services/research-resolutions";
 import { createResearchResolutionSet, reviewResearchResolutionSet, reverseResearchResolutionSet, type ProposeResearchResolutionSet, type ResearchResolutionSetDecision } from "@/lib/services/research-resolution-sets";
@@ -222,6 +222,12 @@ export async function createResearchRecordAction(workspace: string, body: WriteR
 }
 export async function updateResearchRecordAction(workspace: string, record: string, body: WriteResearchRecord) {
   return attempt(async () => updateResearchRecord(await clientFor("research-records"), workspace, record, body));
+}
+export async function archiveResearchRecordAction(workspace: string, record: string) {
+  return attempt(async () => archiveResearchRecord(await clientFor("research-records"), workspace, record));
+}
+export async function restoreResearchRecordAction(workspace: string, record: string) {
+  return attempt(async () => restoreResearchRecord(await clientFor("research-records"), workspace, record));
 }
 export async function createResearchConnectionAction(workspace: string, body: WriteResearchConnection) {
   return attempt(async () => createResearchConnection(await clientFor("research-connections"), workspace, body));

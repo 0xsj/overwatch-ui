@@ -1,5 +1,6 @@
 import type { ResearchRecordKind } from "./index";
 import type { ResearchConnectionKind } from "../research-connections";
+import type { QuestionDraft } from "../questions/navigation";
 
 export type RecordCandidatePrefill = { kind: ResearchRecordKind; name: string; description?: string };
 export type RelationshipPrefill = { kind: ResearchConnectionKind; related: RecordCandidatePrefill; description?: string };
@@ -23,3 +24,23 @@ export const recordHref = (workspace: string, observation?: string | string[], c
   const path = `/investigation/${encodeURIComponent(workspace)}/records`;
   return `${path}${params.size ? `?${params}` : ""}`;
 };
+
+export type RecordCoverageQuestionDraftInput = {
+  recordId: string;
+  name: string;
+  kind: ResearchRecordKind;
+  description?: string;
+  status: string;
+  observationCount: number;
+  supportingCount: number;
+  contradictingCount: number;
+  unresolvedCount: number;
+  observationIds?: string[];
+};
+
+export const recordCoverageQuestionDraft = (input: RecordCoverageQuestionDraftInput): QuestionDraft => ({
+  prompt: `What evidence would corroborate or challenge the ${input.kind} record “${input.name}”?`,
+  context: `${input.description ? `${input.description.trim()} ` : ""}Record coverage is currently ${input.status.replaceAll("_", " ")}: ${input.observationCount} cited observation${input.observationCount === 1 ? "" : "s"}, ${input.supportingCount} supporting, ${input.contradictingCount} contradicting, and ${input.unresolvedCount} unresolved. Seek an independent or discriminating observation before treating the record as settled.`,
+  observation_ids: [...new Set(input.observationIds ?? [])].slice(0, 8),
+  origin: { kind: "record", id: input.recordId },
+});
